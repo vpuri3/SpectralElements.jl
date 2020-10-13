@@ -26,12 +26,18 @@ J = interpMat(xo,x)
 D = derivMat(x)
 B = Diagonal(w)
 
+# set up system for explicit solve
+#
+# -\del^2 u = f + BC
+#
 k = 4.
 ut = sin.(k*pi*x)
 f = (k*pi)^2 .* ut
 A = D'*B *D
 u = A[2:end-1,2:end-1] \ (B*f)[2:end-1]
 u = [0;u;0]
+
+
 
 println(norm(u - ut,Inf))
 
