@@ -1,9 +1,6 @@
 #!/usr/bin/env julia
 
-# struct Name
-#   field::OptionalType
-#   ...
-# end
+# single element 1D possion solver
 
 using SEM
 using FastGaussQuadrature
@@ -16,8 +13,7 @@ sum(A::AbstractArray, n::Int) = Base.sum(A, dims=n)
 sum(A) = Base.sum(A)
 flipdim(A, d) = reverse(A, dims=d)
 
-
-n = 16
+n = 32
 
 x ,w  = gausslobatto(n)
 xo    = linspace(-1,1,20*n)
@@ -30,7 +26,7 @@ J = interpMat(xo,x)
 D = derivMat(x)
 B = Diagonal(w)
 
-k = 1.
+k = 4.
 ut = sin.(k*pi*x)
 f = (k*pi)^2 .* ut
 A = D'*B *D
