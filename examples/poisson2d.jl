@@ -6,8 +6,11 @@
 # end
 
 using SEM
-using FastGaussQuadrature
+
+using FastGaussQuadrature, LinearOperators
 using Plots, LinearAlgebra
+
+import Krylov
 
 nx1 = 16; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
 ny1 = 16; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
@@ -53,6 +56,31 @@ ky=1
 ut = sin.(kx*pi*x1).*sin.(ky*pi*y1)
 f  = ut .* ((kx^2+ky^2)*pi^2);
 
+Br = Diagonal(wr1);
+Bs = Diagonal(ws1);
+Ar = Dr1'*Br*Dr1;
+As = Ds1'*Bs*Ds1;
+
+function laplOp(v)
+    v = reshape(v,nx1,ny1);
+    v = Ar*v*Bs' + Br*v*As';
+    v = M .* v;
+    v = reshape(v,nx1*ny1)
+    return v;
+end
+
+op = LinearOperator(nx1*ny1,nx1*ny1,true,true
+                   , v -> laplOp(v)
+                   , v -> laplOp(v)
+                   ,nothing)
+
+rhs = B1 .* f;
+rhs = reshape(rhs,nx1*ny1);
+u ,stats = Krylov.cg(op,rhs);
+u = reshape(u,nx1,ny1);
+
+
+
 # set up system for explicit solve
 #
 # -\del^2 u = f + BC
@@ -61,25 +89,32 @@ f  = ut .* ((kx^2+ky^2)*pi^2);
 # in the interior of the domain
 #
 
-Br = Diagonal(wr1);
-Bs = Diagonal(ws1);
-Ar = Dr1'*Br*Dr1;
-As = Ds1'*Bs*Ds1;
-
-AAr = Ar[2:end-1,2:end-1]; #remove Dirichlet BC
-AAs = As[2:end-1,2:end-1];
-BBr = Br[2:end-1,2:end-1];
-BBs = Bs[2:end-1,2:end-1];
-
-AA = kron(AAs,BBr) + kron(BBs,AAr);
-
-rhs = B1 .* f;
-rr  = rhs[2:end-1,2:end-1];
-rr  = reshape(rr,(nx1-2)*(ny1-2),1);
-
-# solve
-uu = AA \ rr;
-u  = zeros(nx1,ny1);
-u[2:end-1,2:end-1] = reshape(uu,nx1-2,ny1-2);
+#function laplOp(v)
+#    v = AA*v
+#end
+#
+#op = LinearOperator(196,196,true,true
+#                   , v -> laplOp(v)
+#                   , v -> laplOp(v)
+#                   ,nothing)
+#
+## solve
+#AAr = Ar[2:end-1,2:end-1]; #remove Dirichlet BC
+#AAs = As[2:end-1,2:end-1];
+#BBr = Br[2:end-1,2:end-1];
+#BBs = Bs[2:end-1,2:end-1];
+#
+#AA = kron(AAs,BBr) + kron(BBs,AAr);
+#
+#rhs = B1 .* f;
+#rr  = rhs[2:end-1,2:end-1];
+#rr  = reshape(rr,(nx1-2)*(ny1-2));
+#
+##uu = AA \ rr;
+#uu,stats = Krylov.cg(op,rr);
+#u  = zeros(nx1,ny1);
+#u[2:end-1,2:end-1] = reshape(uu,nx1-2,ny1-2);
 
 er = norm(ut-u,Inf)
+
+
