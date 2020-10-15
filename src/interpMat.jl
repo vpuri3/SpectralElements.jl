@@ -1,4 +1,6 @@
 #
+export interpMat
+#
 # Compute the Lagrange interpolation matrix from xi to xo
 #
 function interpMat(xo,xi)

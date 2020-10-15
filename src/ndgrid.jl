@@ -1,3 +1,6 @@
+#
+export ndgrid
+
 # This file was formerly a part of Julia. License is MIT: https://julialang.org/license
 
 ndgrid(v::AbstractVector) = copy(v)
