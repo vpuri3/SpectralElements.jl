@@ -14,13 +14,15 @@ include("derivMat.jl")
 include("semmesh.jl")
 include("semq.jl")
 
+include("ndgrid.jl")
+
 include("ABu.jl")
 include("jac.jl")
 include("grad.jl")
-include("mask.jl")
 include("gatherScatter.jl")
+include("mask.jl")
 include("mass.jl")
-
-include("ndgrid.jl")
+include("lapl.jl")
+#include("hlmholtz.jl")
 
 end

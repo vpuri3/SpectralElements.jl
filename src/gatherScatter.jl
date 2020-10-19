@@ -5,8 +5,8 @@ export gatherScatter
 #
 function gatherScatter(u,Qx,Qy);
 
-    Qu = ABu(Qy',Qx', u); # gather
-    Gu = ABu(Qy ,Qx ,Qu); # scatter
+     Qtu = ABu(Qy',Qx',  u); # gather
+    QQtu = ABu(Qy ,Qx ,Qtu); # scatter
 
-    return Gu
+    return QQtu
 end

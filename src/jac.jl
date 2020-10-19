@@ -10,13 +10,13 @@ function jac(x,y,Dr,Ds)
     yr = ABu([],Dr,y);
     ys = ABu(Ds,[],y);
     
-    J  = xr .* ys - xs .* yr;
-    Ji = 1 ./ J;
+    J  = @. xr * ys - xs * yr;
+    Ji = @. 1 / J;
     
-    rx =  Ji .* ys;
-    ry = -Ji .* xs;
-    sx = -Ji .* yr;
-    sy =  Ji .* xr;
+    rx = @.  Ji * ys;
+    ry = @. -Ji * xs;
+    sx = @. -Ji * yr;
+    sy = @.  Ji * xr;
 
     return J,Ji,rx,ry,sx,sy
 end
