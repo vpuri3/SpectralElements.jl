@@ -137,8 +137,8 @@ G22 = @. B1 * (sx1 * sx1 + sy1 * sy1);
 # case setup
 #----------------------------------------------------------------------#
 # prescribe forcing, true solution, boundary condition
-kx=2.
-ky=3.
+kx=1.
+ky=1.
 ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
 f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
@@ -151,16 +151,22 @@ b   = mass(f,B1,[],[],[]);
 #b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
 b  .= mass(b,[],M1,Qx1,Qy1);
 
-op = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
 ,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
 ,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
 ,nothing)
 
+opLaplHlmholtz = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),Bi1,[],[],[]),nx1*ny1*Ex*Ey)
+,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),Bi1,[],[],[]),nx1*ny1*Ex*Ey)
+,nothing)
+
 rhs = reshape(b,nx1*ny1*Ex*Ey);
-u ,stats = Krylov.cg(op,rhs); stats
+#u ,stats = Krylov.cg(opLapl,rhs,M=opLaplPrec,verbose=true);
+u ,stats = Krylov.cg(opLapl,rhs,verbose=false);
 
 u = reshape(u,nx1*Ex,ny1*Ey);
 #u = u + ub;
 
-er = norm(ut-u,Inf)
+norm(b,Inf),norm(ut-u,Inf),stats
 
