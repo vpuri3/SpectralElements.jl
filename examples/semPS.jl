@@ -26,11 +26,11 @@ ifad = 1;    # advect  vel, sclr
 ifpr = 1;    # project vel onto a div-free subspace
 ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 8; Ex = 4;
-ny1 = 8; Ey = 4;
+nx1 = 16; Ex = 2;
+ny1 = 16; Ey = 2;
 
-nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1; 
-ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1; 
+nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
+ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
@@ -136,9 +136,9 @@ G22 = @. B1 * (sx1 * sx1 + sy1 * sy1);
 #----------------------------------------------------------------------#
 # case setup
 #----------------------------------------------------------------------#
-# prescribe forcing, true solution, boundary condition
-kx=1.
-ky=1.
+# prescribe forcing, true solution, boundary data
+kx=2.
+ky=3.
 ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
 f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
@@ -147,26 +147,25 @@ ub = copy(ut);                       # boundary data
 #----------------------------------------------------------------------#
 
 # set up RHS
-b   = mass(f,B1,[],[],[]);
-#b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
-b  .= mass(b,[],M1,Qx1,Qy1);
+b   = mass(f,[],B1,[],[]);
+b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
+b  .= mass(b,M1,[],Qx1,Qy1);
 
 opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
 ,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
 ,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
 ,nothing)
 
-opLaplHlmholtz = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),Bi1,[],[],[]),nx1*ny1*Ex*Ey)
-,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),Bi1,[],[],[]),nx1*ny1*Ex*Ey)
+opMass = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
+,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
 ,nothing)
 
 rhs = reshape(b,nx1*ny1*Ex*Ey);
-#u ,stats = Krylov.cg(opLapl,rhs,M=opLaplPrec,verbose=true);
-u ,stats = Krylov.cg(opLapl,rhs,verbose=false);
+u ,stats = Krylov.cg(opLapl,rhs,verbose=true);
 
 u = reshape(u,nx1*Ex,ny1*Ey);
-#u = u + ub;
+u = u + ub;
 
 norm(b,Inf),norm(ut-u,Inf),stats
 

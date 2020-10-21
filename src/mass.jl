@@ -5,18 +5,18 @@ export mass
 #
 # implemented as
 #
-# QQ' * R'R * B_loc * R'R * u_loc
+# (QQ' * R'R * B_loc * R'R) * u_loc
 #
-function mass(u,B,M,Qx,Qy);
+function mass(u,M,B,Qx,Qy);
 
-    Mu = mask(u,M);
-    
-    if(length(B)==0); Bu =      Mu;
-    else              Bu = @. B*Mu;
-    end
-    
-    Bu = mask(Bu,M);
-    Bu = gatherScatter(Bu,Qx,Qy);
+Mu = mask(u,M);
 
-    return Bu
+if(length(B)==0); Bu =      Mu;
+else              Bu = @. B*Mu;
+end
+
+Bu = mask(Bu,M);
+Bu = gatherScatter(Bu,Qx,Qy);
+
+return Bu
 end

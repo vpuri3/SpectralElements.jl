@@ -5,21 +5,21 @@ export semq
 #
 function semq(E,n,bc)
 
-    Q = spzeros(E*n,E*(n-1)+1);
+Q = spzeros(E*n,E*(n-1)+1);
 
-    Id= sparse(I,n,n);#sparse(Diagonal(ones(n)));
-    i = 1;
-    j = 1;
-    for e=1:E
-        Q[i:(i+n-1),j:(j+n-1)] = Id;
-        i += n;
-        j += n-1;
-    end
-    
-    if(bc)
-        Q[end,1] = 1;
-        Q=Q[:,1:end-1];
-    end
+Id= sparse(I,n,n);#sparse(Diagonal(ones(n)));
+i = 1;
+j = 1;
+for e=1:E
+    Q[i:(i+n-1),j:(j+n-1)] = Id;
+    i += n;
+    j += n-1;
+end
 
-    return Q
+if(bc)
+    Q[end,1] = 1;
+    Q=Q[:,1:end-1];
+end
+
+return Q
 end
