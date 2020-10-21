@@ -26,8 +26,8 @@ ifad = 1;    # advect  vel, sclr
 ifpr = 1;    # project vel onto a div-free subspace
 ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 16; Ex = 2;
-ny1 = 16; Ey = 2;
+nx1 = 12; Ex = 2;
+ny1 = 12; Ey = 3;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
@@ -49,7 +49,7 @@ Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
 Drd = derivMat(zrd); Dsd = derivMat(zsd);
 
 #----------------------------------------------------------------------#
-# local operators -- /todo find better way
+# local operators
 #----------------------------------------------------------------------#
 wx1 = kron(ones(Ex,1),wr1); wy1 = kron(ones(Ey,1),ws1);
 wx2 = kron(ones(Ex,1),wr2); wy2 = kron(ones(Ey,1),ws2);
@@ -65,10 +65,8 @@ Dxd = kron(Iex,Drd); Dyd = kron(Iey,Dsd);
 Jx1d = kron(Iex,Jr1d); Jy1d = kron(Iey,Js1d);
 Jx21 = kron(Iex,Jr21); Jy21 = kron(Iey,Js21);
 
-Iex = nothing;
-Iey = nothing;
 #----------------------------------------------------------------------#
-# boundary conditionss
+# boundary conditions
 #----------------------------------------------------------------------#
 ifprdcX = false
 ifprdcY = false
@@ -82,10 +80,12 @@ Ry1 = Iy1[2:end-1,:];
 if(ifprdcX) Rx1 = Ix1; end
 if(ifprdcY) Ry1 = Iy1; end
 
-M1 = diag(Rx1'*Rx1) * diag(Ry1'*Ry1)'; # diagonal mask
+M1 = diag(Rx1'*Rx1) * diag(Ry1'*Ry1)';
 
-Ix1 = nothing;
-Iy1 = nothing;
+Ix1 = nothing
+Iy1 = nothing
+Rx1 = nothing
+Ry1 = nothing
 #----------------------------------------------------------------------#
 # mapping
 #----------------------------------------------------------------------#
@@ -145,12 +145,59 @@ ub = copy(ut);                       # boundary data
 #----------------------------------------------------------------------#
 # solve
 #----------------------------------------------------------------------#
+# CG solver misbehaving: 
+# - too many iterations on the eigen problem - often not converging
+# - Laplacian operator not hermitian for #Elem > 1.
+#
+# solutions: - create explicit system and  check its properties
+#            - write own CG solver
+#
+#----------------------------------------------------------------------#
+# Explicit system
+#----------------------------------------------------------------------#
+# restriction on global vector
+Ix1 = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1);
+Iy1 = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1);
+Rx1 = Ix1[2:end-1,:];
+Ry1 = Iy1[2:end-1,:];
+R   = kron(Ry1,Rx1);
 
-# set up RHS
-b   = mass(f,[],B1,[],[]);
-b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
-b  .= mass(b,M1,[],Qx1,Qy1);
+Q   = kron(Qy1,Qx1);
 
+Ix1 = Matrix(I,Ex*nx1,Ex*nx1); # deriv mats on local vector
+Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
+Dr  = kron(Iy1,Dx1);
+Ds  = kron(Dy1,Ix1);
+Drs = [Dr;Ds];
+
+B   = Diagonal(reshape(B1 ,:));
+g11 = Diagonal(reshape(G11,:));
+g12 = Diagonal(reshape(G12,:));
+g22 = Diagonal(reshape(G22,:));
+G   = [g11 g12; g12 g22];
+A   = Drs' * G * Drs;
+
+# full rank system acting on global, restricted vectors
+AA  = R * Q' * A * Q * R';
+BB  = R * Q' * B * Q * R';
+Qf = reshape(f,:);
+rhs = R * Q' * B * Qf;
+u ,stats = Krylov.cg(AA,rhs,verbose=true);
+
+# rank deficient system acting on local, unrestricted operators
+Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
+Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
+Rx1 = Ix1[2:end-1,:];
+Ry1 = Iy1[2:end-1,:];
+R   = kron(Ry1,Rx1); # Restriction on local vector
+M   = R'*R;
+QQt = Q*Q';
+
+Aloc = QQt * M * A * M;
+Bloc = QQt * M * B * M;
+rhs  = B * Qf;
+u ,stats = Krylov.cg(Aloc,rhs,verbose=true);
+#----------------------------------------------------------------------#
 opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
 ,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
 ,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
@@ -161,11 +208,13 @@ opMass = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
 ,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
 ,nothing)
 
+b   = mass(f,[],B1,[],[]);
+#b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
+b  .= mass(b,M1,[],Qx1,Qy1);
+
 rhs = reshape(b,nx1*ny1*Ex*Ey);
 u ,stats = Krylov.cg(opLapl,rhs,verbose=true);
-
 u = reshape(u,nx1*Ex,ny1*Ey);
-u = u + ub;
-
+#u = u + ub;
 norm(b,Inf),norm(ut-u,Inf),stats
 
