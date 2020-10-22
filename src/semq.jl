@@ -7,7 +7,7 @@ function semq(E,n,bc)
 
 Q = spzeros(E*n,E*(n-1)+1);
 
-Id= sparse(I,n,n);#sparse(Diagonal(ones(n)));
+Id= sparse(I,n,n);
 i = 1;
 j = 1;
 for e=1:E

@@ -21,13 +21,13 @@ import Krylov
 #----------------------------------------------------------------------#
 # setup
 #----------------------------------------------------------------------#
-ifvl = 1;    # evolve  vel field per NS eqn
-ifad = 1;    # advect  vel, sclr
-ifpr = 1;    # project vel onto a div-free subspace
-ifps = 0;    # evolve sclr per advection diffusion eqn
+#ifvl = 1;    # evolve  vel field per NS eqn
+#ifad = 1;    # advect  vel, sclr
+#ifpr = 1;    # project vel onto a div-free subspace
+#ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 12; Ex = 2;
-ny1 = 12; Ey = 3;
+nx1 = 8; Ex = 2;
+ny1 = 8; Ey = 2;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
@@ -137,11 +137,14 @@ G22 = @. B1 * (sx1 * sx1 + sy1 * sy1);
 # case setup
 #----------------------------------------------------------------------#
 # prescribe forcing, true solution, boundary data
-kx=2.
-ky=3.
+kx=1.
+ky=1.
 ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
 f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
+
+#f = @. 1+0*x1;
+#ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
 # solve
 #----------------------------------------------------------------------#
@@ -155,15 +158,41 @@ ub = copy(ut);                       # boundary data
 #----------------------------------------------------------------------#
 # Explicit system
 #----------------------------------------------------------------------#
+# Laplace Fast Diagonalization Preconditioner
+#Lx = max(max(xm1))-min(min(xm1));
+#Ly = max(max(ym1))-min(min(ym1));
+#
+#Br = (Lx/2)*diag(wrm1);
+#Bs = (Ly/2)*diag(wsm1);
+#Dr = (2/Lx)*Drm1;
+#Ds = (2/Ly)*Dsm1;
+#Ar = Dr'*Br*Dr;
+#As = Ds'*Bs*Ds;
+#
+#Br = Rx*Br*Rx';
+#Bs = Ry*Bs*Ry';
+#Ar = Rx*Ar*Rx';
+#As = Ry*As*Ry';
+#
+#[Sr,Lr] = eig(Ar,Br); Sri = inv(Sr);
+#[Ss,Ls] = eig(As,Bs); Ssi = inv(Ss);
+#Lfdm = diag(Lr) + diag(Ls)';
+#
+#function fdm(b,Bi,Sr,Ss,Sri,Ssi,Rx,Ry,Di);
+#u = b .* Bi;
+#u = ABu(Ry ,Rx ,u);
+#u = ABu(Ssi,Sri,u);
+#u = u .* Di;
+#u = ABu(Ss ,Sr ,u);
+#u = ABu(Ry',Rx',u);
+#return u;
+#end
+#----------------------------------------------------------------------#
 # restriction on global vector
-Ix1 = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1);
-Iy1 = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1);
-Rx1 = Ix1[2:end-1,:];
-Ry1 = Iy1[2:end-1,:];
+Ix1 = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1); Rx1 = Ix1[2:end-1,:];
+Iy1 = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1); Ry1 = Iy1[2:end-1,:];
 R   = kron(Ry1,Rx1);
-
 Q   = kron(Qy1,Qx1);
-
 Ix1 = Matrix(I,Ex*nx1,Ex*nx1); # deriv mats on local vector
 Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
 Dr  = kron(Iy1,Dx1);
@@ -177,14 +206,15 @@ g22 = Diagonal(reshape(G22,:));
 G   = [g11 g12; g12 g22];
 A   = Drs' * G * Drs;
 
-# full rank system acting on global, restricted vectors
+## full rank system acting on global, restricted vectors
 AA  = R * Q' * A * Q * R';
 BB  = R * Q' * B * Q * R';
-Qf = reshape(f,:);
-rhs = R * Q' * B * Qf;
-u ,stats = Krylov.cg(AA,rhs,verbose=true);
+Qf  = reshape(f,:);
+bb  = R * Q' * B * Qf;
+#uu ,stats = Krylov.cg(AA,bb,verbose=true);
+uu = pcg(bb,AA,[]);
 
-# rank deficient system acting on local, unrestricted operators
+## rank deficient system acting on local, unrestricted operators
 Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
 Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
 Rx1 = Ix1[2:end-1,:];
@@ -195,26 +225,29 @@ QQt = Q*Q';
 
 Aloc = QQt * M * A * M;
 Bloc = QQt * M * B * M;
-rhs  = B * Qf;
-u ,stats = Krylov.cg(Aloc,rhs,verbose=true);
+bloc = QQt * M * B * Qf;
+#uloc ,stats = Krylov.cg(Aloc,bloc,verbose=true);
+uloc = pcg(bloc,Aloc,[]);
 #----------------------------------------------------------------------#
-opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
-,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
-,nothing)
+#opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+#,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
+#,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
+#,nothing)
+#
+#opMass = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+#,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
+#,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
+#,nothing)
 
-opMass = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
-,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
-,nothing)
-
-b   = mass(f,[],B1,[],[]);
+#b   = mass(f,[],B1,[],[]);
 #b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
-b  .= mass(b,M1,[],Qx1,Qy1);
-
-rhs = reshape(b,nx1*ny1*Ex*Ey);
-u ,stats = Krylov.cg(opLapl,rhs,verbose=true);
-u = reshape(u,nx1*Ex,ny1*Ey);
+#b  .= mass(b,M1,[],Qx1,Qy1);
+#
+#rhs = reshape(b,nx1*ny1*Ex*Ey);
+#u ,stats = Krylov.cg(opLapl,rhs,verbose=false);
+#u = reshape(u,nx1*Ex,ny1*Ey);
 #u = u + ub;
-norm(b,Inf),norm(ut-u,Inf),stats
+#norm(b,Inf),norm(ut-u,Inf),stats
 
+#----------------------------------------------------------------------#
+[]

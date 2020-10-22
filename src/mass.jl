@@ -1,7 +1,7 @@
 #
 export mass
 #
-# (v,u) = (R'*Q*v)' * B * (R'*Q*u)
+# (v,u) = (Q*R'*v)' * B * (Q*R'*u)
 #
 # implemented as
 #

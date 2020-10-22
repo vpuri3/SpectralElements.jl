@@ -7,8 +7,8 @@ export lapl
 #
 # QQ' * R'R *
 #
-#  [Dr]'*[rx sx]'*[B 0 ]*[rx sx]*[Dr]*u
-#  [Ds]  [ry sy]  [0 B ] [ry sy] [Ds]    
+# [Dr]'*[rx sx]'*[B 0 ]*[rx sx]*[Dr]
+# [Ds]  [ry sy]  [0 B ] [ry sy] [Ds]    
 #
 # * R'R * u_loc
 #

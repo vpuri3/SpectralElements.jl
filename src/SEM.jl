@@ -23,6 +23,7 @@ include("gatherScatter.jl")
 include("mask.jl")
 include("mass.jl")
 include("lapl.jl")
-#include("hlmholtz.jl")
+
+include("cg.jl")
 
 end
