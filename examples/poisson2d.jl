@@ -5,12 +5,14 @@
 #   ...
 # end
 
-using SEM
+#using SEM
 
 using FastGaussQuadrature, LinearOperators
 using Plots, LinearAlgebra
+using SmoothLivePlot
 
-import Krylov
+using Krylov
+linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 
 nx1 = 16; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
 ny1 = 16; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
@@ -69,52 +71,55 @@ function laplOp(v)
     return v;
 end
 
-op = LinearOperator(nx1*ny1,nx1*ny1,true,true
-                   , v -> laplOp(v)
-                   , v -> laplOp(v)
-                   ,nothing)
+function linsolve(A,B)
+    return Krylov.cg(A,B);
+end
 
-rhs = B1 .* f;
-rhs = reshape(rhs,nx1*ny1);
-u ,stats = Krylov.cg(op,rhs);
-u = reshape(u,nx1,ny1);
+Zygote.@adjoint function linsolve(A,B)
+   Y,_ =  Krylov.cg(A,B)
+   return Y, function(Ȳ)
+     B̄,_ = Krylov.cg(A',Ȳ)
+     println(size(-B̄ * Y'))
+     return (-B̄ * Y', B̄)
+   end
+end
 
+function solve(c)
+    # f1(c)  = c.*ut .* ((kx^2+ky^2)*pi^2)
+    f1(c)  = c[1].*ut .* ((c[2]^2+c[3]^2)*pi^2)
+    op = LinearOperator(nx1*ny1,nx1*ny1,true,true
+                       , v -> laplOp(v)
+                       ,nothing
+                       ,nothing);
 
+    rhs = B1 .* f;
+    rhsf(c) = reshape(B1 .* f1(c),nx1*ny1);
+    u, stats = linsolve(op,rhsf(c));
+    _,gp=pullback((c)->laplOp(u).-rhsf(c),c)
+    #u ,stats = Krylov.cg(op,rhs);
+    Lu = u.-reshape(ut,nx1*ny1);
+    λ, stats = linsolve(op',Lu);
+    Lp = gp(λ)
+    u = reshape(u,nx1,ny1);
+    return u,Lp;
+end
 
-# set up system for explicit solve
-#
-# -\del^2 u = f + BC
-#
-# solve ( Ds'*Bs*Ds \kron Br + Bs \kron Dr'*Br*Dr) * u = (Bs \kron Br) * f
-# in the interior of the domain
-#
+function myplot(u,ut)
+    sleep(0.001)
+    fig1 = heatmap(u, clim = (minimum(ut),maximum(ut)))
+    fig2 = heatmap(ut.-u, clim = (-1e-3,1e-3))
+    plot(fig1, fig2, layout=2)
+end
 
-#function laplOp(v)
-#    v = AA*v
-#end
-#
-#op = LinearOperator(196,196,true,true
-#                   , v -> laplOp(v)
-#                   , v -> laplOp(v)
-#                   ,nothing)
-#
-## solve
-#AAr = Ar[2:end-1,2:end-1]; #remove Dirichlet BC
-#AAs = As[2:end-1,2:end-1];
-#BBr = Br[2:end-1,2:end-1];
-#BBs = Bs[2:end-1,2:end-1];
-#
-#AA = kron(AAs,BBr) + kron(BBs,AAr);
-#
-#rhs = B1 .* f;
-#rr  = rhs[2:end-1,2:end-1];
-#rr  = reshape(rr,(nx1-2)*(ny1-2));
-#
-##uu = AA \ rr;
-#uu,stats = Krylov.cg(op,rr);
-#u  = zeros(nx1,ny1);
-#u[2:end-1,2:end-1] = reshape(uu,nx1-2,ny1-2);
-
-er = norm(ut-u,Inf)
-
-
+global c = [0.1,0.6,2]
+u, Lp = solve(c)
+# fig = @makeLivePlot myplot(u,ut)
+sleep(1)
+for i = 1:50
+    #,c[1]*(c[2]^2+c[3]^2))
+    u1, Lp1 = solve(c)
+    println(sum(abs2,u1.-ut))
+    global c = c + .002*Lp1[1]
+    # modifyPlotObject!(fig,arg1=u1)
+    sleep(0.1)
+end
