@@ -26,8 +26,8 @@ import Krylov
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 8; Ex = 2;
-ny1 = 8; Ey = 2;
+nx1 = 12; Ex = 2;
+ny1 = 12; Ey = 2;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
@@ -119,6 +119,20 @@ Jac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dx2,Dy2);
 Jacd,Jacid,rxd,ryd,sxd,syd = jac(xd,yd,Dxd,Dyd);
 
 #----------------------------------------------------------------------#
+# case setup
+#----------------------------------------------------------------------#
+# prescribe forcing, true solution, boundary data
+kx=1.
+ky=1.
+ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
+f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
+ub = copy(ut);                       # boundary data
+
+visc = @. 1+0*x1;
+
+#f = @. 1+0*x1;
+#ub= @. 0+0*x1;
+#----------------------------------------------------------------------#
 # setup
 #----------------------------------------------------------------------#
 
@@ -129,22 +143,10 @@ Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
 # set up matrices for Laplace op.
-G11 = @. B1 * (rx1 * rx1 + ry1 * ry1);
-G12 = @. B1 * (rx1 * sx1 + ry1 * sy1);
-G22 = @. B1 * (sx1 * sx1 + sy1 * sy1);
+G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1);
+G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
+G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
 
-#----------------------------------------------------------------------#
-# case setup
-#----------------------------------------------------------------------#
-# prescribe forcing, true solution, boundary data
-kx=1.
-ky=1.
-ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
-f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
-ub = copy(ut);                       # boundary data
-
-#f = @. 1+0*x1;
-#ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
 # solve
 #----------------------------------------------------------------------#
@@ -158,7 +160,53 @@ ub = copy(ut);                       # boundary data
 #----------------------------------------------------------------------#
 # Explicit system
 #----------------------------------------------------------------------#
+# restriction on global vector
+Ix1 = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1); Rx1 = Ix1[2:end-1,:];
+Iy1 = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1); Ry1 = Iy1[2:end-1,:];
+R   = kron(Ry1,Rx1);
+Q   = kron(Qy1,Qx1);
+Ix1 = Matrix(I,Ex*nx1,Ex*nx1); # deriv mats on local vector
+Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
+Dr  = kron(Iy1,Dx1);
+Ds  = kron(Dy1,Ix1);
+Drs = [Dr;Ds];
+
+B   = Diagonal(reshape(B1 ,:));
+g11 = Diagonal(reshape(G11,:));
+g12 = Diagonal(reshape(G12,:));
+g22 = Diagonal(reshape(G22,:));
+G   = [g11 g12; g12 g22];
+A   = Drs' * G * Drs;
+
+## full rank system acting on global, restricted vectors
+AA  = R * Q' * A * Q * R';
+BB  = R * Q' * B * Q * R';
+Qf  = reshape(f,:);
+bb  = R * Q' * B * Qf;
+#uu ,stats = Krylov.cg(AA,bb,verbose=true);
+uu = pcg(bb,AA,[]);
+uu = Q * R' * uu;
+uu = reshape(uu,Ex*nx1,Ey*ny1);
+
+## rank deficient system acting on local, unrestricted operators
+Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
+Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
+Rx1 = Ix1[2:end-1,:];
+Ry1 = Iy1[2:end-1,:];
+R   = kron(Ry1,Rx1); # Restriction on local vector
+M   = R'*R;
+QQt = Q*Q';
+
+Aloc = QQt * M * A * M;
+Bloc = QQt * M * B * M;
+bloc = QQt * M * B * Qf;
+#uloc ,stats = Krylov.cg(Aloc,bloc,verbose=true);
+uloc = pcg(bloc,Aloc,[]);
+uloc = reshape(uloc,Ex*nx1,Ey*ny1);
+
+#----------------------------------------------------------------------#
 # Laplace Fast Diagonalization Preconditioner
+#----------------------------------------------------------------------#
 #Lx = max(max(xm1))-min(min(xm1));
 #Ly = max(max(ym1))-min(min(ym1));
 #
@@ -187,47 +235,6 @@ ub = copy(ut);                       # boundary data
 #u = ABu(Ry',Rx',u);
 #return u;
 #end
-#----------------------------------------------------------------------#
-# restriction on global vector
-Ix1 = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1); Rx1 = Ix1[2:end-1,:];
-Iy1 = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1); Ry1 = Iy1[2:end-1,:];
-R   = kron(Ry1,Rx1);
-Q   = kron(Qy1,Qx1);
-Ix1 = Matrix(I,Ex*nx1,Ex*nx1); # deriv mats on local vector
-Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
-Dr  = kron(Iy1,Dx1);
-Ds  = kron(Dy1,Ix1);
-Drs = [Dr;Ds];
-
-B   = Diagonal(reshape(B1 ,:));
-g11 = Diagonal(reshape(G11,:));
-g12 = Diagonal(reshape(G12,:));
-g22 = Diagonal(reshape(G22,:));
-G   = [g11 g12; g12 g22];
-A   = Drs' * G * Drs;
-
-## full rank system acting on global, restricted vectors
-AA  = R * Q' * A * Q * R';
-BB  = R * Q' * B * Q * R';
-Qf  = reshape(f,:);
-bb  = R * Q' * B * Qf;
-#uu ,stats = Krylov.cg(AA,bb,verbose=true);
-uu = pcg(bb,AA,[]);
-
-## rank deficient system acting on local, unrestricted operators
-Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
-Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
-Rx1 = Ix1[2:end-1,:];
-Ry1 = Iy1[2:end-1,:];
-R   = kron(Ry1,Rx1); # Restriction on local vector
-M   = R'*R;
-QQt = Q*Q';
-
-Aloc = QQt * M * A * M;
-Bloc = QQt * M * B * M;
-bloc = QQt * M * B * Qf;
-#uloc ,stats = Krylov.cg(Aloc,bloc,verbose=true);
-uloc = pcg(bloc,Aloc,[]);
 #----------------------------------------------------------------------#
 #opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
 #,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
