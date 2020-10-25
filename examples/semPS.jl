@@ -148,6 +148,37 @@ G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
 G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
 
 #----------------------------------------------------------------------#
+# Laplace Fast Diagonalization Preconditioner
+#----------------------------------------------------------------------#
+#rx = rx1[1];
+#sy = sy1[1];
+#Ja = Jac1[1];
+#Br = Ja*diag(wrm1);
+#Bs = Ja*diag(wsm1);
+#Dr = rx*Dr1;
+#Ds = sy*Ds1;
+#Ar = Dr'*Br*Dr;
+#As = Ds'*Bs*Ds;
+#
+#Br = Rx*Br*Rx';
+#Bs = Ry*Bs*Ry';
+#Ar = Rx*Ar*Rx';
+#As = Ry*As*Ry';
+
+#[Sr,Lr] = eig(Ar,Br); Sri = inv(Sr);
+#[Ss,Ls] = eig(As,Bs); Ssi = inv(Ss);
+#Lfdm = diag(Lr) + diag(Ls)';
+#
+#function fdm(b,Bi,Sr,Ss,Sri,Ssi,Rx,Ry,Di);
+#u = b .* Bi;
+#u = ABu(Ry ,Rx ,u);
+#u = ABu(Ssi,Sri,u);
+#u = u .* Di;
+#u = ABu(Ss ,Sr ,u);
+#u = ABu(Ry',Rx',u);
+#return u;
+#end
+#----------------------------------------------------------------------#
 # solve
 #----------------------------------------------------------------------#
 # CG solver misbehaving: 
@@ -183,8 +214,8 @@ AA  = R * Q' * A * Q * R';
 BB  = R * Q' * B * Q * R';
 Qf  = reshape(f,:);
 bb  = R * Q' * B * Qf;
-#uu ,stats = Krylov.cg(AA,bb,verbose=true);
-uu = pcg(bb,AA,[]);
+uu ,stuu = Krylov.cg(AA,bb);
+#uu = pcg(bb,AA,[]);
 uu = Q * R' * uu;
 uu = reshape(uu,Ex*nx1,Ey*ny1);
 
@@ -200,61 +231,30 @@ QQt = Q*Q';
 Aloc = QQt * M * A * M;
 Bloc = QQt * M * B * M;
 bloc = QQt * M * B * Qf;
-#uloc ,stats = Krylov.cg(Aloc,bloc,verbose=true);
-uloc = pcg(bloc,Aloc,[]);
+uloc ,stloc = Krylov.cgne(Aloc,bloc);
+uloc,stloc = Krylov.cg(Aloc,bloc);
+#uloc = pcg(bloc,Aloc,[]);
 uloc = reshape(uloc,Ex*nx1,Ey*ny1);
 
 #----------------------------------------------------------------------#
-# Laplace Fast Diagonalization Preconditioner
-#----------------------------------------------------------------------#
-#Lx = max(max(xm1))-min(min(xm1));
-#Ly = max(max(ym1))-min(min(ym1));
-#
-#Br = (Lx/2)*diag(wrm1);
-#Bs = (Ly/2)*diag(wsm1);
-#Dr = (2/Lx)*Drm1;
-#Ds = (2/Ly)*Dsm1;
-#Ar = Dr'*Br*Dr;
-#As = Ds'*Bs*Ds;
-#
-#Br = Rx*Br*Rx';
-#Bs = Ry*Bs*Ry';
-#Ar = Rx*Ar*Rx';
-#As = Ry*As*Ry';
-#
-#[Sr,Lr] = eig(Ar,Br); Sri = inv(Sr);
-#[Ss,Ls] = eig(As,Bs); Ssi = inv(Ss);
-#Lfdm = diag(Lr) + diag(Ls)';
-#
-#function fdm(b,Bi,Sr,Ss,Sri,Ssi,Rx,Ry,Di);
-#u = b .* Bi;
-#u = ABu(Ry ,Rx ,u);
-#u = ABu(Ssi,Sri,u);
-#u = u .* Di;
-#u = ABu(Ss ,Sr ,u);
-#u = ABu(Ry',Rx',u);
-#return u;
-#end
-#----------------------------------------------------------------------#
-#opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-#,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
-#,v->reshape(lapl(reshape(v,nx1*Ex,ny1*Ey),M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22),nx1*ny1*Ex*Ey)
-#,nothing)
-#
-#opMass = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-#,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
-#,v->reshape(mass(reshape(v,nx1*Ex,ny1*Ey),M1,B1,Qx1,Qy1),nx1*ny1*Ex*Ey)
-#,nothing)
+function laplOp(v)
+    v = reshape(v,nx1*Ex,ny1*Ey)
+    w = lapl(v,M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22);
+    w = reshape(w,nx1*ny1*Ex*Ey);
+    return w
+end
+opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+                        ,v->laplOp(v),v->laplOp(v),nothing)
 
-#b   = mass(f,[],B1,[],[]);
+b   = mass(f,[],B1,[],[]);
 #b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
-#b  .= mass(b,M1,[],Qx1,Qy1);
-#
-#rhs = reshape(b,nx1*ny1*Ex*Ey);
-#u ,stats = Krylov.cg(opLapl,rhs,verbose=false);
-#u = reshape(u,nx1*Ex,ny1*Ey);
+b  .= mass(b,M1,[],Qx1,Qy1);
+
+r  = reshape(b,nx1*ny1*Ex*Ey);
+u,st = Krylov.cgls(opLapl,r);
+u = reshape(u,nx1*Ex,ny1*Ey);
 #u = u + ub;
-#norm(b,Inf),norm(ut-u,Inf),stats
+#norm(b,Inf),norm(ut-u,Inf)
 
 #----------------------------------------------------------------------#
-[]
+nothing
