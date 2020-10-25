@@ -4,6 +4,7 @@ module SEM
 using FastGaussQuadrature
 using LinearAlgebra
 using SparseArrays
+using Zygote
 
 linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 
@@ -25,5 +26,7 @@ include("mass.jl")
 include("lapl.jl")
 
 include("cg.jl")
+
+include("adjoint.jl")
 
 end

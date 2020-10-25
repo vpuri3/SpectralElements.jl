@@ -5,12 +5,12 @@
 #   ...
 # end
 
-using SEM
+using .SEM
 
 using FastGaussQuadrature, LinearOperators
 using Plots, LinearAlgebra
 using SmoothLivePlot
-using Zygote
+using DiffEqFlux, Flux, Zygote, Optim
 
 using Krylov
 linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
@@ -43,7 +43,6 @@ Bd  = (wrd * wsd') .* Jacd;
 Bi1 = 1 ./ B1;
 Bid = 1 ./ Bd;
 
-#B1 = Jr1d'*Bd*Js1d;  # dealias
 #----------------------------------------------------------------------#
 # all hom. dirichlet BC
 #----------------------------------------------------------------------#
@@ -53,73 +52,76 @@ M = m1 * m2';
 #----------------------------------------------------------------------#
 # case setup
 #----------------------------------------------------------------------#
-kx=2
-ky=3
-visc = @. 1 + 0*x1;
-ut = sin.(kx*pi*x1).*sin.(ky*pi*y1)
-f  = ut .* ((kx^2+ky^2)*pi^2);
 
-#----------------------------------------------------------------------#
-# set up Laplace operator
-rx1 = @. 1+0*x1;
-ry1 = @. 0+0*x1;
-sx1 = @. 0+0*x1;
-sy1 = @. 1+0*x1;
+function setup(visc, f)
+    # set up Laplace operator
+    rx1 = @. 1+0*x1;
+    ry1 = @. 0+0*x1;
+    sx1 = @. 0+0*x1;
+    sy1 = @. 1+0*x1;
 
-G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1);
-G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
-G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
+    G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1);
+    G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
+    G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
 
-function laplOp(v)
-    v = reshape(v,nx1,ny1);
-    v = lapl(v,M,[],[],Dr1,Ds1,G11,G12,G22);
-    v = reshape(v,nx1*ny1)
-    return v;
+    function laplOp(v)
+        v = reshape(v,nx1,ny1);
+        v = lapl(v,M,[],[],Dr1,Ds1,G11,G12,G22);
+        v = reshape(v,nx1*ny1)
+        return v;
+    end
+
+    rhs = B1 .* f; rhs = reshape(rhs,nx1*ny1);
+
+    return laplOp, rhs
 end
+
+
 # verify solver
-op = LinearOperator(nx1*ny1,nx1*ny1,true,true,v->laplOp(v),nothing,nothing);
-rhs = B1 .* f; rhs = reshape(rhs,nx1*ny1);
-uloc,stat = Krylov.cg(op,rhs);
-uloc = reshape(uloc,nx1,ny1);
-println(norm(uloc-ut,Inf));
-println(norm(B1.*f - lapl(ut,M,[],[],Dr1,Ds1,G11,G12,G22),Inf));
+# laplOp, rhs = setup(visc, f)
+# op = LinearOperator(nx1*ny1,nx1*ny1,true,true,v->laplOp(v),nothing,nothing);
+# uloc,stat = Krylov.cg(op,rhs);
+# uloc = reshape(uloc,nx1,ny1);
+# println(norm(uloc-ut,Inf));
+# println(norm(B1.*f - lapl(ut,M,[],[],Dr1,Ds1,Gs...),Inf));
+
 #----------------------------------------------------------------------#
-# varun do your magic
+# Adjoint
 #----------------------------------------------------------------------#
 
-function linsolve(A,B)
-    return Krylov.cg(A,B);
+# Set forward/backwards solver
+function solver(lhs, rhs, adj::Bool)
+    op = LinearOperator(length(rhs),length(rhs),true,true,v->lhs(v),nothing,nothing)
+    if !adj
+        return Krylov.cg(op,rhs)[1]
+    else
+        return Krylov.cg(op',rhs)[1]
+    end
 end
 
-Zygote.@adjoint function linsolve(A,B)
-   Y,_ =  Krylov.cg(A,B)
-   return Y, function(Ȳ)
-     B̄,_ = Krylov.cg(A',Ȳ)
-     println(size(-B̄ * Y'))
-     return (-B̄ * Y', B̄)
-   end
+# Setup problem (returns lhs and rhs)
+kx=1
+ky=1
+ut = sin.(kx*pi*x1).*sin.(ky*pi*y1)
+function problem(p)
+    visc = @. p[1] + 0*x1;
+    f  = p[2] .* ut .* ((kx^2+ky^2)*pi^2);
+    return setup(visc, f)
 end
 
-function solve(c)
-    # f1(c)  = c.*ut .* ((kx^2+ky^2)*pi^2)
-    f1(c)  = c[1].*ut .* ((c[2]^2+c[3]^2)*pi^2)
-    op = LinearOperator(nx1*ny1,nx1*ny1,true,true
-                       , v -> laplOp(v)
-                       ,nothing
-                       ,nothing);
-
-    rhs = B1 .* f;
-    rhsf(c) = reshape(B1 .* f1(c),nx1*ny1);
-    u, stats = linsolve(op,rhsf(c));
-    _,gp=pullback((c)->laplOp(u).-rhsf(c),c)
-    #u ,stats = Krylov.cg(op,rhs);
-    Lu = u.-reshape(ut,nx1*ny1);
-    λ, stats = linsolve(op',Lu);
-    Lp = gp(λ)
-    u = reshape(u,nx1,ny1);
-    return u,Lp;
+# Model and Loss
+function model(p)
+    u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
+    u = reshape(u,nx1,ny1)
 end
 
+function loss(p)
+    u = model(p)
+    l = sum((u.-ut).^2)
+    return l, u
+end
+
+# Training and plotting
 function myplot(u,ut)
     sleep(0.001)
     fig1 = heatmap(u, clim = (minimum(ut),maximum(ut)))
@@ -127,15 +129,15 @@ function myplot(u,ut)
     plot(fig1, fig2, layout=2)
 end
 
-global c = [0.1,0.6,2]
-u, Lp = solve(c)
-# fig = @makeLivePlot myplot(u,ut)
-sleep(1)
-for i = 1:50
-    #,c[1]*(c[2]^2+c[3]^2))
-    u1, Lp1 = solve(c)
-    println(norm(u1-ut,2))
-    global c = c + .002*Lp1[1]
-    # modifyPlotObject!(fig,arg1=u1)
-    sleep(0.1)
+callback = function (p, l, pred; doplot = false)
+  display(l)
+  if doplot
+      modifyPlotObject!(fig,arg1=pred)
+  end
+  return false
 end
+
+p0 = [0.1,1.5]
+# fig = @makeLivePlot myplot(model(p0),ut)
+# sleep(10)
+result = DiffEqFlux.sciml_train(loss, p0, LBFGS(), cb = callback, maxiters = 200)
