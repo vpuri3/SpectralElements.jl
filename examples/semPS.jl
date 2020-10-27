@@ -26,18 +26,18 @@ import Krylov
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 12; Ex = 2;
-ny1 = 12; Ey = 2;
+nx1 = 32; Ex = 1;
+ny1 = 32; Ey = 1;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
-zr1,wr1 = gausslobatto(nx1);  zs1,ws1 = gausslobatto(ny1);
-zr2,wr2 = gausslobatto(nx2);  zs2,ws2 = gausslobatto(ny2);
-zrd,wrd = gausslobatto(nxd);  zsd,wsd = gausslobatto(nyd);
-zro     = linspace(-1,1,nxo); zso     = linspace(-1,1,nyo);
+zr1,wr1 = gausslobatto(nx1); zs1,ws1 = gausslobatto(ny1);
+zr2,wr2 = gausslobatto(nx2); zs2,ws2 = gausslobatto(ny2);
+zrd,wrd = gausslobatto(nxd); zsd,wsd = gausslobatto(nyd);
+zro     =linspace(-1,1,nxo); zso     =linspace(-1,1,nyo);
 
 Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
 Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
@@ -130,8 +130,8 @@ ub = copy(ut);                       # boundary data
 
 visc = @. 1+0*x1;
 
-#f = @. 1+0*x1;
-#ub= @. 0+0*x1;
+f = @. 1+0*x1;
+ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
 # setup
 #----------------------------------------------------------------------#
@@ -148,46 +148,46 @@ G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
 G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
 
 #----------------------------------------------------------------------#
-# Laplace Fast Diagonalization Preconditioner
-#----------------------------------------------------------------------#
-#rx = rx1[1];
-#sy = sy1[1];
-#Ja = Jac1[1];
-#Br = Ja*diag(wrm1);
-#Bs = Ja*diag(wsm1);
-#Dr = rx*Dr1;
-#Ds = sy*Ds1;
-#Ar = Dr'*Br*Dr;
-#As = Ds'*Bs*Ds;
-#
-#Br = Rx*Br*Rx';
-#Bs = Ry*Bs*Ry';
-#Ar = Rx*Ar*Rx';
-#As = Ry*As*Ry';
-
-#[Sr,Lr] = eig(Ar,Br); Sri = inv(Sr);
-#[Ss,Ls] = eig(As,Bs); Ssi = inv(Ss);
-#Lfdm = diag(Lr) + diag(Ls)';
-#
-#function fdm(b,Bi,Sr,Ss,Sri,Ssi,Rx,Ry,Di);
-#u = b .* Bi;
-#u = ABu(Ry ,Rx ,u);
-#u = ABu(Ssi,Sri,u);
-#u = u .* Di;
-#u = ABu(Ss ,Sr ,u);
-#u = ABu(Ry',Rx',u);
-#return u;
-#end
-#----------------------------------------------------------------------#
 # solve
 #----------------------------------------------------------------------#
 # CG solver misbehaving: 
 # - too many iterations on the eigen problem - often not converging
 # - Laplacian operator not hermitian for #Elem > 1.
 #
-# solutions: - create explicit system and  check its properties
-#            - write own CG solver
+#----------------------------------------------------------------------#
+# Laplace Fast Diagonalization Preconditioner
+#----------------------------------------------------------------------#
+rx = rx1[1];
+sy = sy1[1];
+Ja = Jac1[1];
+Bx = Matrix(Diagonal(wr1 ./ rx));
+By = Matrix(Diagonal(ws1 ./ rx));
+Dx = rx*Dr1;
+Dy = sy*Ds1;
+Ax = Dx'*Bx*Dx;
+Ay = Dy'*By*Dy;
 #
+#Br = Rx*Br*Rx';
+#Bs = Ry*Bs*Ry';
+#Ar = Rx*Ar*Rx';
+#As = Ry*As*Ry';
+
+Lx,Sx = eigen(Ax,Bx); Sxi = inv(Sx);
+Ly,Sy = eigen(Ay,By); Syi = inv(Sy);
+ox=ones(size(Lx));
+oy=ones(size(Ly));
+Lfdm  = Lx*oy' + ox*Ly';
+Lfdmi = 1 ./ Lfdm;
+for j=1:ny1 for i=1:nx1
+    if(abs(Lfdmi[i,j])>1e8) Lfdmi[i,j] = 0; end
+end end
+Sx  = kron(Iex,Sx ); Sy  = kron(Iey,Sy );
+Sxi = kron(Iex,Sxi); Syi = kron(Iey,Syi);
+Lfdmi = kron(ones(Ex,Ey),Lfdmi);
+
+Li = Diagonal(reshape(Lfdmi,:));
+Bi = Diagonal(reshape(Bi1  ,:));
+FD = kron(Sy,Sx) * Li * kron(Syi,Sxi) * Bi;
 #----------------------------------------------------------------------#
 # Explicit system
 #----------------------------------------------------------------------#
@@ -209,7 +209,7 @@ g22 = Diagonal(reshape(G22,:));
 G   = [g11 g12; g12 g22];
 A   = Drs' * G * Drs;
 
-## full rank system acting on global, restricted vectors
+# full rank system acting on global, restricted vectors
 AA  = R * Q' * A * Q * R';
 BB  = R * Q' * B * Q * R';
 Qf  = reshape(f,:);
@@ -219,20 +219,20 @@ uu ,stuu = Krylov.cg(AA,bb);
 uu = Q * R' * uu;
 uu = reshape(uu,Ex*nx1,Ey*ny1);
 
-## rank deficient system acting on local, unrestricted operators
+# Restriction on local vector
 Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
 Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
 Rx1 = Ix1[2:end-1,:];
 Ry1 = Iy1[2:end-1,:];
-R   = kron(Ry1,Rx1); # Restriction on local vector
+R   = kron(Ry1,Rx1);
 M   = R'*R;
 QQt = Q*Q';
 
+# rank deficient system acting on local, unrestricted operators
 Aloc = QQt * M * A * M;
 Bloc = QQt * M * B * M;
 bloc = QQt * M * B * Qf;
-uloc ,stloc = Krylov.cgne(Aloc,bloc);
-uloc,stloc = Krylov.cg(Aloc,bloc);
+uloc,stloc = Krylov.cgls(Aloc,bloc);
 #uloc = pcg(bloc,Aloc,[]);
 uloc = reshape(uloc,Ex*nx1,Ey*ny1);
 
@@ -243,15 +243,24 @@ function laplOp(v)
     w = reshape(w,nx1*ny1*Ex*Ey);
     return w
 end
+function laplFdmOp(v)
+    v = reshape(v,nx1*Ex,ny1*Ey)
+    w = lapl_fdm(v,Bi1,Sx,Sy,Sxi,Syi,Lfdmi);
+    w = reshape(w,nx1*ny1*Ex*Ey);
+    return w
+end
 opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-                        ,v->laplOp(v),v->laplOp(v),nothing)
+                        ,v->laplOp(v),nothing,nothing)
+
+opLaplFdm = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
+                        ,v->laplFdmOp(v),nothing,nothing)
 
 b   = mass(f,[],B1,[],[]);
 #b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
 b  .= mass(b,M1,[],Qx1,Qy1);
 
 r  = reshape(b,nx1*ny1*Ex*Ey);
-u,st = Krylov.cgls(opLapl,r);
+u,st = Krylov.cg(opLapl,r,M=opLaplFdm);
 u = reshape(u,nx1*Ex,ny1*Ey);
 #u = u + ub;
 #norm(b,Inf),norm(ut-u,Inf)

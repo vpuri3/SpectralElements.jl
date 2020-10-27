@@ -1,12 +1,12 @@
 #
 export mass
-#
-# (v,u) = (Q*R'*v)' * B * (Q*R'*u)
-#
-# implemented as
-#
-# (QQ' * R'R * B_loc * R'R) * u_loc
-#
+"""
+ (v,u) = (Q*R'*v)' * B * (Q*R'*u)
+
+ implemented as
+
+ (QQ' * R'R * B_loc * R'R) * u_loc
+"""
 function mass(u,M,B,Qx,Qy);
 
 Mu = mask(u,M);
