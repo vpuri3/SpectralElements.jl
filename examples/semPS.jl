@@ -260,7 +260,7 @@ b   = mass(f,[],B1,[],[]);
 b  .= mass(b,M1,[],Qx1,Qy1);
 
 r  = reshape(b,nx1*ny1*Ex*Ey);
-u,st = Krylov.cg(opLapl,r,M=opLaplFdm);
+u,st = Krylov.cg(opLapl,r);
 u = reshape(u,nx1*Ex,ny1*Ey);
 #u = u + ub;
 #norm(b,Inf),norm(ut-u,Inf)
