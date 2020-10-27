@@ -11,6 +11,7 @@ using FastGaussQuadrature, LinearOperators
 using Plots, LinearAlgebra
 using SmoothLivePlot
 using DiffEqFlux, Flux, Zygote, Optim
+using NLopt
 
 using Krylov
 linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
@@ -78,10 +79,12 @@ end
 
 
 # verify solver
-# laplOp, rhs = setup(visc, f)
-# op = LinearOperator(nx1*ny1,nx1*ny1,true,true,v->laplOp(v),nothing,nothing);
-# uloc,stat = Krylov.cg(op,rhs);
-# uloc = reshape(uloc,nx1,ny1);
+visc, f = ones(nx1,ny1), ones(nx1,ny1)
+laplOp, rhs = setup(visc, f)
+op = LinearOperator(nx1*ny1,nx1*ny1,true,true,v->laplOp(v),nothing,nothing);
+uloc,stat = Krylov.cg(op,rhs);
+uloc = reshape(uloc,nx1,ny1);
+display(heatmap(uloc))
 # println(norm(uloc-ut,Inf));
 # println(norm(B1.*f - lapl(ut,M,[],[],Dr1,Ds1,Gs...),Inf));
 
@@ -89,55 +92,92 @@ end
 # Adjoint
 #----------------------------------------------------------------------#
 
-# Set forward/backwards solver
-function solver(lhs, rhs, adj::Bool)
-    op = LinearOperator(length(rhs),length(rhs),true,true,v->lhs(v),nothing,nothing)
-    if !adj
-        return Krylov.cg(op,rhs)[1]
-    else
-        return Krylov.cg(op',rhs)[1]
-    end
-end
-
-# Setup problem (returns lhs and rhs)
-kx=1
-ky=1
-ut = sin.(kx*pi*x1).*sin.(ky*pi*y1)
-function problem(p)
-    visc = @. p[1] + 0*x1;
-    f  = p[2] .* ut .* ((kx^2+ky^2)*pi^2);
-    return setup(visc, f)
-end
-
-# Model and Loss
-function model(p)
-    u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
-    u = reshape(u,nx1,ny1)
-end
-
-function loss(p)
-    u = model(p)
-    l = sum((u.-ut).^2)
-    return l, u
-end
-
-# Training and plotting
-function myplot(u,ut)
-    sleep(0.001)
-    fig1 = heatmap(u, clim = (minimum(ut),maximum(ut)))
-    fig2 = heatmap(ut.-u, clim = (-1e-3,1e-3))
-    plot(fig1, fig2, layout=2)
-end
-
-callback = function (p, l, pred; doplot = false)
-  display(l)
-  if doplot
-      modifyPlotObject!(fig,arg1=pred)
-  end
-  return false
-end
-
-p0 = [0.1,1.5]
-# fig = @makeLivePlot myplot(model(p0),ut)
-# sleep(10)
-result = DiffEqFlux.sciml_train(loss, p0, LBFGS(), cb = callback, maxiters = 200)
+# # Set forward/backwards solver
+# function solver(lhs, rhs, adj::Bool)
+#     op = LinearOperator(length(rhs),length(rhs),true,true,v->lhs(v),nothing,nothing)
+#     if !adj
+#         return Krylov.cg(op,rhs)[1]
+#     else
+#         return Krylov.cg(op',rhs)[1]
+#     end
+# end
+#
+# # Setup problem (returns lhs and rhs)
+# # kx=1
+# # ky=1
+# # ut = sin.(kx*pi*x1).*sin.(ky*pi*y1)
+# V = 4
+# p = 5
+# ε = 1e-3
+# α = 1e-4
+# f1 = 1e-2 .+ 0*x1
+# k(a) = @. ε + (1-ε)*a^p
+# function problem(p)
+#     visc = p#k(p)
+#     f  =  f1
+#     return setup(visc, f)
+# end
+#
+# # Model and Loss
+# function model(p)
+#     u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
+#     u = reshape(u,nx1,ny1)
+# end
+#
+# function loss(a)
+#     u = model(a)
+#     adx = Dr1*a
+#     ady = Ds1*a
+#     l = sum(B1.*f1.*u)
+#     l += α*sum(B1.*adx.*adx)
+#     l += α*sum(B1.*ady.*ady)
+#     return l, u
+# end
+#
+# function fmin(a::Vector, grad::Vector)
+#     a = reshape(a,nx1,ny1)
+#     if length(grad)>0
+#         grad[:] = gradient((a)->loss(a)[1], a)[1][:]
+#     end
+#     return loss(a)[1]
+# end
+# function fc(a::Vector, grad::Vector)
+#     a = reshape(a,nx1,ny1)
+#     ineq(a) = sum(B1.*a) .- V
+#     if length(grad)>0
+#         grad[:] = gradient((a)->ineq(a), a)[1][:]
+#     end
+#     return ineq(a)
+# end
+#
+# # Training and plotting
+# function myplot(u,ut)
+#     sleep(0.001)
+#     fig1 = heatmap(u, clim = (minimum(ut),maximum(ut)))
+#     fig2 = heatmap(ut.-u, clim = (-1e-3,1e-3))
+#     plot(fig1, fig2, layout=2)
+# end
+#
+# callback = function (p, l, pred; doplot = false)
+#   display(l)
+#   if doplot
+#       modifyPlotObject!(fig,arg1=pred)
+#   end
+#   return false
+# end
+#
+# p0 = ones(nx1,ny1)
+# # fig = @makeLivePlot myplot(model(p0),ut)
+# # sleep(10)
+# opt = NLopt.Opt(:LD_MMA, length(p0))
+# opt.min_objective = fmin
+# opt.lower_bounds = 0.
+# opt.upper_bounds = 1.
+# inequality_constraint!(opt, fc)
+# opt.maxtime = 120
+# opt.xtol_abs = 1e-7
+# opt.xtol_rel = 1e-7
+# #(optf,optx,ret) = NLopt.optimize(opt, p0[:])
+# #result = DiffEqFlux.sciml_train(loss, p0, ADAM(1e-7), cb = callback, maxiters = 200)
+# #heatmap(model(reshape(optx,nx1,ny1)))
+# #heatmap(reshape(optx,nx1,ny1))
