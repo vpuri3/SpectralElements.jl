@@ -1,8 +1,8 @@
 #
-export ABu, ABu!
-#
-# v <- kron(As,Br) * u
-#
+export ABu
+"""
+ (As kron Br) * u
+"""
 function ABu(As,Br,u)
 
 #   v = Array{Float64}(undef,size(Br,1),size(As,1));

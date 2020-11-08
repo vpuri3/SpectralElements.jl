@@ -1,9 +1,9 @@
 #
 export grad
-#
-# [ux]' = [rx sx]*[ur]
-# [uy]  = [ry sy] [us]
-#
+"""
+ [ux]' = [rx sx]*[Dr] * u\n
+ [uy]  = [ry sy] [Ds]
+"""
 function grad(u,Dr,Ds,rx,ry,sx,sy)
 
 ur = ABu([],Dr,u);
