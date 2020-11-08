@@ -10,13 +10,19 @@
 #    ny1::Int
 #end
 
-using .SEM
+using SEM
 
 using FastGaussQuadrature
 using Plots, LinearAlgebra, SparseArrays
 
 using LinearOperators
 import Krylov
+
+import  Zygote
+
+import NLopt
+import DiffEqFlux, Optim
+#using Optim
 
 linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 #----------------------------------------------------------------------#
@@ -113,29 +119,15 @@ x1,y1 = ndgrid(x1e,y1e);
 x2,y2 = ndgrid(x2e,y2e);
 xd,yd = ndgrid(xde,yde);
 
+x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
+x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
+xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
+
 # deform grid with gordonhall
 
 Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dx1,Dy1);
 Jac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dx2,Dy2);
 Jacd,Jacid,rxd,ryd,sxd,syd = jac(xd,yd,Dxd,Dyd);
-
-#----------------------------------------------------------------------#
-# case setup
-#----------------------------------------------------------------------#
-# prescribe forcing, true solution, boundary data
-kx=1.
-ky=1.
-ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
-f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
-ub = copy(ut);                       # boundary data
-
-visc = @. 1+0*x1;
-
-f = @. 1+0*x1;
-ub= @. 0+0*x1;
-#----------------------------------------------------------------------#
-# setup
-#----------------------------------------------------------------------#
 
 # diagonal mass matrix
 B1  = Jac1 .* (wx1*wy1');
@@ -143,130 +135,10 @@ B2  = Jac2 .* (wx2*wy2');
 Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
-# # set up matrices for Laplace op.
-# G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1);
-# G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
-# G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
-#
-# #----------------------------------------------------------------------#
-# # solve
-# #----------------------------------------------------------------------#
-# # CG solver misbehaving:
-# # - too many iterations on the eigen problem - often not converging
-# # - Laplacian operator not hermitian for #Elem > 1.
-# #
-# #----------------------------------------------------------------------#
-# # Laplace Fast Diagonalization Preconditioner
-# #----------------------------------------------------------------------#
-# rx = rx1[1];
-# sy = sy1[1];
-# Ja = Jac1[1];
-# Bx = Matrix(Diagonal(wr1 ./ rx));
-# By = Matrix(Diagonal(ws1 ./ rx));
-# Dx = rx*Dr1;
-# Dy = sy*Ds1;
-# Ax = Dx'*Bx*Dx;
-# Ay = Dy'*By*Dy;
-# #
-# #Br = Rx*Br*Rx';
-# #Bs = Ry*Bs*Ry';
-# #Ar = Rx*Ar*Rx';
-# #As = Ry*As*Ry';
-#
-# Lx,Sx = eigen(Ax,Bx); Sxi = inv(Sx);
-# Ly,Sy = eigen(Ay,By); Syi = inv(Sy);
-# ox=ones(size(Lx));
-# oy=ones(size(Ly));
-# Lfdm  = Lx*oy' + ox*Ly';
-# Lfdmi = 1 ./ Lfdm;
-# for j=1:ny1 for i=1:nx1
-#     if(abs(Lfdmi[i,j])>1e8) Lfdmi[i,j] = 0; end
-# end end
-# Sx  = kron(Iex,Sx ); Sy  = kron(Iey,Sy );
-# Sxi = kron(Iex,Sxi); Syi = kron(Iey,Syi);
-# Lfdmi = kron(ones(Ex,Ey),Lfdmi);
-#
-# Li = Diagonal(reshape(Lfdmi,:));
-# Bi = Diagonal(reshape(Bi1  ,:));
-# FD = kron(Sy,Sx) * Li * kron(Syi,Sxi) * Bi;
-# #----------------------------------------------------------------------#
-# # Explicit system
-# #----------------------------------------------------------------------#
-# # restriction on global vector
-# Ix1 = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1); Rx1 = Ix1[2:end-1,:];
-# Iy1 = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1); Ry1 = Iy1[2:end-1,:];
-# R   = kron(Ry1,Rx1);
-# Q   = kron(Qy1,Qx1);
-# Ix1 = Matrix(I,Ex*nx1,Ex*nx1); # deriv mats on local vector
-# Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
-# Dr  = kron(Iy1,Dx1);
-# Ds  = kron(Dy1,Ix1);
-# Drs = [Dr;Ds];
-#
-# B   = Diagonal(reshape(B1 ,:));
-# g11 = Diagonal(reshape(G11,:));
-# g12 = Diagonal(reshape(G12,:));
-# g22 = Diagonal(reshape(G22,:));
-# G   = [g11 g12; g12 g22];
-# A   = Drs' * G * Drs;
-#
-# # full rank system acting on global, restricted vectors
-# AA  = R * Q' * A * Q * R';
-# BB  = R * Q' * B * Q * R';
-# Qf  = reshape(f,:);
-# bb  = R * Q' * B * Qf;
-# uu ,stuu = Krylov.cg(AA,bb);
-# #uu = pcg(bb,AA,[]);
-# uu = Q * R' * uu;
-# uu = reshape(uu,Ex*nx1,Ey*ny1);
-#
-# # Restriction on local vector
-# Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
-# Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
-# Rx1 = Ix1[2:end-1,:];
-# Ry1 = Iy1[2:end-1,:];
-# R   = kron(Ry1,Rx1);
-# M   = R'*R;
-# QQt = Q*Q';
-#
-# # rank deficient system acting on local, unrestricted operators
-# Aloc = QQt * M * A * M;
-# Bloc = QQt * M * B * M;
-# bloc = QQt * M * B * Qf;
-# uloc,stloc = Krylov.cgls(Aloc,bloc);
-# #uloc = pcg(bloc,Aloc,[]);
-# uloc = reshape(uloc,Ex*nx1,Ey*ny1);
-#
-# #----------------------------------------------------------------------#
-# function laplOp(v)
-#     v = reshape(v,nx1*Ex,ny1*Ey)
-#     w = lapl(v,M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22);
-#     w = reshape(w,nx1*ny1*Ex*Ey);
-#     return w
-# end
-# function laplFdmOp(v)
-#     v = reshape(v,nx1*Ex,ny1*Ey)
-#     w = lapl_fdm(v,Bi1,Sx,Sy,Sxi,Syi,Lfdmi);
-#     w = reshape(w,nx1*ny1*Ex*Ey);
-#     return w
-# end
-# opLapl = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-#                         ,v->laplOp(v),nothing,nothing)
-#
-# opLaplFdm = LinearOperator(nx1*ny1*Ex*Ey,nx1*ny1*Ex*Ey,true,true
-#                         ,v->laplFdmOp(v),nothing,nothing)
-#
-# b   = mass(f,[],B1,[],[]);
-# #b .-= lapl(ub,[],[],[],Dx1,Dy1,G11,G12,G22);
-# b  .= mass(b,M1,[],Qx1,Qy1);
-#
-# r  = reshape(b,nx1*ny1*Ex*Ey);
-# u,st = Krylov.cg(opLapl,r);
-# u = reshape(u,nx1*Ex,ny1*Ey);
-# #u = u + ub;
-# #norm(b,Inf),norm(ut-u,Inf)
-
 #----------------------------------------------------------------------#
+# setup
+#----------------------------------------------------------------------#
+
 function setup(visc, f)
 
     G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1)
@@ -280,17 +152,17 @@ function setup(visc, f)
         return w
     end
 
-    b   = mass(f,[],B1,[],[])
-    b   = mass(b,M1,[],Qx1,Qy1)
+    b = mass(f,[],B1,[],[])
+    b = mass(b,M1,[],Qx1,Qy1)
 
     rhs  = reshape(b,nx1*ny1*Ex*Ey);
 
     return laplOp, rhs
 end
 
-# Set forward/backwards solver
 function solver(lhs, rhs, adj::Bool)
-    op = LinearOperator(length(rhs),length(rhs),true,true,v->lhs(v),nothing,nothing)
+    op = LinearOperator(length(rhs),length(rhs),true,true,
+                        v->lhs(v),nothing,nothing)
     if !adj
         return Krylov.cg(op,rhs)[1]
     else
@@ -298,24 +170,6 @@ function solver(lhs, rhs, adj::Bool)
     end
 end
 
-# Setup problem (returns lhs and rhs)
-V = 4
-p = 5
-ε = 1e-3
-α = 1e2
-f1 = 1e-2 .+ 0*x1
-k(a) = @. ε + (1-ε)*a^p
-kx=1.
-ky=1.
-ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
-M1[1,:] .= 1; M1[:,end] .= 1
-function problem(p)
-    visc = k(p)
-    f  = f1
-    return setup(visc, f)
-end
-
-# Model and Loss
 function model(p)
     u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
     u = reshape(u,nx1*Ex,ny1*Ey)
@@ -323,32 +177,92 @@ end
 
 function loss(a)
     u = model(a)
-    adx = Dr1*a
-    ady = Ds1*a
-    l = sum(B1.*f1.*u)
-    l += α*sum(B1.*adx.*adx)
-    l += α*sum(B1.*ady.*ady)
-    # l = 0.5*sum(abs2,u.-ut)
-    return l, u
+    adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
+    vv  = @. f1*u + α*(adx^2+ady^2);
+    l   = sum(B1.*vv);
+    return l,u
 end
 
+#----------------------------------------------------------------------#
+# test solver
+#----------------------------------------------------------------------#
+kx   = 1.
+ky   = 1.
+ut   = @. sin(kx*pi*x1)*sin(ky*pi*y1) # true solution
+f    = @. ut*((kx^2+ky^2)*pi^2);      # forcing/RHS
+ub   = copy(ut);                      # boundary data
+visc = @. 1+0*x1;
+
+op,r = setup(visc,f)
+u = solver(op,r,false)
+u = reshape(u,nx1*Ex,ny1*Ey)
+display(norm(u-ut,Inf))
+
+#----------------------------------------------------------------------#
+# set up case
+#----------------------------------------------------------------------#
+V = 0.4
+p = 5
+ε = 1e-3
+α = 1e-4
+f1 = 1e-2 .+ 0*x1
+k(a) = @. ε + (1-ε)*a^p
+M1[1,:]   .= 1;
+M1[:,end] .= 1;
+function problem(p)
+    visc = k(p)
+    f  = f1
+    return setup(visc, f)
+end
+
+#----------------------------------------------------------------------#
+# NLopt.Optimize
+#----------------------------------------------------------------------#
 function fmin(a::Vector, grad::Vector)
     a = reshape(a,nx1*Ex,ny1*Ey)
     if length(grad)>0
-        grad[:] = gradient((a)->loss(a)[1], a)[1][:]
+        grad[:] = Zygote.gradient((a)->loss(a)[1], a)[1][:]
     end
     return loss(a)[1]
 end
+
 function fc(a::Vector, grad::Vector)
     a = reshape(a,nx1*Ex,ny1*Ey)
     ineq(a) = sum(B1.*a) .- V
     if length(grad)>0
-        grad[:] = gradient((a)->ineq(a), a)[1][:]
+        grad[:] = Zygote.gradient((a)->ineq(a), a)[1][:]
     end
     return ineq(a)
 end
 
-# Training and plotting
+# set up and run optimizer
+a0 = rand(nx1*Ex,ny1*Ey)
+a0 = 0.4*ones(nx1*Ex,ny1*Ey)
+
+fig = mesh(x1,y1,model(a0)); display(fig);
+
+opt = NLopt.Opt(:LD_MMA, length(a0))
+opt.min_objective = fmin
+NLopt.inequality_constraint!(opt, fc)
+opt.lower_bounds = 0.
+opt.upper_bounds = 1.
+opt.maxeval = 20
+opt.xtol_abs = 1e-8
+opt.xtol_rel = 1e-8
+
+(optf,optx,ret) = NLopt.optimize(opt, a0[:])
+
+opta = reshape(optx,nx1*Ex,ny1*Ey)
+numevals = opt.numevals
+println("started with loss ",loss(a0)[1])
+println("got $optf after $numevals iterations (returned $ret)")
+fig = mesh(x1,y1,model(opta)); display(fig);
+#----------------------------------------------------------------------#
+# DiffEqFlux.sciml_train
+#----------------------------------------------------------------------#
+a0 = rand(nx1*Ex,ny1*Ey)
+a0 = 0.4*ones(nx1*Ex,ny1*Ey)
+
 global param = []
 callback = function (p, l, pred; doplot = false)
   display(l)
@@ -359,20 +273,6 @@ callback = function (p, l, pred; doplot = false)
   return false
 end
 
-p0 = rand(nx1*Ex,ny1*Ey)
-# fig = @makeLivePlot myplot(model(p0),ut)
-# sleep(10)
-opt = NLopt.Opt(:LD_MMA, length(p0))
-opt.min_objective = fmin
-opt.lower_bounds = 0.
-opt.upper_bounds = 1.
-# inequality_constraint!(opt, fc)
-opt.maxtime = 60
-opt.xtol_abs = 1e-6
-opt.xtol_rel = 1e-4
-#(optf,optx,ret) = NLopt.optimize(opt, p0[:])
-result = DiffEqFlux.sciml_train(loss, p0, Fminbox(GradientDescent()),
-                                lower_bounds=0, upper_bounds=1, allow_f_increases = true,
-                                cb = callback, maxiters = 200)
-#heatmap(model(reshape(optx,nx1,ny1)))
-#heatmap(reshape(optx,nx1*Ex,ny1*Ey))
+result = DiffEqFlux.sciml_train(loss,a0,Optim.Fminbox(Optim.GradientDescent()),
+        lower_bounds=0, upper_bounds=1, allow_f_increases = true,
+        cb = callback, maxiters = 20)
