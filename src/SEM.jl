@@ -7,9 +7,11 @@ using SparseArrays
 using Zygote
 using Plots
 
-linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
+export linspace
 
-# import ...
+linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
+sum(A::AbstractArray, n::Int) = Base.sum(A, dims=n)
+sum(A) = Base.sum(A)
 
 # SEM building blocks
 include("interpMat.jl")
@@ -21,18 +23,17 @@ include("semq.jl")
 include("ndgrid.jl")
 include("plt.jl")
 
-# spectral element
+# operators
 include("ABu.jl")
 include("jac.jl")
 include("grad.jl")
-include("gatherScatter.jl")
 include("mask.jl")
 include("mass.jl")
 include("lapl.jl")
-
+include("gatherScatter.jl")
+include("gordonHall.jl")
 include("cg.jl")
 
 include("adjoint.jl")
-include("gordonHall.jl")
 
 end
