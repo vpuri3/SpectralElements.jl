@@ -10,19 +10,20 @@
 #    ny1::Int
 #end
 
-using SEM
+using .SEM
 
 using FastGaussQuadrature
 using Plots, LinearAlgebra, SparseArrays
 
 using LinearOperators
-import Krylov
+using Krylov
 
-import  Zygote
+using  Zygote
 
-import NLopt
-import DiffEqFlux, Optim
-import Flux
+using NLopt
+using DiffEqFlux, Optim
+using Flux
+using SmoothLivePlot
 
 #linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 #----------------------------------------------------------------------#
@@ -33,11 +34,11 @@ import Flux
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 16; Ex = 1;
-ny1 = 16; Ey = 1;
+nx1 = 32; Ex = 1;
+ny1 = 32; Ey = 1;
 
-nx2 = nx1-2; nxd = ceil(1.5*nx1); nxo = 10*nx1;
-ny2 = nx1-2; nyd = ceil(1.5*ny1); nyo = 10*ny1;
+nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
+ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
@@ -119,9 +120,9 @@ x1,y1 = ndgrid(x1e,y1e);
 x2,y2 = ndgrid(x2e,y2e);
 xd,yd = ndgrid(xde,yde);
 
-x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
-x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
-xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
+# x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
+# x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
+# xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
 
 # deform grid with gordonhall
 
@@ -170,19 +171,6 @@ function solver(lhs, rhs, adj::Bool)
     end
 end
 
-function model(p)
-    u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
-    u = reshape(u,nx1*Ex,ny1*Ey)
-end
-
-function loss(a)
-    u = model(a)
-    adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
-    vv  = @. f1*u + α*(adx^2+ady^2);
-    l   = sum(B1.*vv);
-    return l,u
-end
-
 #----------------------------------------------------------------------#
 # test solver
 #----------------------------------------------------------------------#
@@ -201,70 +189,98 @@ println("solver working fine, residual: ",nrm)
 #----------------------------------------------------------------------#
 # set up case
 #----------------------------------------------------------------------#
+
 V = 0.4
 p = 5
 ε = 1e-3
 α = 1e-4
 f1 = 1e-2 .+ 0*x1
 k(a) = @. ε + (1-ε)*a^p
-M1[1,:]   .= 1;
-M1[:,end] .= 1;
+at = y1.^2 # true solution
+M1[:,1] .= 1; M1[:,end] .= 1
+
 function problem(p)
     visc = k(p)
     f  = f1
     return setup(visc, f)
 end
 
+function model(p)
+    u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
+    u = reshape(u,nx1*Ex,ny1*Ey)
+end
+
+ut = model(at)
+af(p) = @. 0.5*(tanh(p)+1)
+function loss(p)
+    a = af(p)
+    u = model(a)
+    # adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
+    # vv  = @. f1*u + α*(adx^2+ady^2);
+    # l   = sum(B1.*vv);
+    l = 0.5*sum(abs2,u.-ut)
+    return l, u
+end
+
 #----------------------------------------------------------------------#
 # NLopt.Optimize
 #----------------------------------------------------------------------#
-function fmin(a::Vector, grad::Vector)
-    a = reshape(a,nx1*Ex,ny1*Ey)
-    if length(grad)>0
-        grad[:] = Zygote.gradient((a)->loss(a)[1], a)[1][:]
-    end
-    return loss(a)[1]
-end
-
-function fc(a::Vector, grad::Vector)
-    a = reshape(a,nx1*Ex,ny1*Ey)
-    ineq(a) = sum(B1.*a) .- V
-    if length(grad)>0
-        grad[:] = Zygote.gradient((a)->ineq(a), a)[1][:]
-    end
-    return ineq(a)
-end
-
-# set up and run optimizer
-a0 = rand(nx1*Ex,ny1*Ey)
-a0 = 0.4*ones(nx1*Ex,ny1*Ey)
-
-fig = mesh(x1,y1,model(a0)); display(fig);
-
-opt = NLopt.Opt(:LD_MMA, length(a0))
-opt.min_objective = fmin
-NLopt.inequality_constraint!(opt, fc)
-opt.lower_bounds = 0.
-opt.upper_bounds = 1.
-opt.maxeval = 20
-opt.xtol_abs = 1e-8
-opt.xtol_rel = 1e-8
-
-#(optf,optx,ret) = NLopt.optimize(opt, a0[:])
-
-#opta = reshape(optx,nx1*Ex,ny1*Ey)
-#numevals = opt.numevals
-#println("started with loss ",loss(a0)[1])
-#println("got $optf after $numevals iterations (returned $ret)")
-#fig = mesh(x1,y1,model(opta)); display(fig);
+# function fmin(a::Vector, grad::Vector)
+#     a = reshape(a,nx1*Ex,ny1*Ey)
+#     if length(grad)>0
+#         grad[:] = Zygote.gradient((a)->loss(a)[1], a)[1][:]
+#     end
+#     return loss(a)[1]
+# end
+#
+# function fc(a::Vector, grad::Vector)
+#     a = reshape(a,nx1*Ex,ny1*Ey)
+#     ineq(a) = sum(B1.*a) .- V
+#     if length(grad)>0
+#         grad[:] = Zygote.gradient((a)->ineq(a), a)[1][:]
+#     end
+#     return ineq(a)
+# end
+#
+# # set up and run optimizer
+# a0 = rand(nx1*Ex,ny1*Ey)
+# a0 = 0.4*ones(nx1*Ex,ny1*Ey)
+#
+# fig = mesh(x1,y1,model(a0)); display(fig);
+#
+# opt = NLopt.Opt(:LD_MMA, length(a0))
+# opt.min_objective = fmin
+# NLopt.inequality_constraint!(opt, fc)
+# opt.lower_bounds = 0.
+# opt.upper_bounds = 1.
+# opt.maxeval = 20
+# opt.xtol_abs = 1e-8
+# opt.xtol_rel = 1e-8
+#
+# #(optf,optx,ret) = NLopt.optimize(opt, a0[:])
+#
+# #opta = reshape(optx,nx1*Ex,ny1*Ey)
+# #numevals = opt.numevals
+# #println("started with loss ",loss(a0)[1])
+# #println("got $optf after $numevals iterations (returned $ret)")
+# #fig = mesh(x1,y1,model(opta)); display(fig);
 #----------------------------------------------------------------------#
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
-p0 = rand(nx1*Ex,ny1*Ey)
-p0 = 0.4*ones(nx1*Ex,ny1*Ey)
+dp = true
+p0 = 1 .+ 0*x1#rand(nx1*Ex,ny1*Ey)
+
+function myplot(u,ut)
+    sleep(0.001)
+    plot(mesh(x1,y1,ut),mesh(x1,y1,u))
+end
+if dp
+    fig = @makeLivePlot myplot(model(af(p0)),ut)
+    sleep(5)
+end
 
 global param = []
-callback = function (p, l, pred; doplot = false)
+callback = function (p, l, pred; doplot = dp)
   display(l)
   global param = p
   if doplot
@@ -273,11 +289,9 @@ callback = function (p, l, pred; doplot = false)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss,p0,Optim.Fminbox(Optim.GradientDescent()),
-        lower_bounds=0, upper_bounds=1, allow_f_increases = true,
-        cb = callback, maxiters = 20)
+result = DiffEqFlux.sciml_train(loss, p0, ADAM(1e-2),#Fminbox(GradientDescent()),
+                                #lower_bounds=0, upper_bounds=1, allow_f_increases = true,
+                                cb = Flux.throttle(callback,1), maxiters = 500)
 
-#result = DiffEqFlux.sciml_train(loss, p0, Flux.ADAM(1e-1),cb = callback, maxiters = 20)
-#a = @. 0.5*(tanh(p)+1)
-a=0 .*x1.+0.4;da=Zygote.gradient((a)->loss(a)[1], a)[1]; mesh(x1,y1,da)
+plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(param))),mesh(x1,y1,at),mesh(x1,y1,af(param)))
 #----------------------------------------------------------------------#
