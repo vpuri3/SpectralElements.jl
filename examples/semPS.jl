@@ -22,9 +22,9 @@ import  Zygote
 
 import NLopt
 import DiffEqFlux, Optim
-#using Optim
+import Flux
 
-linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
+#linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 #----------------------------------------------------------------------#
 # setup
 #----------------------------------------------------------------------#
@@ -33,11 +33,11 @@ linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 32; Ex = 1;
-ny1 = 32; Ey = 1;
+nx1 = 16; Ex = 1;
+ny1 = 16; Ey = 1;
 
-nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
-ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
+nx2 = nx1-2; nxd = ceil(1.5*nx1); nxo = 10*nx1;
+ny2 = nx1-2; nyd = ceil(1.5*ny1); nyo = 10*ny1;
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
@@ -196,8 +196,8 @@ visc = @. 1+0*x1;
 op,r = setup(visc,f)
 u = solver(op,r,false)
 u = reshape(u,nx1*Ex,ny1*Ey)
-display(norm(u-ut,Inf))
-
+nrm = (norm(u-ut,Inf))
+println("solver working fine, residual: ",nrm)
 #----------------------------------------------------------------------#
 # set up case
 #----------------------------------------------------------------------#
@@ -250,18 +250,18 @@ opt.maxeval = 20
 opt.xtol_abs = 1e-8
 opt.xtol_rel = 1e-8
 
-(optf,optx,ret) = NLopt.optimize(opt, a0[:])
+#(optf,optx,ret) = NLopt.optimize(opt, a0[:])
 
-opta = reshape(optx,nx1*Ex,ny1*Ey)
-numevals = opt.numevals
-println("started with loss ",loss(a0)[1])
-println("got $optf after $numevals iterations (returned $ret)")
-fig = mesh(x1,y1,model(opta)); display(fig);
+#opta = reshape(optx,nx1*Ex,ny1*Ey)
+#numevals = opt.numevals
+#println("started with loss ",loss(a0)[1])
+#println("got $optf after $numevals iterations (returned $ret)")
+#fig = mesh(x1,y1,model(opta)); display(fig);
 #----------------------------------------------------------------------#
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
-a0 = rand(nx1*Ex,ny1*Ey)
-a0 = 0.4*ones(nx1*Ex,ny1*Ey)
+p0 = rand(nx1*Ex,ny1*Ey)
+p0 = 0.4*ones(nx1*Ex,ny1*Ey)
 
 global param = []
 callback = function (p, l, pred; doplot = false)
@@ -273,6 +273,11 @@ callback = function (p, l, pred; doplot = false)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss,a0,Optim.Fminbox(Optim.GradientDescent()),
+result = DiffEqFlux.sciml_train(loss,p0,Optim.Fminbox(Optim.GradientDescent()),
         lower_bounds=0, upper_bounds=1, allow_f_increases = true,
         cb = callback, maxiters = 20)
+
+#result = DiffEqFlux.sciml_train(loss, p0, Flux.ADAM(1e-1),cb = callback, maxiters = 20)
+#a = @. 0.5*(tanh(p)+1)
+a=0 .*x1.+0.4;da=Zygote.gradient((a)->loss(a)[1], a)[1]; mesh(x1,y1,da)
+#----------------------------------------------------------------------#
