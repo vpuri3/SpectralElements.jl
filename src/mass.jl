@@ -1,5 +1,7 @@
 #
+#--------------------------------------#
 export mass
+#--------------------------------------#
 """
  (v,u) = (Q*R'*v)' * B * (Q*R'*u)
 
@@ -9,10 +11,10 @@ export mass
 """
 function mass(u,M,B,Qx,Qy);
 
-Mu = mask(u,M);
+#u = mask(u,M);
 
-if(length(B)==0); Bu =      Mu;
-else              Bu = @. B*Mu;
+if(length(B)==0); Bu =      u;
+else              Bu = @. B*u;
 end
 
 Bu = mask(Bu,M);

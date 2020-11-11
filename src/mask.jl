@@ -2,6 +2,7 @@
 export mask
 """
  Mu = (R'*R)*u
+
  masks dirichlet boundary points
 """
 function mask(u,M);

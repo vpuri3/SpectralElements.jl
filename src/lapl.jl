@@ -1,5 +1,7 @@
 #
+#--------------------------------------#
 export lapl
+#--------------------------------------#
 """
  (v,-del^2 u) = (vx,ux) + (vy,uy)
 
@@ -14,10 +16,10 @@ export lapl
 """
 function lapl(u,M,Qx,Qy,Dr,Ds,G11,G12,G22)
 
-Mu = mask(u,M);
+#u = mask(u,M);
 
-ur = ABu([],Dr,Mu);
-us = ABu(Ds,[],Mu);
+ur = ABu([],Dr,u);
+us = ABu(Ds,[],u);
 
 wr = @. G11*ur + G12*us;
 ws = @. G12*ur + G22*us;
@@ -29,8 +31,10 @@ Au = gatherScatter(Au,Qx,Qy);
 
 return Au
 end
-#
+
+#--------------------------------------#
 export lapl_fdm
+#--------------------------------------#
 """
  Elementwise FDM Laplacian solve
 """
