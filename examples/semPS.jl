@@ -10,7 +10,7 @@
 #    ny1::Int
 #end
 
-using .SEM
+using SEM
 
 using FastGaussQuadrature
 using Plots, LinearAlgebra, SparseArrays
@@ -24,54 +24,50 @@ using NLopt
 using DiffEqFlux, Optim
 using Flux
 using SmoothLivePlot
+using Statistics
 
-#linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 #----------------------------------------------------------------------#
 # setup
 #----------------------------------------------------------------------#
-#ifvl = 1;    # evolve  vel field per NS eqn
-#ifad = 1;    # advect  vel, sclr
-#ifpr = 1;    # project vel onto a div-free subspace
-#ifps = 0;    # evolve sclr per advection diffusion eqn
+nx1 = 2; Ex = 20;
+ny1 = 2; Ey = 20;
 
-nx1 = 32; Ex = 1;
-ny1 = 32; Ey = 1;
+#nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
+#ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
 
-nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
-ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
 zr1,wr1 = gausslobatto(nx1); zs1,ws1 = gausslobatto(ny1);
-zr2,wr2 = gausslobatto(nx2); zs2,ws2 = gausslobatto(ny2);
-zrd,wrd = gausslobatto(nxd); zsd,wsd = gausslobatto(nyd);
-zro     =linspace(-1,1,nxo); zso     =linspace(-1,1,nyo);
+#zr2,wr2 = gausslobatto(nx2); zs2,ws2 = gausslobatto(ny2);
+#zrd,wrd = gausslobatto(nxd); zsd,wsd = gausslobatto(nyd);
+#zro     =linspace(-1,1,nxo); zso     =linspace(-1,1,nyo);
 
-Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
-Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
-Jr21 = interpMat(zr1,zr2); Js21 = interpMat(zs1,zs2);
-Jr1o = interpMat(zro,zr1); Js1o = interpMat(zso,zs1);
+#Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
+#Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
+#Jr21 = interpMat(zr1,zr2); Js21 = interpMat(zs1,zs2);
+#Jr1o = interpMat(zro,zr1); Js1o = interpMat(zso,zs1);
 
 Dr1 = derivMat(zr1); Ds1 = derivMat(zs1);
-Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
-Drd = derivMat(zrd); Dsd = derivMat(zsd);
+#Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
+#Drd = derivMat(zrd); Dsd = derivMat(zsd);
 
 #----------------------------------------------------------------------#
 # local operators
 #----------------------------------------------------------------------#
 wx1 = kron(ones(Ex,1),wr1); wy1 = kron(ones(Ey,1),ws1);
-wx2 = kron(ones(Ex,1),wr2); wy2 = kron(ones(Ey,1),ws2);
-wxd = kron(ones(Ex,1),wrd); wyd = kron(ones(Ey,1),wsd);
+#x2 = kron(ones(Ex,1),wr2); wy2 = kron(ones(Ey,1),ws2);
+#xd = kron(ones(Ex,1),wrd); wyd = kron(ones(Ey,1),wsd);
 
 Iex = Matrix(I,Ex,Ex);
 Iey = Matrix(I,Ey,Ey);
 
 Dx1 = kron(Iex,Dr1); Dy1 = kron(Iey,Ds1);
-Dx2 = kron(Iex,Dr2); Dy2 = kron(Iey,Ds2);
-Dxd = kron(Iex,Drd); Dyd = kron(Iey,Dsd);
+#x2 = kron(Iex,Dr2); Dy2 = kron(Iey,Ds2);
+#xd = kron(Iex,Drd); Dyd = kron(Iey,Dsd);
 
-Jx1d = kron(Iex,Jr1d); Jy1d = kron(Iey,Js1d);
-Jx21 = kron(Iex,Jr21); Jy21 = kron(Iey,Js21);
+#x1d = kron(Iex,Jr1d); Jy1d = kron(Iey,Js1d);
+#x21 = kron(Iex,Jr21); Jy21 = kron(Iey,Js21);
 
 #----------------------------------------------------------------------#
 # boundary conditions
@@ -100,25 +96,25 @@ Ry1 = nothing
 
 # Q: global -> local op, Q': local -> global
 Qx1 = semq(Ex,nx1,ifprdcX); Qy1 = semq(Ey,ny1,ifprdcY);
-Qx2 = semq(Ex,nx2,ifprdcX); Qy2 = semq(Ey,ny2,ifprdcY);
+#Qx2 = semq(Ex,nx2,ifprdcX); Qy2 = semq(Ey,ny2,ifprdcY);
 
 # gather scatter op
 QQtx1 = Qx1*Qx1';
 QQty1 = Qy1*Qy1';
 
-QQtx2 = Qx2*Qx2';
-QQty2 = Qy2*Qy2';
+#Qtx2 = Qx2*Qx2';
+#Qty2 = Qy2*Qy2';
 
 #----------------------------------------------------------------------#
 # geometry
 #----------------------------------------------------------------------#
 x1e,_ = semmesh(Ex,nx1); y1e,_ = semmesh(Ey,ny1);
-x2e,_ = semmesh(Ex,nx2); y2e,_ = semmesh(Ey,ny2);
-xde,_ = semmesh(Ex,nxd); yde,_ = semmesh(Ey,nyd);
+#2e,_ = semmesh(Ex,nx2); y2e,_ = semmesh(Ey,ny2);
+#de,_ = semmesh(Ex,nxd); yde,_ = semmesh(Ey,nyd);
 
 x1,y1 = ndgrid(x1e,y1e);
-x2,y2 = ndgrid(x2e,y2e);
-xd,yd = ndgrid(xde,yde);
+#2,y2 = ndgrid(x2e,y2e);
+#d,yd = ndgrid(xde,yde);
 
 # x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
 # x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
@@ -127,13 +123,13 @@ xd,yd = ndgrid(xde,yde);
 # deform grid with gordonhall
 
 Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dx1,Dy1);
-Jac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dx2,Dy2);
-Jacd,Jacid,rxd,ryd,sxd,syd = jac(xd,yd,Dxd,Dyd);
+#ac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dx2,Dy2);
+#acd,Jacid,rxd,ryd,sxd,syd = jac(xd,yd,Dxd,Dyd);
 
 # diagonal mass matrix
 B1  = Jac1 .* (wx1*wy1');
-B2  = Jac2 .* (wx2*wy2');
-Bd  = Jacd .* (wxd*wyd');
+#2  = Jac2 .* (wx2*wy2');
+#d  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
 #----------------------------------------------------------------------#
@@ -193,14 +189,13 @@ println("solver working fine, residual: ",nrm)
 V = 0.4
 p = 5
 ε = 1e-3
-α = 1e-4
+α = 1e-8
 f1 = 1e-2 .+ 0*x1
-k(a) = @. ε + (1-ε)*a^p
-at = y1.^2 # true solution
-M1[:,1] .= 1; M1[:,end] .= 1
+kond(a) = @. ε + (1-ε)*a^p
+#M1[:,end] .= 1; M1[1,:] .= 1
 
 function problem(p)
-    visc = k(p)
+    visc = kond(p)
     f  = f1
     return setup(visc, f)
 end
@@ -210,68 +205,32 @@ function model(p)
     u = reshape(u,nx1*Ex,ny1*Ey)
 end
 
+at = y1.^2
+at = @. 0.5 + x1*0
 ut = model(at)
 af(p) = @. 0.5*(tanh(p)+1)
 function loss(p)
     a = af(p)
     u = model(a)
-    # adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
-    # vv  = @. f1*u + α*(adx^2+ady^2);
-    # l   = sum(B1.*vv);
-    l = 0.5*sum(abs2,u.-ut)
+    #adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
+    #vv = @. f1*u + α*(adx^2+ady^2);
+    #l  = sum(B1.*vv);
+    ##debugging
+    e = u - ut;
+    n = length(e);
+    l = (sum(e.^2)/n);
     return l, u
 end
 
 #----------------------------------------------------------------------#
-# NLopt.Optimize
-#----------------------------------------------------------------------#
-# function fmin(a::Vector, grad::Vector)
-#     a = reshape(a,nx1*Ex,ny1*Ey)
-#     if length(grad)>0
-#         grad[:] = Zygote.gradient((a)->loss(a)[1], a)[1][:]
-#     end
-#     return loss(a)[1]
-# end
-#
-# function fc(a::Vector, grad::Vector)
-#     a = reshape(a,nx1*Ex,ny1*Ey)
-#     ineq(a) = sum(B1.*a) .- V
-#     if length(grad)>0
-#         grad[:] = Zygote.gradient((a)->ineq(a), a)[1][:]
-#     end
-#     return ineq(a)
-# end
-#
-# # set up and run optimizer
-# a0 = rand(nx1*Ex,ny1*Ey)
-# a0 = 0.4*ones(nx1*Ex,ny1*Ey)
-#
-# fig = mesh(x1,y1,model(a0)); display(fig);
-#
-# opt = NLopt.Opt(:LD_MMA, length(a0))
-# opt.min_objective = fmin
-# NLopt.inequality_constraint!(opt, fc)
-# opt.lower_bounds = 0.
-# opt.upper_bounds = 1.
-# opt.maxeval = 20
-# opt.xtol_abs = 1e-8
-# opt.xtol_rel = 1e-8
-#
-# #(optf,optx,ret) = NLopt.optimize(opt, a0[:])
-#
-# #opta = reshape(optx,nx1*Ex,ny1*Ey)
-# #numevals = opt.numevals
-# #println("started with loss ",loss(a0)[1])
-# #println("got $optf after $numevals iterations (returned $ret)")
-# #fig = mesh(x1,y1,model(opta)); display(fig);
-#----------------------------------------------------------------------#
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
-dp = true
-p0 = 1 .+ 0*x1#rand(nx1*Ex,ny1*Ey)
+dp = false
+p0 = @. 1 + 0*x1
+p0 = rand(nx1*Ex,ny1*Ey)
 
 function myplot(u,ut)
-    sleep(0.001)
+    #sleep(0.001)
     plot(mesh(x1,y1,ut),mesh(x1,y1,u))
 end
 if dp
@@ -281,7 +240,7 @@ end
 
 global param = []
 callback = function (p, l, pred; doplot = dp)
-  display(l)
+  #display(l)
   global param = p
   if doplot
       modifyPlotObject!(fig,arg1=pred)
@@ -289,9 +248,52 @@ callback = function (p, l, pred; doplot = dp)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss, p0, ADAM(1e-2),#Fminbox(GradientDescent()),
-                                #lower_bounds=0, upper_bounds=1, allow_f_increases = true,
-                                cb = Flux.throttle(callback,1), maxiters = 500)
+result = DiffEqFlux.sciml_train(loss,p0,ADAM(1e-2),cb=Flux.throttle(callback,1),maxiters=100)
+display(loss(param)[1])
+
+p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
 
 plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(param))),mesh(x1,y1,at),mesh(x1,y1,af(param)))
+#----------------------------------------------------------------------#
+# NLopt.Optimize
+#----------------------------------------------------------------------#
+#function fmin(a::Vector, grad::Vector)
+#    a = reshape(a,nx1*Ex,ny1*Ey)
+#    if length(grad)>0
+#        grad[:] = Zygote.gradient((a)->loss(a)[1], a)[1][:]
+#    end
+#    return loss(a)[1]
+#end
+
+#function fc(a::Vector, grad::Vector)
+#    a = reshape(a,nx1*Ex,ny1*Ey)
+#    ineq(a) = sum(B1.*a) .- V
+#    if length(grad)>0
+#        grad[:] = Zygote.gradient((a)->ineq(a), a)[1][:]
+#    end
+#    return ineq(a)
+#end
+
+## set up and run optimizer
+#a0 = rand(nx1*Ex,ny1*Ey)
+#a0 = 0.4*ones(nx1*Ex,ny1*Ey)
+
+#fig = mesh(x1,y1,model(a0)); display(fig);
+
+#opt = NLopt.Opt(:LD_MMA, length(a0))
+#opt.min_objective = fmin
+#NLopt.inequality_constraint!(opt, fc)
+#opt.lower_bounds = 0.
+#opt.upper_bounds = 1.
+#opt.maxeval = 20
+#opt.xtol_abs = 1e-8
+#opt.xtol_rel = 1e-8
+
+#(optf,optx,ret) = NLopt.optimize(opt, a0[:])
+
+#opta = reshape(optx,nx1*Ex,ny1*Ey)
+#numevals = opt.numevals
+#println("started with loss ",loss(a0)[1])
+#println("got $optf after $numevals iterations (returned $ret)")
+#fig = mesh(x1,y1,model(opta)); display(fig);
 #----------------------------------------------------------------------#

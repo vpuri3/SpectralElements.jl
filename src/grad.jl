@@ -1,8 +1,8 @@
 #
 export grad
 """
- [ux]' = [rx sx]*[Dr] * u\n
- [uy]  = [ry sy] [Ds]
+ [Dx]*u = [rx sx]*[Dr] * u\n
+ [Dy]   = [ry sy] [Ds]
 """
 function grad(u,Dr,Ds,rx,ry,sx,sy)
 

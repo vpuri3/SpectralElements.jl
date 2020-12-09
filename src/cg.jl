@@ -1,17 +1,19 @@
 #
-export pcg
-#
-# Conjugate gradient for Laplace solve
-#
-function pcg(b,A,M)
+#----------------------------------------------------------------------#
+export pcgLapl
+#----------------------------------------------------------------------#
+"""
+ Preconditioned conjugate gradient for lapl
+"""
+function pcgLapl(b,M,Qx,Qy,Dr,Ds,G11,G12,G22,mult)
 
 tol = 1e-8;
 n = length(b);
 itmax = n;
-if(length(M)==0) M=Matrix(I,n,n); end;
+#if(length(M)==0) M=Matrix(I,n,n); end;
 
 x   = copy(b);
-Ax  = A * x;
+Ax  = lapl(x,M,Qx,Qy,Dr,Ds,G11,G12,G22);
 ra  = b - Ax;
 ha  = 0;
 hp  = 0;
@@ -22,24 +24,25 @@ u   = 0;
 k   = 0;
 
 while(norm(ra,Inf) > tol)
-ha = M * ra; # preconditioner
-k += 1;
+ha = ra; # preconditioner
 if(k==itmax) println("warning: res:",norm(ra,Inf)); return x; end;
+k  += 1;
 hpp = hp;
 rpp = rp;
 hp  = ha;
 rp  = ra;
-t   = sum(rp.*hp);
+t   = sum(rp.*hp.*mult);
 if(k==1); u = copy(hp);
-else;     u = hp + (t / sum(rpp.*hpp)) * u;
+else;     u = hp + (t / sum(rpp.*hpp.*mult)) * u;
 end
-Au = A * u; # operator
-a = t / sum(u.*Au);
+Au = lapl(u,M,Qx,Qy,Dr,Ds,G11,G12,G22); # operator
+a = t / sum(u.*Au.*mult);
 x = x + a * u;
 ra = rp - a * Au;
 end
 
-println("CG iter: ",k, " res: ",norm(ra,Inf));
+println("Lapl PCG iter: ",k,", res: ",norm(ra,2));
 
 return x
 end
+#----------------------------------------------------------------------#
