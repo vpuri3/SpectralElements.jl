@@ -34,17 +34,17 @@ import Krylov
 nx1 = 8; Ex = 5;
 ny1 = 8; Ey = 5;
 
-#nx2 = nx1-2; nxd = ceil(1.5*nx1); nxo = 10*nx1;
-#ny2 = nx1-2; nyd = ceil(1.5*ny1); nyo = 10*ny1;
+nx2 = nx1-2; nxd = ceil(1.5*nx1); nxo = 10*nx1;
+ny2 = nx1-2; nyd = ceil(1.5*ny1); nyo = 10*ny1;
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
 zr1,wr1 =  gausslobatto(nx1); zs1,ws1 =  gausslobatto(ny1);
-#zr2,wr2 =  gausslobatto(nx2); zs2,ws2 =  gausslobatto(ny2);
-#zrd,wrd =  gausslobatto(nxd); zsd,wsd =  gausslobatto(nyd);
+zr2,wr2 =  gausslobatto(nx2); zs2,ws2 =  gausslobatto(ny2);
+zrd,wrd =  gausslobatto(nxd); zsd,wsd =  gausslobatto(nyd);
 #zro     = linspace(-1,1,nxo); zso     = linspace(-1,1,nyo);
 
-#Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
+Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
 #Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
 #Jr21 = interpMat(zr1,zr2); Js21 = interpMat(zs1,zs2);
 #Jr1o = interpMat(zro,zr1); Js1o = interpMat(zso,zs1);
@@ -134,15 +134,15 @@ Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dx1,Dy1);
 # case setup
 #----------------------------------------------------------------------#
 # prescribe forcing, true solution, boundary data
-kx=1.
-ky=1.
+kx=3.
+ky=3.
 ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
 f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
 
 visc = @. 1+0*x1;
 
-f = @. 1+0*x1;
+#f = @. 1+0*x1;
 ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
 # setup
@@ -204,7 +204,7 @@ u = u + ub;
 #----------------------------------------------------------------------#
 er = norm(ut-u,Inf);
 print("er: ",er,"\n");
-p = mesh(x1,y1,u)
+p = mesh(x1,y1,u);
 display(p);
 #----------------------------------------------------------------------#
 nothing

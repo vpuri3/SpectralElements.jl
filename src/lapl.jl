@@ -12,7 +12,7 @@ export lapl
 
  implemented as
 
- QQ' * R'R * A_l * R'R * u_loc
+ R'R * QQ' * A_l * u_loc
 
  where A_l is
 
@@ -51,3 +51,4 @@ u = ABu(Sy ,Sx ,u);
 #u = ABu(Ry',Rx',u);
 return u;
 end
+#--------------------------------------#
