@@ -17,7 +17,7 @@ yv = ABu(Jes,Jer,yv);
 x = ABu([],Jer,[xrm';xrp']) .+ ABu(Jes,[],[xsm xsp]) .- xv;
 y = ABu([],Jer,[yrm';yrp']) .+ ABu(Jes,[],[ysm ysp]) .- yv;
 
-heatmap(x,y,0*x)
+mesh(x,y,0*x)
 
 return x,y
 end

@@ -27,53 +27,34 @@ using SmoothLivePlot
 using Statistics
 
 #----------------------------------------------------------------------#
-# setup
+# size
 #----------------------------------------------------------------------#
 nx1 = 8; Ex = 5;
 ny1 = 8; Ey = 5;
 
-#nx2 = nx1-2; nxd = Int(ceil(1.5*nx1)); nxo = 10*nx1;
-#ny2 = nx1-2; nyd = Int(ceil(1.5*ny1)); nyo = 10*ny1;
+nx2 = nx1-2; nxd = Int(ceil(1.5*nx1));
+ny2 = nx1-2; nyd = Int(ceil(1.5*ny1));
 
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
 zr1,wr1 = gausslobatto(nx1); zs1,ws1 = gausslobatto(ny1);
-#zr2,wr2 = gausslobatto(nx2); zs2,ws2 = gausslobatto(ny2);
-#zrd,wrd = gausslobatto(nxd); zsd,wsd = gausslobatto(nyd);
-#zro     =linspace(-1,1,nxo); zso     =linspace(-1,1,nyo);
+zr2,wr2 = gausslobatto(nx2); zs2,ws2 = gausslobatto(ny2);
+zrd,wrd = gausslobatto(nxd); zsd,wsd = gausslobatto(nyd);
 
-#Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
-#Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
-#Jr21 = interpMat(zr1,zr2); Js21 = interpMat(zs1,zs2);
-#Jr1o = interpMat(zro,zr1); Js1o = interpMat(zso,zs1);
+Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
+Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
+Jr21 = interpMat(zr1,zr2); Js21 = interpMat(zs1,zs2);
 
 Dr1 = derivMat(zr1); Ds1 = derivMat(zs1);
-#Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
-#Drd = derivMat(zrd); Dsd = derivMat(zsd);
-
-#----------------------------------------------------------------------#
-# local operators
-#----------------------------------------------------------------------#
-wx1 = kron(ones(Ex,1),wr1); wy1 = kron(ones(Ey,1),ws1);
-#x2 = kron(ones(Ex,1),wr2); wy2 = kron(ones(Ey,1),ws2);
-#xd = kron(ones(Ex,1),wrd); wyd = kron(ones(Ey,1),wsd);
-
-Iex = Matrix(I,Ex,Ex);
-Iey = Matrix(I,Ey,Ey);
-
-Dx1 = kron(Iex,Dr1); Dy1 = kron(Iey,Ds1);
-#x2 = kron(Iex,Dr2); Dy2 = kron(Iey,Ds2);
-#xd = kron(Iex,Drd); Dyd = kron(Iey,Dsd);
-
-#x1d = kron(Iex,Jr1d); Jy1d = kron(Iey,Js1d);
-#x21 = kron(Iex,Jr21); Jy21 = kron(Iey,Js21);
+Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
+Drd = derivMat(zrd); Dsd = derivMat(zsd);
 
 #----------------------------------------------------------------------#
 # boundary conditions
 #----------------------------------------------------------------------#
-ifprdcX = false
-ifprdcY = false
+ifperiodicX = false
+ifperiodicY = false
 
 Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
 Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
@@ -81,8 +62,8 @@ Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
 Rx1 = Ix1[2:end-1,:];
 Ry1 = Iy1[2:end-1,:];
 
-if(ifprdcX) Rx1 = Ix1; end
-if(ifprdcY) Ry1 = Iy1; end
+if(ifperiodicX) Rx1 = Ix1; end
+if(ifperiodicY) Ry1 = Iy1; end
 
 M1 = diag(Rx1'*Rx1) * diag(Ry1'*Ry1)';
 
@@ -95,49 +76,56 @@ Ry1 = nothing
 #----------------------------------------------------------------------#
 
 # Q: global -> local op, Q': local -> global
-Qx1 = semq(Ex,nx1,ifprdcX); Qy1 = semq(Ey,ny1,ifprdcY);
-#Qx2 = semq(Ex,nx2,ifprdcX); Qy2 = semq(Ey,ny2,ifprdcY);
+Qx1 = semq(Ex,nx1,ifperiodicX); Qx2 = semq(Ex,nx2,ifperiodicX);
+Qy1 = semq(Ey,ny1,ifperiodicY); Qy2 = semq(Ey,ny2,ifperiodicY);
 
 # gather scatter op
 QQtx1 = Qx1*Qx1';
 QQty1 = Qy1*Qy1';
 
-#Qtx2 = Qx2*Qx2';
-#Qty2 = Qy2*Qy2';
+QQtx2 = Qx2*Qx2';
+QQty2 = Qy2*Qy2';
 
 # weight for inner products
-mult = ones(size(M1));
-mult = ABu(QQty1,QQtx1,mult);
-mult = @. 1 / mult;
+mult1 = ones(nx1*Ex,ny1*Ey);
+mult1 = gatherScatter(mult1,QQtx1,QQty1);
+mult1 = @. 1 / mult1;
+
+mult2 = ones(nx2*Ex,ny2*Ey);
+mult2 = gatherScatter(mult2,QQtx2,QQty2);
+mult2 = @. 1 / mult2;
 #----------------------------------------------------------------------#
 # geometry
 #----------------------------------------------------------------------#
 x1e,_ = semmesh(Ex,nx1); y1e,_ = semmesh(Ey,ny1);
-#2e,_ = semmesh(Ex,nx2); y2e,_ = semmesh(Ey,ny2);
-#de,_ = semmesh(Ex,nxd); yde,_ = semmesh(Ey,nyd);
+x2e,_ = semmesh(Ex,nx2); y2e,_ = semmesh(Ey,ny2);
+xde,_ = semmesh(Ex,nxd); yde,_ = semmesh(Ey,nyd);
 
 x1,y1 = ndgrid(x1e,y1e);
-#2,y2 = ndgrid(x2e,y2e);
-#d,yd = ndgrid(xde,yde);
-
-# x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
-# x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
-# xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
+x2,y2 = ndgrid(x2e,y2e);
+xd,yd = ndgrid(xde,yde);
 
 # deform grid with gordonhall
+x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
+x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
+xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
 
-Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dx1,Dy1);
-#ac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dx2,Dy2);
-#acd,Jacid,rxd,ryd,sxd,syd = jac(xd,yd,Dxd,Dyd);
+Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dr1,Ds1);
+Jac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dr2,Ds2);
+Jacd,Jacid,rxd,ryd,sxd,syd = jac(xd,yd,Drd,Dsd);
+
+wx1 = kron(ones(Ex,1),wr1); wy1 = kron(ones(Ey,1),ws1);
+wx2 = kron(ones(Ex,1),wr2); wy2 = kron(ones(Ey,1),ws2);
+wxd = kron(ones(Ex,1),wrd); wyd = kron(ones(Ey,1),wsd);
 
 # diagonal mass matrix
 B1  = Jac1 .* (wx1*wy1');
-#2  = Jac2 .* (wx2*wy2');
-#d  = Jacd .* (wxd*wyd');
+B2  = Jac2 .* (wx2*wy2');
+Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
 #----------------------------------------------------------------------#
-# setup
+# operators
 #----------------------------------------------------------------------#
 function setup(visc, f)
 
@@ -146,20 +134,23 @@ function setup(visc, f)
     G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1)
 
     function laplOp(v)
-        w = lapl(v,M1,Qx1,Qy1,Dx1,Dy1,G11,G12,G22);
-        return w
+        return lapl(v,M1,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
     end
 
-    b   = mass(f,[],B1,[],[])
-    b   = mass(b,M1,[],Qx1,Qy1)
+    b   = mass(f,[],B1,[],[]);
+    b   = mass(b,M1,[],QQtx1,QQty1);
     rhs = b;
 
     return laplOp, rhs
 end
 
+function opM(v)
+    return v
+end
+
 function solver(opA,rhs,adj::Bool)
-    if !adj return pcg(rhs,opA,mult)
-    else    return pcg(rhs,opA,mult)
+    if !adj return pcg(rhs,opA,opM,mult1,false);
+    else    return pcg(rhs,opA,opM,mult1,false);
     end
 end
 #----------------------------------------------------------------------#
@@ -198,10 +189,11 @@ function model(p)
     u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
 end
 
-at = y1.^2
-at = @. 0.5 + x1*0
-ut = model(at)
 af(p) = @. 0.5*(tanh(p)+1)
+pt = @. sin(2*pi*x1)*sin(2*pi*y1);
+at = af(pt);
+#at = @. y1^2
+ut = model(at);
 function loss(p)
     a = af(p)
     u = model(a)
@@ -210,7 +202,7 @@ function loss(p)
     #l  = sum(B1.*vv);
     ##debugging
     e = @. u - ut;
-    e = @. a - 0.5;
+    #e = @. a - at;
     n = length(e);
     l = (sum(e.^2)/n);
     return l, u
@@ -223,22 +215,10 @@ dp = false
 p0 = @. 1 + 0*x1
 #p0 = rand(nx1*Ex,ny1*Ey)
 
-function myplot(u,ut)
-    #sleep(0.001)
-    plot(mesh(x1,y1,ut),mesh(x1,y1,u))
-end
-if dp
-    fig = @makeLivePlot myplot(model(af(p0)),ut)
-    sleep(5)
-end
-
 global param = []
 callback = function (p, l, pred; doplot = dp)
   #display(l)
   global param = p
-  if doplot
-      modifyPlotObject!(fig,arg1=pred)
-  end
   return false
 end
 
@@ -247,8 +227,8 @@ display(loss(param)[1])
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
 
-plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(param))),
-     mesh(x1,y1,at),mesh(x1,y1,af(param)))
+plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
+     mesh(x1,y1,at),mesh(x1,y1,af(p)))
 #----------------------------------------------------------------------#
 # NLopt.Optimize
 #----------------------------------------------------------------------#

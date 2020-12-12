@@ -9,7 +9,7 @@ export mass
 
  (QQ' * R'R * B_loc * R'R) * u_loc
 """
-function mass(u,M,B,Qx,Qy);
+function mass(u,M,B,QQtx,QQty);
 
 #u = mask(u,M);
 
@@ -18,7 +18,7 @@ else              Bu = @. B*u;
 end
 
 Bu = mask(Bu,M);
-Bu = gatherScatter(Bu,Qx,Qy);
+Bu = gatherScatter(Bu,QQtx,QQty);
 
 return Bu
 end
