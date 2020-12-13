@@ -129,27 +129,29 @@ Bi1 = 1 ./ B1;
 # case setup
 #----------------------------------------------------------------------#
 # prescribe forcing, true solution, boundary data
-kx=3.
-ky=3.
+kx=1.
+ky=1.
 ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
 f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
 
 visc = @. 1+0*x1;
+visc = @. 0.5*(ut+1);
 
-#f = @. 1+0*x1;
+f = @. 1+0*x1;
 ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
 # operators
 #----------------------------------------------------------------------#
 
-# set up matrices for Laplace op.
-G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1);
-G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
-G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
+viscd = ABu(Js1d,Jr1d,visc);
+
+G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
+G12 = @. viscd * Bd * (rxd * sxd + ryd * syd);
+G22 = @. viscd * Bd * (sxd * sxd + syd * syd);
 
 function opLapl(v)
-    return lapl(v,M1,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
+    return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
 end
 #----------------------------------------------------------------------#
 # Laplace Fast Diagonalization Preconditioner
@@ -192,9 +194,9 @@ nx = nx1*Ex;
 ny = ny1*Ey;
 nt = nx*ny;
 
-b =     mass(f,[],B1,[],[]);
-b = b - lapl(ub,[],[],[],Dr1,Ds1,G11,G12,G22);
-b =     mass(b,M1,[],QQtx1,QQty1);
+b =     mass(f,[],Bd,Jr1d,Js1d,[],[]);
+b = b - lapl(ub,[],Jr1d,Js1d,[],[],Dr1,Ds1,G11,G12,G22);
+b =     mass(b,M1,[],[],[],QQtx1,QQty1);
 
 @time u = pcg(b,opLapl,opFDM,mult1,true)
 u = u + ub;
