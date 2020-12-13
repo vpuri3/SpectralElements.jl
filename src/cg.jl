@@ -25,7 +25,7 @@ k   = 0;
 
 while(norm(ra,Inf) > tol)
 ha = opM(ra); # preconditioner
-println("PCG iter: ",k,", res: ",norm(ra,2));
+#println("PCG iter: ",k,", res: ",norm(ra,2));
 if(k==itmax) println("warning: res:",norm(ra,Inf)); return x; end;
 k  += 1;
 hpp = hp;

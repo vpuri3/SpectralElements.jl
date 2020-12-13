@@ -30,10 +30,6 @@ ws = @. G12*ur + G22*us;
 
 Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
 
-#println("in lapl, size(wr,ws,dr,ds) ",size(wr),size(ws),size(Dr),size(Ds))
-#println("in lapl, size(Au1) ",size(ABu([],Dr',wr)))
-#println("in lapl, size(Au2) ",size(ABu(Ds',[],ws)))
-println("in lapl, size(Au ) ",size(Au))
 Au = gatherScatter(Au,QQtx,QQty);
 Au = mask(Au,M);
 

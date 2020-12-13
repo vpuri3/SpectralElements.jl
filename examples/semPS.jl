@@ -156,8 +156,8 @@ end
 #----------------------------------------------------------------------#
 # test solver
 #----------------------------------------------------------------------#
-kx   = 1.;
-ky   = 1.;
+kx   = 3.;
+ky   = 3.;
 ut   = @. sin(kx*pi*x1)*sin(ky*pi*y1); # true solution
 f    = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub   = copy(ut);                       # boundary data
@@ -190,19 +190,19 @@ function model(p)
 end
 
 af(p) = @. 0.5*(tanh(p)+1)
-pt = @. sin(2*pi*x1)*sin(2*pi*y1);
+pt = @. 0.5 + 0*sin(2*pi*x1)*sin(2*pi*y1);
 at = af(pt);
 #at = @. y1^2
 ut = model(at);
 function loss(p)
     a = af(p)
     u = model(a)
-    #adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
-    #vv = @. f1*u + α*(adx^2+ady^2);
-    #l  = sum(B1.*vv);
+    adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
+    ll = @. f1*u# + α*(adx^2+ady^2);
+    l  = sum(B1.*ll);
     ##debugging
     e = @. u - ut;
-    #e = @. a - at;
+    e = @. a - at;
     n = length(e);
     l = (sum(e.^2)/n);
     return l, u
@@ -212,7 +212,7 @@ end
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
 dp = false
-p0 = @. 1 + 0*x1
+p0 = @. 0.6 + 0*x1
 #p0 = rand(nx1*Ex,ny1*Ey)
 
 global param = []

@@ -50,9 +50,9 @@ function ABu(As,Br,u)
 return ABu
 end
 #----------------------------------------------------------------------#
-#Zygote.@adjoint function ABu(As,Br,u)
-#    return ABu(As',Br',u);
-#end
+Zygote.@adjoint function ABu(As,Br,u)
+    return ABu(As,Br,u),dv->(nothing,nothing,ABu(As',Br',dv));
+end
 #----------------------------------------------------------------------#
 #export ABu3
 #----------------------------------------------------------------------#
