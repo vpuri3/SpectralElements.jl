@@ -20,13 +20,19 @@ export lapl
  [Ds]  [ry sy]  [0 B] [ry sy] [Ds]
 
 """
-function lapl(u,M,QQtx,QQty,Dr,Ds,G11,G12,G22)
+function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds,G11,G12,G22)
 
 ur = ABu([],Dr,u);
 us = ABu(Ds,[],u);
 
-wr = @. G11*ur + G12*us;
-ws = @. G12*ur + G22*us;
+Jur = ABu(Js,Jr,ur);
+Jus = ABu(Js,Jr,us);
+
+vr = @. G11*Jur + G12*Jus;
+vs = @. G12*Jur + G22*Jus;
+
+wr = ABu(Js',Jr',vr);
+ws = ABu(Js',Jr',vs);
 
 Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
 

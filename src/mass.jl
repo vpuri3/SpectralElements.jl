@@ -9,13 +9,15 @@ export mass
 
  (QQ' * R'R * B_loc * R'R) * u_loc
 """
-function mass(u,M,B,QQtx,QQty);
+function mass(u,M,B,Jr,Js,QQtx,QQty);
 
-#u = mask(u,M);
+Ju = ABu(Js,Jr,u);
 
-if(length(B)==0); Bu =      u;
-else              Bu = @. B*u;
+if(length(B)==0); BJu =      Ju;
+else              BJu = @. B*Ju;
 end
+
+Bu = ABu(Js',Jr',BJu);
 
 Bu = mask(Bu,M);
 Bu = gatherScatter(Bu,QQtx,QQty);

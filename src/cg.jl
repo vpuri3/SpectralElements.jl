@@ -10,7 +10,6 @@ function pcg(b,opA,opM,mult,ifv)
 tol = 1e-8;
 n = length(b);
 itmax = n;
-#if(length(M)==0) M=Matrix(I,n,n); end;
 
 x   = copy(b);
 Ax  = opA(x);
