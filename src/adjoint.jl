@@ -2,26 +2,25 @@
 #--------------------------------------#
 export linsolve
 #--------------------------------------#
-function linsolve(p, problem, solver)
-    lhs, rhs = problem(p)
-    return solver(lhs, rhs, false)
+function linsolve(a,f,problem,solver) # topol, forcing
+    lhs,rhs = problem(a,f)
+    return solver(lhs,rhs,false)
 end
 #--------------------------------------#
-Zygote.@adjoint function linsolve(p,problem,solver)
-    lhs, rhs = problem(p)
-    u = solver(lhs, rhs, false)
+Zygote.@adjoint function linsolve(a,f,problem,solver)
+    u = linsolve(a,f,problem,solver)
     function fun(u̅)
-        #println("check u̅")
-        #display(p)
-        _,gp=pullback((p)->g(u,p,problem),p)
-        λ = solver(lhs,u̅,true)
-        return (-gp(λ)[1],)
+        _,gp=pullback((a)->g(u,a,f,problem),a)
+        lhs,rhs = problem(a,u̅)
+        λ  = solver(lhs,rhs,true)
+        #return (gp(λ)[1],)
+        return (gp(λ)[1],nothing,nothing,nothing)
     end
     return u,fun
 end
 #--------------------------------------#
-function g(u,p,problem)
-    lhs, rhs = problem(p)
-    lhs(u).-rhs
+function g(u,a,f,problem)
+    lhs, rhs = problem(a,f)
+    return rhs .- lhs(u);
 end
 #--------------------------------------#
