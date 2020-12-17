@@ -20,7 +20,8 @@ export lapl
  [Ds]  [ry sy]  [0 B] [ry sy] [Ds]
 
 """
-function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds,G11,G12,G22)
+function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds
+             ,G11,G12,G22)
 
 ur = ABu([],Dr,u);
 us = ABu(Ds,[],u);

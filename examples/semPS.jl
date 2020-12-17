@@ -23,7 +23,6 @@ using  Zygote
 using NLopt
 using DiffEqFlux, Optim
 using Flux
-using SmoothLivePlot
 using Statistics
 
 #----------------------------------------------------------------------#
@@ -127,18 +126,29 @@ Bi1 = 1 ./ B1;
 #----------------------------------------------------------------------#
 # operators
 #----------------------------------------------------------------------#
+Jr1d = []
+Js1d = []
+rxd = rx1
+ryd = ry1
+sxd = sx1
+syd = sy1
+Bd = B1
+
 function setup(visc, f)
 
-    G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1)
-    G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1)
-    G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1)
+    viscd = ABu(Js1d,Jr1d,visc);
+    
+    G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
+    G12 = @. viscd * Bd * (rxd * sxd + ryd * syd);
+    G22 = @. viscd * Bd * (sxd * sxd + syd * syd);
+
 
     function laplOp(v)
-        return lapl(v,M1,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
+        return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
     end
 
-    b   = mass(f,[],B1,[],[]);
-    b   = mass(b,M1,[],QQtx1,QQty1);
+    b   = mass(f,[],Bd,Jr1d,Js1d,[],[]);
+    b   = mass(b,M1,[],[],[],QQtx1,QQty1);
     rhs = b;
 
     return laplOp, rhs
@@ -149,8 +159,8 @@ function opM(v)
 end
 
 function solver(opA,rhs,adj::Bool)
-    if !adj return pcg(rhs,opA,opM,mult1,false);
-    else    return pcg(rhs,opA,opM,mult1,false);
+    if adj return pcg(rhs,opA,opM,mult1,false);
+    else   return pcg(rhs,opA,opM,mult1,false);
     end
 end
 #----------------------------------------------------------------------#
@@ -172,63 +182,57 @@ println("solver working fine, residual: ",er);
 #----------------------------------------------------------------------#
 
 V = 0.4
-p = 5
+pa = 5
 ε = 1e-3
 α = 1e-8
 f1 = 1e-2 .+ 0*x1
-kond(a) = @. ε + (1-ε)*a^p
+kond(a) = @. ε + (1-ε)*a^pa
 #M1[:,end] .= 1; M1[1,:] .= 1
 
-function problem(p)
-    visc = kond(p)
-    f    = f1
+function problem(a)
+    visc = kond(a)
+    f    = f1 #.* a
     return setup(visc, f)
 end
 
-function model(p)
-    u = linsolve(p,problem,solver) # Has adjoint support thru Zygote
+function model(a)
+    u = linsolve(a,problem,solver) # adjoint support thru Zygote
 end
 
 af(p) = @. 0.5*(tanh(p)+1)
-pt = @. 0.5 + 0*sin(2*pi*x1)*sin(2*pi*y1);
+pt = @. 0.5*(1+1*sin(2*pi*x1)*sin(2*pi*y1));
 at = af(pt);
-#at = @. y1^2
 ut = model(at);
 function loss(p)
     a = af(p)
     u = model(a)
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
-    ll = @. f1*u# + α*(adx^2+ady^2);
+    ll = @. f1*u + α*(adx^2+ady^2);
     l  = sum(B1.*ll);
-    ##debugging
-    e = @. u - ut;
-    e = @. a - at;
-    n = length(e);
-    l = (sum(e.^2)/n);
+    #e = @. u - ut;
+    #l = sum(B1.*e.*e);
     return l, u
 end
 
 #----------------------------------------------------------------------#
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
-dp = false
-p0 = @. 0.6 + 0*x1
-#p0 = rand(nx1*Ex,ny1*Ey)
+p0 = @. 0.5 + 0.0*x1
+p0 = mult1 .* gatherScatter(p0,QQtx1,QQty1);
 
 global param = []
-callback = function (p, l, pred; doplot = dp)
-  #display(l)
+callback = function (p, l, pred; doplot = true)
   global param = p
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss,p0,ADAM(1e-2),cb=Flux.throttle(callback,1),maxiters=100)
-display(loss(param)[1])
+result = DiffEqFlux.sciml_train(loss,p0,ADAM(1e-2),cb=Flux.throttle(callback,1),maxiters=2)
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
 
-plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
-     mesh(x1,y1,at),mesh(x1,y1,af(p)))
+pl=plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
+        mesh(x1,y1,at),mesh(x1,y1,af(p)))
+display(pl),display(loss(param)[1])
 #----------------------------------------------------------------------#
 # NLopt.Optimize
 #----------------------------------------------------------------------#
@@ -272,3 +276,4 @@ plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
 #println("got $optf after $numevals iterations (returned $ret)")
 #fig = mesh(x1,y1,model(opta)); display(fig);
 #----------------------------------------------------------------------#
+nothing

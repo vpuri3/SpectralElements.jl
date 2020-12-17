@@ -1,7 +1,7 @@
 #
-#----------------------------------------------------------------------#
+#--------------------------------------#
 export pcg
-#----------------------------------------------------------------------#
+#--------------------------------------#
 """
  Preconditioned conjugate gradient
 """
@@ -11,8 +11,8 @@ tol = 1e-8;
 n = length(b);
 itmax = n;
 
-x   = copy(b);
-Ax  = opA(x);
+x   = @. 0*b;
+Ax  = @. 0*b;
 ra  = b - Ax;
 ha  = 0;
 hp  = 0;
@@ -32,8 +32,10 @@ rpp = rp;
 hp  = ha;
 rp  = ra;
 t   = sum(rp.*hp.*mult);
-if(k==1); u = copy(hp);
-else;     u = hp + (t / sum(rpp.*hpp.*mult)) * u;
+if(k==1)
+    u = copy(hp);
+else
+    u = hp+(t/sum(rpp.*hpp.*mult))*u;
 end
 Au = opA(u); # operator
 a = t / sum(u.*Au.*mult);
@@ -45,4 +47,4 @@ if(ifv) println("PCG iter: ",k,", res: ",norm(ra,2)); end
 
 return x
 end
-#----------------------------------------------------------------------#
+#--------------------------------------#

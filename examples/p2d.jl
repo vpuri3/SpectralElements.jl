@@ -31,8 +31,8 @@ import Krylov
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 8; Ex = 10;
-ny1 = 8; Ey = 10;
+nx1 = 8; Ex = 5;
+ny1 = 8; Ey = 5;
 
 nx2 = nx1-2; nxd = ceil(1.5*nx1);
 ny2 = nx1-2; nyd = ceil(1.5*ny1);
@@ -129,8 +129,8 @@ Bi1 = 1 ./ B1;
 # case setup
 #----------------------------------------------------------------------#
 # prescribe forcing, true solution, boundary data
-kx=1.
-ky=1.
+kx=2.
+ky=2.
 ut = @. sin(kx*pi*x1)*sin.(ky*pi*y1) # true solution
 f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
@@ -186,9 +186,9 @@ end
 #Bi = Diagonal(reshape(Bi1  ,:));
 #FD = kron(Sy,Sx) * Li * kron(Syi,Sxi) * Bi;
 #
-#function opFDM(v)
-#    return v
-#end
+function opFDM(v)
+    return v
+end
 #----------------------------------------------------------------------#
 nx = nx1*Ex;
 ny = ny1*Ey;
