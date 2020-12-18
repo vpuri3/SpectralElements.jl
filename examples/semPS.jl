@@ -64,7 +64,7 @@ Ry1 = Iy1[2:end-1,:];
 if(ifperiodicX) Rx1 = Ix1; end
 if(ifperiodicY) Ry1 = Iy1; end
 
-M1 = diag(Rx1'*Rx1) * diag(Ry1'*Ry1)';
+M1 = diag(Rx1'*Rx1) * diag(Ry1'*Ry1)'; # hom. dir BC
 
 Ix1 = nothing
 Iy1 = nothing
@@ -123,9 +123,7 @@ B2  = Jac2 .* (wx2*wy2');
 Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
-#----------------------------------------------------------------------#
-# operators
-#----------------------------------------------------------------------#
+# don't use lumped mass matrices for now
 Jr1d = []
 Js1d = []
 rxd = rx1
@@ -134,27 +132,38 @@ sxd = sx1
 syd = sy1
 Bd = B1
 
-function setup(visc, f)
+#----------------------------------------------------------------------#
+# set up case
+#----------------------------------------------------------------------#
+V  = 0.4
+pa = 5
+ε  = 1e-3
+α  = 1e-8
+f1 = @. 1e-2 + 0*x1
+#M1[:,end] .= 1;
+#M1[1,:]   .= 1;
+af(p)   = @. 0.5*(tanh(p)+1)
+kond(a) = @. ε + (1-ε)*a^pa
+
+function problem(a) # topology parameter, forcing
+    visc = kond(a)
+    f    = f1 #.* a
 
     viscd = ABu(Js1d,Jr1d,visc);
-    
     G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
     G12 = @. viscd * Bd * (rxd * sxd + ryd * syd);
     G22 = @. viscd * Bd * (sxd * sxd + syd * syd);
-
 
     function lhs(v)
         return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
     end
 
-    b   = mass(f,[],Bd,Jr1d,Js1d,[],[]);
-    b   = mass(b,M1,[],[],[],QQtx1,QQty1);
-    rhs = b;
+    rhs = mass(f,M1,Bd,Jr1d,Js1d,QQtx1,QQty1);
 
     return lhs, rhs
 end
 
-function opM(v)
+function opM(v) # preconditioner
     return v
 end
 
@@ -163,49 +172,17 @@ function solver(opA,rhs,adj::Bool)
     else   return pcg(rhs,opA,opM,mult1,false);
     end
 end
-#----------------------------------------------------------------------#
-# test solver
-#----------------------------------------------------------------------#
-kx   = 3.;
-ky   = 3.;
-ut   = @. sin(kx*pi*x1)*sin(ky*pi*y1); # true solution
-f    = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
-ub   = copy(ut);                       # boundary data
-visc = @. 1+0*x1;
 
-op,r = setup(visc,f);
-u    = solver(op,r,false);
-er   = (norm(u-ut,Inf));
-println("solver working fine, residual: ",er);
-#----------------------------------------------------------------------#
-# set up case
-#----------------------------------------------------------------------#
-
-V = 0.4
-pa = 5
-ε = 1e-3
-α = 1e-8
-f1 = 1e-2 .+ 0*x1
-kond(a) = @. ε + (1-ε)*a^pa
-#M1[:,end] .= 1; M1[1,:] .= 1
-
-function problem(a,f) # topology parameter, forcing
-    visc = kond(a)
-    f    = f  #.* a
-    return setup(visc, f)
+function model(a)
+    u = linsolve(a,problem,solver) # adjoint support thru Zygote
 end
 
-function model(a,f) # topology parameter, forcing
-    u = linsolve(a,f,problem,solver) # adjoint support thru Zygote
-end
-
-af(p) = @. 0.5*(tanh(p)+1)
 pt = @. 0.5*(1+1*sin(2*pi*x1)*sin(2*pi*y1));
 at = af(pt);
-ut = model(at,f1);
+ut = model(at);
 function loss(p)
     a = af(p)
-    u = model(a,f1)
+    u = model(a)
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
     ll = @. f1*u + α*(adx^2+ady^2);
     l  = sum(B1.*ll);
