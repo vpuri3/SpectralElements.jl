@@ -145,9 +145,9 @@ f1 = @. 1e-2 + 0*x1
 af(p)   = @. 0.5*(tanh(p)+1)
 kond(a) = @. ε + (1-ε)*a^pa
 
-function problem(a) # topology parameter, forcing
+function problem(a,f) # topology parameter, forcing
     visc = kond(a)
-    f    = f1 #.* a
+    f    = f #.* a
 
     viscd = ABu(Js1d,Jr1d,visc);
     G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
@@ -173,16 +173,16 @@ function solver(opA,rhs,adj::Bool)
     end
 end
 
-function model(a)
-    u = linsolve(a,problem,solver) # adjoint support thru Zygote
+function model(a,f)
+    u = linsolve(a,f,problem,solver) # adjoint support thru Zygote
 end
 
 pt = @. 0.5*(1+1*sin(2*pi*x1)*sin(2*pi*y1));
 at = af(pt);
-ut = model(at);
+ut = model(at,f1);
 function loss(p)
     a = af(p)
-    u = model(a)
+    u = model(a,f1)
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
     ll = @. f1*u + α*(adx^2+ady^2);
     l  = sum(B1.*ll);
