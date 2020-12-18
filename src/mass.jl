@@ -7,7 +7,7 @@ export mass
 
  implemented as
 
- (QQ' * R'R * B_loc * R'R) * u_loc
+ (QQ' * R'R * B_loc) * u_loc
 """
 function mass(u,M,B,Jr,Js,QQtx,QQty);
 

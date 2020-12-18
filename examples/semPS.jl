@@ -145,10 +145,8 @@ f1 = @. 1e-2 + 0*x1
 af(p)   = @. 0.5*(tanh(p)+1)
 kond(a) = @. ε + (1-ε)*a^pa
 
-function problem(a,f) # topology parameter, forcing
-    visc = kond(a)
-    f    = f #.* a
-
+function problem(a) # topology parameter, forcing
+    visc  = kond(a)
     viscd = ABu(Js1d,Jr1d,visc);
     G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
     G12 = @. viscd * Bd * (rxd * sxd + ryd * syd);
@@ -158,6 +156,7 @@ function problem(a,f) # topology parameter, forcing
         return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
     end
 
+    f   = f1 #.* a
     rhs = mass(f,M1,Bd,Jr1d,Js1d,QQtx1,QQty1);
 
     return lhs, rhs
@@ -168,26 +167,30 @@ function opM(v) # preconditioner
 end
 
 function solver(opA,rhs,adj::Bool)
-    if adj return pcg(rhs,opA,opM,mult1,false);
-    else   return pcg(rhs,opA,opM,mult1,false);
+    if adj
+        #rhs = mass(rhs,M1,Bd,Jr1d,Js1d,QQtx1,QQty1);
+        rhs = mask(rhs,M1);
+        return pcg(rhs,opA,opM,mult1,false);
+    else
+        return pcg(rhs,opA,opM,mult1,false);
     end
 end
 
-function model(a,f)
-    u = linsolve(a,f,problem,solver) # adjoint support thru Zygote
+function model(a)
+    u = linsolve(a,problem,solver) # adjoint support thru Zygote
 end
 
 pt = @. 0.5*(1+1*sin(2*pi*x1)*sin(2*pi*y1));
 at = af(pt);
-ut = model(at,f1);
+ut = model(at);
 function loss(p)
     a = af(p)
-    u = model(a,f1)
+    u = model(a)
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
     ll = @. f1*u + α*(adx^2+ady^2);
     l  = sum(B1.*ll);
-    e = @. u - ut;
-    l = sum(B1.*e.*e);
+    #e = @. u - ut;
+    #l = sum(B1.*e.*e);
     return l, u
 end
 
