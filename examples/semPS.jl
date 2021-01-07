@@ -21,7 +21,7 @@ using Krylov
 using  Zygote
 
 using NLopt
-using DiffEqFlux, Optim
+using DiffEqFlux,Optim
 using Flux
 using Statistics
 
@@ -146,6 +146,7 @@ af(p)   = @. 0.5*(tanh(p)+1)
 kond(a) = @. ε + (1-ε)*a^pa
 
 function problem(a) # topology parameter, forcing
+
     visc  = kond(a)
     viscd = ABu(Js1d,Jr1d,visc);
     G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
@@ -156,7 +157,7 @@ function problem(a) # topology parameter, forcing
         return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
     end
 
-    f   = f1 #.* a
+    f   = f1 .* a;
     rhs = mass(f,M1,Bd,Jr1d,Js1d,QQtx1,QQty1);
 
     return lhs, rhs
@@ -168,8 +169,7 @@ end
 
 function solver(opA,rhs,adj::Bool)
     if adj
-        #rhs = mass(rhs,M1,Bd,Jr1d,Js1d,QQtx1,QQty1);
-        rhs = mask(rhs,M1);
+        rhs = mass(rhs,M1,mult1,[],[],QQtx1,QQty1);
         return pcg(rhs,opA,opM,mult1,false);
     else
         return pcg(rhs,opA,opM,mult1,false);
@@ -181,6 +181,7 @@ function model(a)
 end
 
 pt = @. 0.5*(1+1*sin(2*pi*x1)*sin(2*pi*y1));
+pt = @. 0.1 + 0.5*(x1+y1);
 at = af(pt);
 ut = model(at);
 function loss(p)
@@ -189,7 +190,7 @@ function loss(p)
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
     ll = @. f1*u + α*(adx^2+ady^2);
     l  = sum(B1.*ll);
-    #e = @. u - ut;
+    e = @. u - ut;
     #l = sum(B1.*e.*e);
     return l, u
 end
@@ -197,7 +198,7 @@ end
 #----------------------------------------------------------------------#
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
-p0 = @. 0.5 + 0.0*x1
+p0 = @. 0.6 + 0.0*x1
 p0 = mult1 .* gatherScatter(p0,QQtx1,QQty1);
 
 global param = []
@@ -206,7 +207,7 @@ callback = function (p, l, pred; doplot = true)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss,p0,ADAM(1e-2),cb=Flux.throttle(callback,1),maxiters=100)
+result = DiffEqFlux.sciml_train(loss,p0,ADAM(5e-3),cb=Flux.throttle(callback,1),maxiters=100)
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
 

@@ -12,13 +12,13 @@ Zygote.@adjoint function linsolve(a,problem,solver)
     u = solver(lhs,rhs,false)
     function fun(u̅)
         λ = solver(lhs,u̅,true)
-        _,gp=pullback((a)->g(u,a,problem),a)
-        return (gp(λ)[1],nothing)
+        _,drda=pullback((aa)->resi(u,aa,problem),a)
+        return (drda(λ)[1],nothing)
     end
     return u,fun
 end
 #--------------------------------------#
-function g(u,a,problem)
+function resi(u,a,problem)
     lhs, rhs = problem(a)
     return rhs .- lhs(u);
 end
