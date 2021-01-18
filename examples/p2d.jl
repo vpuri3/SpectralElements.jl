@@ -31,8 +31,8 @@ import Krylov
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 8; Ex = 5;
-ny1 = 8; Ey = 5;
+nx1 = 8; Ex = 10;
+ny1 = 8; Ey = 10;
 
 nx2 = nx1-2; nxd = ceil(1.5*nx1);
 ny2 = nx1-2; nyd = ceil(1.5*ny1);
@@ -81,11 +81,16 @@ Qx1 = semq(Ex,nx1,ifperiodicX); Qx2 = semq(Ex,nx2,ifperiodicX);
 Qy1 = semq(Ey,ny1,ifperiodicY); Qy2 = semq(Ey,ny2,ifperiodicY);
 
 # gather scatter op
-QQtx1 = Qx1*Qx1';
-QQty1 = Qy1*Qy1';
+QQtx1 = Qx1*Qx1'; QQtx2 = Qx2*Qx2';
+QQty1 = Qy1*Qy1'; QQty2 = Qy2*Qy2';
 
-QQtx2 = Qx2*Qx2';
-QQty2 = Qy2*Qy2';
+nxg = size(Qx1,2); nxl = Ex*nx1;
+nyg = size(Qx1,2); nyl = Ey*ny1;
+
+gl  = collect(1:nxg*nyg);
+gl  = reshape(gl,nxg,nyg);
+gl2loc = ABu(Qy1,Qx1,gl);
+gl2loc = round.(Int,gl2loc);
 
 # weight for inner products
 mult1 = ones(nx1*Ex,ny1*Ey);
@@ -136,12 +141,12 @@ f  = @. ut*((kx^2+ky^2)*pi^2);       # forcing/RHS
 ub = copy(ut);                       # boundary data
 
 visc = @. 1+0*x1;
-visc = @. 0.5*(ut+1);
+#visc = @. 0.5*(ut+1);
 
-f = @. 1+0*x1;
+#f = @. 1+0*x1;
 ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
-# operators
+# set up Laplace Operator
 #----------------------------------------------------------------------#
 
 viscd = ABu(Js1d,Jr1d,visc);

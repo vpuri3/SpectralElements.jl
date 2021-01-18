@@ -28,22 +28,27 @@ using Statistics
 #----------------------------------------------------------------------#
 # size
 #----------------------------------------------------------------------#
-nx1 = 8; Ex = 5;
-ny1 = 8; Ey = 5;
+nx1 = 12; Ex = 8;
+ny1 = 12; Ey = 8;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1));
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1));
 
+nxp = 3*nx1;
+nyp = 3*ny1;
+
 #----------------------------------------------------------------------#
 # nodal operators
 #----------------------------------------------------------------------#
-zr1,wr1 = gausslobatto(nx1); zs1,ws1 = gausslobatto(ny1);
-zr2,wr2 = gausslobatto(nx2); zs2,ws2 = gausslobatto(ny2);
-zrd,wrd = gausslobatto(nxd); zsd,wsd = gausslobatto(nyd);
+zr1,wr1 = gausslobatto(nx1);  zs1,ws1 = gausslobatto(ny1);
+zr2,wr2 = gausslobatto(nx2);  zs2,ws2 = gausslobatto(ny2);
+zrd,wrd = gausslobatto(nxd);  zsd,wsd = gausslobatto(nyd);
+zrp     = linspace(-1,1,nxp); zsp     = linspace(-1,1,nyp);
 
 Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
 Jr2d = interpMat(zrd,zr2); Js2d = interpMat(zsd,zs2);
 Jr21 = interpMat(zr1,zr2); Js21 = interpMat(zs1,zs2);
+Jr1p = interpMat(zrp,zr1); Js1p = interpMat(zsp,zs1);
 
 Dr1 = derivMat(zr1); Ds1 = derivMat(zs1);
 Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
@@ -79,11 +84,8 @@ Qx1 = semq(Ex,nx1,ifperiodicX); Qx2 = semq(Ex,nx2,ifperiodicX);
 Qy1 = semq(Ey,ny1,ifperiodicY); Qy2 = semq(Ey,ny2,ifperiodicY);
 
 # gather scatter op
-QQtx1 = Qx1*Qx1';
-QQty1 = Qy1*Qy1';
-
-QQtx2 = Qx2*Qx2';
-QQty2 = Qy2*Qy2';
+QQtx1 = Qx1*Qx1'; QQtx2 = Qx2*Qx2';
+QQty1 = Qy1*Qy1'; QQty2 = Qy2*Qy2';
 
 # weight for inner products
 mult1 = ones(nx1*Ex,ny1*Ey);
@@ -124,13 +126,13 @@ Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
 # don't use lumped mass matrices for now
-Jr1d = []
-Js1d = []
-rxd = rx1
-ryd = ry1
-sxd = sx1
-syd = sy1
-Bd = B1
+#Jr1d = []
+#Js1d = []
+#rxd = rx1
+#ryd = ry1
+#sxd = sx1
+#syd = sy1
+#Bd = B1
 
 #----------------------------------------------------------------------#
 # set up case
@@ -140,25 +142,26 @@ pa = 5
 ε  = 1e-3
 α  = 1e-8
 f1 = @. 1e-2 + 0*x1
-#M1[:,end] .= 1;
-#M1[1,:]   .= 1;
+M1[:,end] .= 1;
+M1[1,:]   .= 1;
 af(p)   = @. 0.5*(tanh(p)+1)
 kond(a) = @. ε + (1-ε)*a^pa
 
 function problem(a) # topology parameter, forcing
 
+    Ba = Bd;
+    #Ba = Bd .* ABu(Js1d,Jr1d,a);
+
     visc  = kond(a)
     viscd = ABu(Js1d,Jr1d,visc);
-    G11 = @. viscd * Bd * (rxd * rxd + ryd * ryd);
-    G12 = @. viscd * Bd * (rxd * sxd + ryd * syd);
-    G22 = @. viscd * Bd * (sxd * sxd + syd * syd);
+    G11 = @. viscd * Ba * (rxd * rxd + ryd * ryd);
+    G12 = @. viscd * Ba * (rxd * sxd + ryd * syd);
+    G22 = @. viscd * Ba * (sxd * sxd + syd * syd);
 
-    function lhs(v)
-        return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
-    end
+    lhs(v) = lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
 
-    f   = f1 .* a;
-    rhs = mass(f,M1,Bd,Jr1d,Js1d,QQtx1,QQty1);
+    f   = f1;
+    rhs = mass(f,M1,Ba,Jr1d,Js1d,QQtx1,QQty1);
 
     return lhs, rhs
 end
@@ -188,9 +191,11 @@ function loss(p)
     a = af(p)
     u = model(a)
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
+    adx = mass(adx,[],mult1,[],[],QQtx1,QQty1);
+    ady = mass(ady,[],mult1,[],[],QQtx1,QQty1);
     ll = @. f1*u + α*(adx^2+ady^2);
-    l  = sum(B1.*ll);
-    e = @. u - ut;
+    l  = sum(B1.* a.*ll);
+    #e = @. u - ut;
     #l = sum(B1.*e.*e);
     return l, u
 end
@@ -207,12 +212,13 @@ callback = function (p, l, pred; doplot = true)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss,p0,ADAM(5e-3),cb=Flux.throttle(callback,1),maxiters=100)
+result = DiffEqFlux.sciml_train(loss,p0,ADAM(5e-3),cb=Flux.throttle(callback,1),maxiters=10)
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
-
-pl=plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
-        mesh(x1,y1,at),mesh(x1,y1,af(p)))
+Jp = ABu(Js1p,Jr1p,p);
+pl=heatmap(af(Jp))
+#pl=plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
+#        mesh(x1,y1,at),mesh(x1,y1,af(p)))
 display(pl),display(loss(param)[1])
 #----------------------------------------------------------------------#
 # NLopt.Optimize
