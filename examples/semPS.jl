@@ -13,29 +13,29 @@
 using SEM
 
 using FastGaussQuadrature
-using Plots, LinearAlgebra, SparseArrays
+using Plots,LinearAlgebra,SparseArrays
 
 using LinearOperators
 using Krylov
 
-using  Zygote
+using Zygote
 
-using NLopt
-using DiffEqFlux,Optim
+#using NLopt,Optim
+using DiffEqFlux
 using Flux
 using Statistics
 
 #----------------------------------------------------------------------#
 # size
 #----------------------------------------------------------------------#
-nx1 = 12; Ex = 8;
-ny1 = 12; Ey = 8;
+nx1 = 8; Ex = 4;
+ny1 = 8; Ey = 4;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1));
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1));
 
-nxp = 3*nx1;
-nyp = 3*ny1;
+nxp = 5*nx1;
+nyp = 5*ny1;
 
 #----------------------------------------------------------------------#
 # nodal operators
@@ -53,6 +53,14 @@ Jr1p = interpMat(zrp,zr1); Js1p = interpMat(zsp,zs1);
 Dr1 = derivMat(zr1); Ds1 = derivMat(zs1);
 Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
 Drd = derivMat(zrd); Dsd = derivMat(zsd);
+
+## use local operators to see if ABu adjoint is alright
+#Dr1  = kron(sparse(I,Ex,Ex),Dr1);   Ds1 = kron(sparse(I,Ey,Ey),Ds1);
+#Dr2  = kron(sparse(I,Ex,Ex),Dr2);   Ds2 = kron(sparse(I,Ey,Ey),Ds2);
+#Drd  = kron(sparse(I,Ex,Ex),Drd);   Dsd = kron(sparse(I,Ey,Ey),Dsd);
+#
+#Jr1d = kron(sparse(I,Ex,Ex),Jr1d); Js1d = kron(sparse(I,Ey,Ey),Js1d);
+#Jr21 = kron(sparse(I,Ex,Ex),Jr21); Js21 = kron(sparse(I,Ey,Ey),Js21);
 
 #----------------------------------------------------------------------#
 # boundary conditions
@@ -125,14 +133,18 @@ B2  = Jac2 .* (wx2*wy2');
 Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
-# don't use lumped mass matrices for now
-#Jr1d = []
-#Js1d = []
-#rxd = rx1
-#ryd = ry1
-#sxd = sx1
-#syd = sy1
-#Bd = B1
+#----------------------------------------------------------------------#
+# debugging
+#----------------------------------------------------------------------#
+
+## don't use lumped mass matrices for now
+Jr1d = []
+Js1d = []
+rxd = rx1
+ryd = ry1
+sxd = sx1
+syd = sy1
+Bd = B1
 
 #----------------------------------------------------------------------#
 # set up case
@@ -158,7 +170,7 @@ function problem(a) # topology parameter, forcing
     G12 = @. viscd * Ba * (rxd * sxd + ryd * syd);
     G22 = @. viscd * Ba * (sxd * sxd + syd * syd);
 
-    lhs(v) = lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
+    lhs(v) = lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22,mult1);
 
     f   = f1;
     rhs = mass(f,M1,Ba,Jr1d,Js1d,QQtx1,QQty1);
@@ -172,6 +184,7 @@ end
 
 function solver(opA,rhs,adj::Bool)
     if adj
+        #display(heatmap(rhs));
         rhs = mass(rhs,M1,mult1,[],[],QQtx1,QQty1);
         return pcg(rhs,opA,opM,mult1,false);
     else
@@ -212,14 +225,28 @@ callback = function (p, l, pred; doplot = true)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss,p0,ADAM(5e-3),cb=Flux.throttle(callback,1),maxiters=10)
+result = DiffEqFlux.sciml_train(loss
+                                ,p0
+                                ,ADAM(1e-2)
+                                ,cb=Flux.throttle(callback,1)
+                                ,maxiters=200)
+
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
-Jp = ABu(Js1p,Jr1p,p);
-pl=heatmap(af(Jp))
+u= model(af(p));
+
+Jp  = ABu(Js1p,Jr1p,p );
+Jdp = ABu(Js1p,Jr1p,dp);
+Ju  = ABu(Js1p,Jr1p,u );
+
+pl=plot(heatmap(af(Jp)),heatmap(Jdp),heatmap(Ju));
+display(pl)
+
+display(loss(p0)[1])
+display(loss(p )[1])
+
 #pl=plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
 #        mesh(x1,y1,at),mesh(x1,y1,af(p)))
-display(pl),display(loss(param)[1])
 #----------------------------------------------------------------------#
 # NLopt.Optimize
 #----------------------------------------------------------------------#

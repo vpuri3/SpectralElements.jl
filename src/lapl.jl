@@ -21,7 +21,7 @@ export lapl
 
 """
 function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds
-             ,G11,G12,G22)
+             ,G11,G12,G22,mult)
 
 ur = ABu([],Dr,u);
 us = ABu(Ds,[],u);
@@ -36,6 +36,10 @@ wr = ABu(Js',Jr',vr);
 ws = ABu(Js',Jr',vs);
 
 Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
+
+# to avoid gradient exploding at
+# element boundaries
+Au = Zygote.hook(d->d.*mult,Au)
 
 Au = gatherScatter(Au,QQtx,QQty);
 Au = mask(Au,M);
