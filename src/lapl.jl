@@ -19,9 +19,27 @@ export lapl
  [Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]\n
  [Ds]  [ry sy]  [0 B] [ry sy] [Ds]
 
+ = [Dr]'*[G11 G12]'*[Dr]\n
+   [Ds]  [G12 G22]  [Ds]
 """
 function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds
              ,G11,G12,G22,mult)
+
+Au = u;
+
+Au = laplace(Au,Jr,Js,Dr,Ds,G11,G12,G22);
+
+Zygote.ignore() do
+Au = mass(Au,M,[],[],[],QQtx,QQty);
+end
+
+#Au = Zygote.hook(d->hmp(d),Au);
+
+return Au
+end
+#--------------------------------------#
+function laplace(u,Jr,Js,Dr,Ds
+                ,G11,G12,G22)
 
 ur = ABu([],Dr,u);
 us = ABu(Ds,[],u);
@@ -37,29 +55,21 @@ ws = ABu(Js',Jr',vs);
 
 Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
 
-# to avoid gradient exploding at
-# element boundaries
-Au = Zygote.hook(d->d.*mult,Au)
-
-Au = gatherScatter(Au,QQtx,QQty);
-Au = mask(Au,M);
-
 return Au
 end
-
 #--------------------------------------#
-export lapl_fdm
+#export lapl_fdm
 #--------------------------------------#
-"""
- Elementwise FDM Laplacian solve
-"""
-function lapl_fdm(b,Bi,Sx,Sy,Sxi,Syi,Di)
-u = b .* Bi;
-#u = ABu(Ry ,Rx ,u);
-u = ABu(Syi,Sxi,u);
-u = u .* Di;
-u = ABu(Sy ,Sx ,u);
-#u = ABu(Ry',Rx',u);
-return u;
-end
+#"""
+# Elementwise FDM Laplacian solve
+#"""
+#function lapl_fdm(b,Bi,Sx,Sy,Sxi,Syi,Di)
+#u = b .* Bi;
+##u = ABu(Ry ,Rx ,u);
+#u = ABu(Syi,Sxi,u);
+#u = u .* Di;
+#u = ABu(Sy ,Sx ,u);
+##u = ABu(Ry',Rx',u);
+#return u;
+#end
 #--------------------------------------#

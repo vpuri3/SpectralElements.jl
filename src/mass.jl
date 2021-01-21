@@ -18,9 +18,8 @@ else              BJu = @. B*Ju;
 end
 
 Bu = ABu(Js',Jr',BJu);
-
-Bu = mask(Bu,M);
 Bu = gatherScatter(Bu,QQtx,QQty);
+Bu = mask(Bu,M);
 
 return Bu
 end

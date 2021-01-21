@@ -28,8 +28,8 @@ using Statistics
 #----------------------------------------------------------------------#
 # size
 #----------------------------------------------------------------------#
-nx1 = 8; Ex = 4;
-ny1 = 8; Ey = 4;
+nx1 = 8; Ex = 5;
+ny1 = 8; Ey = 5;
 
 nx2 = nx1-2; nxd = Int(ceil(1.5*nx1));
 ny2 = nx1-2; nyd = Int(ceil(1.5*ny1));
@@ -53,14 +53,6 @@ Jr1p = interpMat(zrp,zr1); Js1p = interpMat(zsp,zs1);
 Dr1 = derivMat(zr1); Ds1 = derivMat(zs1);
 Dr2 = derivMat(zr2); Ds2 = derivMat(zs2);
 Drd = derivMat(zrd); Dsd = derivMat(zsd);
-
-## use local operators to see if ABu adjoint is alright
-#Dr1  = kron(sparse(I,Ex,Ex),Dr1);   Ds1 = kron(sparse(I,Ey,Ey),Ds1);
-#Dr2  = kron(sparse(I,Ex,Ex),Dr2);   Ds2 = kron(sparse(I,Ey,Ey),Ds2);
-#Drd  = kron(sparse(I,Ex,Ex),Drd);   Dsd = kron(sparse(I,Ey,Ey),Dsd);
-#
-#Jr1d = kron(sparse(I,Ex,Ex),Jr1d); Js1d = kron(sparse(I,Ey,Ey),Js1d);
-#Jr21 = kron(sparse(I,Ex,Ex),Jr21); Js21 = kron(sparse(I,Ey,Ey),Js21);
 
 #----------------------------------------------------------------------#
 # boundary conditions
@@ -161,8 +153,8 @@ kond(a) = @. ε + (1-ε)*a^pa
 
 function problem(a) # topology parameter, forcing
 
-    Ba = Bd;
-    #Ba = Bd .* ABu(Js1d,Jr1d,a);
+    #Ba = Bd;
+    Ba = Bd .* ABu(Js1d,Jr1d,a);
 
     visc  = kond(a)
     viscd = ABu(Js1d,Jr1d,visc);
@@ -184,8 +176,11 @@ end
 
 function solver(opA,rhs,adj::Bool)
     if adj
-        #display(heatmap(rhs));
-        rhs = mass(rhs,M1,mult1,[],[],QQtx1,QQty1);
+        # zero out sensitivities at bounary points
+        rhs = mask(rhs,M1);
+        # ensure continuity and elem boundaries
+        rhs = mult1 .* gatherScatter(rhs,QQty1,QQtx1);
+
         return pcg(rhs,opA,opM,mult1,false);
     else
         return pcg(rhs,opA,opM,mult1,false);
@@ -196,20 +191,12 @@ function model(a)
     u = linsolve(a,problem,solver) # adjoint support thru Zygote
 end
 
-pt = @. 0.5*(1+1*sin(2*pi*x1)*sin(2*pi*y1));
-pt = @. 0.1 + 0.5*(x1+y1);
-at = af(pt);
-ut = model(at);
 function loss(p)
     a = af(p)
-    u = model(a)
+    u = model(a) # du = 1 .* B1 .* a .* f
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
-    adx = mass(adx,[],mult1,[],[],QQtx1,QQty1);
-    ady = mass(ady,[],mult1,[],[],QQtx1,QQty1);
     ll = @. f1*u + α*(adx^2+ady^2);
     l  = sum(B1.* a.*ll);
-    #e = @. u - ut;
-    #l = sum(B1.*e.*e);
     return l, u
 end
 
@@ -225,12 +212,10 @@ callback = function (p, l, pred; doplot = true)
   return false
 end
 
-result = DiffEqFlux.sciml_train(loss
-                                ,p0
-                                ,ADAM(1e-2)
+result = DiffEqFlux.sciml_train(loss,p0
+                                ,ADAM(1e-1)
                                 ,cb=Flux.throttle(callback,1)
-                                ,maxiters=200)
-
+                                ,maxiters=100)
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
 u= model(af(p));
@@ -238,15 +223,11 @@ u= model(af(p));
 Jp  = ABu(Js1p,Jr1p,p );
 Jdp = ABu(Js1p,Jr1p,dp);
 Ju  = ABu(Js1p,Jr1p,u );
-
 pl=plot(heatmap(af(Jp)),heatmap(Jdp),heatmap(Ju));
 display(pl)
 
 display(loss(p0)[1])
 display(loss(p )[1])
-
-#pl=plot(mesh(x1,y1,ut),mesh(x1,y1,model(af(p))),
-#        mesh(x1,y1,at),mesh(x1,y1,af(p)))
 #----------------------------------------------------------------------#
 # NLopt.Optimize
 #----------------------------------------------------------------------#

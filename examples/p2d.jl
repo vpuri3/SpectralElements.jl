@@ -156,7 +156,7 @@ G12 = @. viscd * Bd * (rxd * sxd + ryd * syd);
 G22 = @. viscd * Bd * (sxd * sxd + syd * syd);
 
 function opLapl(v)
-    return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22);
+    return lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22,mult1);
 end
 #----------------------------------------------------------------------#
 # Laplace Fast Diagonalization Preconditioner
@@ -200,7 +200,7 @@ ny = ny1*Ey;
 nt = nx*ny;
 
 b =     mass(f,[],Bd,Jr1d,Js1d,[],[]);
-b = b - lapl(ub,[],Jr1d,Js1d,[],[],Dr1,Ds1,G11,G12,G22);
+b = b - lapl(ub,[],Jr1d,Js1d,[],[],Dr1,Ds1,G11,G12,G22,mult1);
 b =     mass(b,M1,[],[],[],QQtx1,QQty1);
 
 @time u = pcg(b,opLapl,opFDM,mult1,true)

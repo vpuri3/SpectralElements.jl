@@ -12,3 +12,8 @@ QQtu = ABu(QQty,QQtx,u); # gather scatter
 
 return QQtu
 end
+#--------------------------------------#
+#Zygote.@adjoint function gatherScatter(As,Br,u)
+#return ABu(As,Br,u),dv->(nothing,nothing,ABu(As',Br',dv));
+#end
+#--------------------------------------#
