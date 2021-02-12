@@ -42,6 +42,9 @@ Drd = derivMat(zrd); Dsd = derivMat(zsd);
 # mapping
 #----------------------------------------------------------------------#
 
+ifperiodicX = false
+ifperiodicY = false
+
 # Q: global -> local op, Q': local -> global
 Qx1 = semq(Ex,nx1,ifperiodicX);
 Qy1 = semq(Ey,ny1,ifperiodicY);
@@ -87,6 +90,17 @@ end
 # functions
 #----------------------------------------------------------------------#
 
+#----------------------------------------------------------------------#
+# things too add
+Ex = 16
+Ey = 16
+
+nx1 = 2
+ny1 = 2
+nxd = 8
+nyd = 8
+#----------------------------------------------------------------------#
+
 Ax1 = Matrix(1.0I, nx1, nx1); Ax1[end,1:end-1] .= -1
 Ay1 = Matrix(1.0I, ny1, ny1); Ay1[end,1:end-1] .= -1
 Axd = Matrix(1.0I, nxd, nxd); Axd[end,1:end-1] .= -1
@@ -110,16 +124,16 @@ function Jlearn(p,x,y,visc,f,M)
 
     Jmats = permutedims(Jmats, [3,1,2,4])
 
-    Jr = reshape([cat(reshape(Jmats[1:(nx1-1)*nxd,(i-1)%Ex+1,ceil(Int,i/Ex)],nxd,nx1-1),
+    Jr = reshape([cat(reshape(Jmats[1:(nx1-1)*nxd,(i-1)%Ex+1,Base.ceil(Int,i/Ex)],nxd,nx1-1),
                  zeros(nxd,1),dims=2)' for i=1:Ex*Ey], Ex, Ey)
-    Js = reshape([cat(reshape(Jmats[(nx1-1)*nxd+1:(nx1-1)*nxd+(ny1-1)*nyd,(i-1)%Ex+1,ceil(Int,i/Ex)],nyd,ny1-1),
+    Js = reshape([cat(reshape(Jmats[(nx1-1)*nxd+1:(nx1-1)*nxd+(ny1-1)*nyd,(i-1)%Ex+1,Base.ceil(Int,i/Ex)],nyd,ny1-1),
                  zeros(nyd,1),dims=2)' for i=1:Ex*Ey], Ex, Ey)
 
     Jr = broadcast(transpose, Ref(Ax1).*Jr)
     Js = broadcast(transpose, Ref(Ay1).*Js)
 
     # B = reshape([reshape(Ad*cat(reshape(Jmats[(nx1-1)*nxd+(ny1-1)*nyd+1:end,
-    #              (i-1)%Ex+1,ceil(Int,i/Ex)],nxd*nyd-1,1),0,dims=1),nxd,nyd) for i=1:Ex*Ey], Ex, Ey)
+    #              (i-1)%Ex+1,Base.ceil(Int,i/Ex)],nxd*nyd-1,1),0,dims=1),nxd,nyd) for i=1:Ex*Ey], Ex, Ey)
     # B = vcat([hcat(B[i,:]...) for i=1:size(B,1)]...)
 
     return Jr, Js
@@ -242,15 +256,16 @@ bloss = sum(abs2,baseline.-ut)
 #----------------------------------------------------------------------#
 # training
 #----------------------------------------------------------------------#
-iftrain = false
+iftrain = true
 if iftrain
 # pretrain IC to 0
 zres = DiffEqFlux.sciml_train(p->zloss(p),p0,ADAM(.005),cb=callback,maxiters=500)
 
 opt = ADAM(1e-5)
 # opt.eta = 1e-6
-result = DiffEqFlux.sciml_train(loss,zres.minimizer,opt,
-                    Iterators.repeated((ut,),100),cb=callback)
+result = DiffEqFlux.sciml_train(p->loss(p,ut),zres.minimizer,opt,cb=callback,maxiters=100)
+#result = DiffEqFlux.sciml_train(p->loss(p,ut),loss,zres.minimizer,opt,
+#                    Iterators.repeated((ut,),100),cb=callback)
 best_res = result.minimizer
 end
 #----------------------------------------------------------------------#

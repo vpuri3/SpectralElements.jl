@@ -19,7 +19,7 @@ if typeof(As)<:AbstractArray{<:AbstractArray{}}
         ABu = u
     else
         u = reshape([u[nb*((i-1)%Ex)+1:nb*((i-1)%Ex+1),
-                       na*(ceil(Int,i/Ex)-1)+1:na*ceil(Int,i/Ex)] for i=1:Ex*Ey], Ex, Ey)
+                       na*(Base.ceil(Int,i/Ex)-1)+1:na*Base.ceil(Int,i/Ex)] for i=1:Ex*Ey], Ex, Ey)
         As = broadcast(transpose, As);
         ABu = @. Br*u*As
         ABu = vcat([hcat(ABu[i,:]...) for i=1:size(ABu,1)]...)
