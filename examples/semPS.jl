@@ -107,9 +107,15 @@ x2,y2 = ndgrid(x2e,y2e);
 xd,yd = ndgrid(xde,yde);
 
 # deform grid with gordonhall
-x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
-x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
-xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
+function usrgeom(r,s)
+    x = @. 0.5*(r+1)
+    y = @. 0.5*(s+1)
+return x,y
+end
+
+x1,y1 = usrgeom(x1,y1)
+x2,y2 = usrgeom(x2,y2)
+xd,yd = usrgeom(xd,yd)
 
 Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dr1,Ds1);
 Jac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dr2,Ds2);
@@ -130,30 +136,29 @@ Bi1 = 1 ./ B1;
 #----------------------------------------------------------------------#
 
 ## don't use lumped mass matrices for now
-Jr1d = []
-Js1d = []
-rxd = rx1
-ryd = ry1
-sxd = sx1
-syd = sy1
-Bd = B1
+#Jr1d = []
+#Js1d = []
+#rxd = rx1
+#ryd = ry1
+#sxd = sx1
+#syd = sy1
+#Bd = B1
 
 #----------------------------------------------------------------------#
-# set up case
+# case setup
 #----------------------------------------------------------------------#
 V  = 0.4
 pa = 5
 ε  = 1e-3
 α  = 1e-8
 f1 = @. 1e-2 + 0*x1
-M1[:,end] .= 1;
-M1[1,:]   .= 1;
+#M1[:,end] .= 1;
+#M1[1,:]   .= 1;
 af(p)   = @. 0.5*(tanh(p)+1)
 kond(a) = @. ε + (1-ε)*a^pa
 
 function problem(a) # topology parameter, forcing
 
-    #Ba = Bd;
     Ba = Bd .* ABu(Js1d,Jr1d,a);
 
     visc  = kond(a)
@@ -162,10 +167,12 @@ function problem(a) # topology parameter, forcing
     G12 = @. viscd * Ba * (rxd * sxd + ryd * syd);
     G22 = @. viscd * Ba * (sxd * sxd + syd * syd);
 
+    #Ba = Zygote.hook(d->hmp(d),Ba);
     lhs(v) = lapl(v,M1,Jr1d,Js1d,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22,mult1);
 
     f   = f1;
-    rhs = mass(f,M1,Ba,Jr1d,Js1d,QQtx1,QQty1);
+
+    rhs = mass(f,M1,Ba,Jr1d,Js1d,QQtx1,QQty1,mult1);
 
     return lhs, rhs
 end
@@ -194,9 +201,17 @@ end
 function loss(p)
     a = af(p)
     u = model(a) # du = 1 .* B1 .* a .* f
+    f = f1
     adx,ady = grad(a,Dr1,Ds1,rx1,ry1,sx1,sy1);
-    ll = @. f1*u + α*(adx^2+ady^2);
-    l  = sum(B1.* a.*ll);
+
+    ad   = ABu(Js1d,Jr1d,a  );
+    ud   = ABu(Js1d,Jr1d,u  );
+    fd   = ABu(Js1d,Jr1d,f  );
+    adxd = ABu(Js1d,Jr1d,adx);
+    adyd = ABu(Js1d,Jr1d,ady);
+
+    ll = @. fd*ud + α*(adxd^2+adyd^2);
+    l  = sum(Bd.*ad.*ll);
     return l, u
 end
 
@@ -204,7 +219,6 @@ end
 # DiffEqFlux.sciml_train
 #----------------------------------------------------------------------#
 p0 = @. 0.6 + 0.0*x1
-p0 = mult1 .* gatherScatter(p0,QQtx1,QQty1);
 
 global param = []
 callback = function (p, l, pred; doplot = true)
@@ -213,9 +227,8 @@ callback = function (p, l, pred; doplot = true)
 end
 
 result = DiffEqFlux.sciml_train(loss,p0
-                                ,ADAM(1e-1)
-                                ,cb=Flux.throttle(callback,1)
-                                ,maxiters=100)
+                                ,ADAM(1e-1),cb=Flux.throttle(callback,1)
+                                ,maxiters=10)
 
 p=param;dp=Zygote.gradient((p)->loss(p)[1], p)[1];
 u= model(af(p));

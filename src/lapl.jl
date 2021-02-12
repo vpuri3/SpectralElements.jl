@@ -9,31 +9,31 @@ export lapl
              := a(v,u)
               = v' * A * u
               = (Q*R'*v)'*A_l*(Q*R'*u)
+              = v'*R*Q'*A_l*Q*R'*u
 
  implemented as
 
- R'R * QQ' * A_l * u_loc
-
+ R'R * QQ' * A_l * u_loc 
  where A_l is
 
- [Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]\n
+ [Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
  [Ds]  [ry sy]  [0 B] [ry sy] [Ds]
 
- = [Dr]'*[G11 G12]'*[Dr]\n
-   [Ds]  [G12 G22]  [Ds]
+ = [Dr]' * [G11 G12]' * [Dr]
+   [Ds]    [G12 G22]    [Ds]
 """
 function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds
              ,G11,G12,G22,mult)
 
 Au = u;
 
-Au = laplace(Au,Jr,Js,Dr,Ds,G11,G12,G22);
-
-Zygote.ignore() do
-Au = mass(Au,M,[],[],[],QQtx,QQty);
-end
+Au=laplace(Au,Jr,Js,Dr,Ds,G11,G12,G22);
 
 #Au = Zygote.hook(d->hmp(d),Au);
+Au = Zygote.hook(d->d .* mult,Au);
+
+Au = gatherScatter(Au,QQtx,QQty);
+Au = mask(Au,M);
 
 return Au
 end

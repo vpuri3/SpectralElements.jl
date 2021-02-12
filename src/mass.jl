@@ -9,7 +9,8 @@ export mass
 
  (QQ' * R'R * B_loc) * u_loc
 """
-function mass(u,M,B,Jr,Js,QQtx,QQty);
+function mass(u,M,B,Jr,Js,QQtx,QQty
+             ,mult);
 
 Ju = ABu(Js,Jr,u);
 
@@ -18,8 +19,13 @@ else              BJu = @. B*Ju;
 end
 
 Bu = ABu(Js',Jr',BJu);
+
+#Bu = Zygote.hook(d->hmp(d),Bu);
+Bu = Zygote.hook(d->d .* mult,Bu);
+
 Bu = gatherScatter(Bu,QQtx,QQty);
 Bu = mask(Bu,M);
 
 return Bu
 end
+#--------------------------------------#

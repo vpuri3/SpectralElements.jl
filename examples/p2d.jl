@@ -31,8 +31,8 @@ import Krylov
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 8; Ex = 10;
-ny1 = 8; Ey = 10;
+nx1 = 32; Ex = 1;
+ny1 = 32; Ey = 1;
 
 nx2 = nx1-2; nxd = ceil(1.5*nx1);
 ny2 = nx1-2; nyd = ceil(1.5*ny1);
@@ -55,7 +55,7 @@ Drd = derivMat(zrd); Dsd = derivMat(zsd);
 # boundary conditions
 #----------------------------------------------------------------------#
 ifperiodicX = false
-ifperiodicY = false
+ifperiodicY = true
 
 Ix1 = Matrix(I,Ex*nx1,Ex*nx1);
 Iy1 = Matrix(I,Ey*ny1,Ey*ny1);
@@ -87,11 +87,6 @@ QQty1 = Qy1*Qy1'; QQty2 = Qy2*Qy2';
 nxg = size(Qx1,2); nxl = Ex*nx1;
 nyg = size(Qx1,2); nyl = Ey*ny1;
 
-gl  = collect(1:nxg*nyg);
-gl  = reshape(gl,nxg,nyg);
-gl2loc = ABu(Qy1,Qx1,gl);
-gl2loc = round.(Int,gl2loc);
-
 # weight for inner products
 mult1 = ones(nx1*Ex,ny1*Ey);
 mult1 = gatherScatter(mult1,QQtx1,QQty1);
@@ -112,9 +107,16 @@ x2,y2 = ndgrid(x2e,y2e);
 xd,yd = ndgrid(xde,yde);
 
 # deform grid with gordonhall
-x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
-x2 = @. 0.5 * (x2 + 1); y2 = @. 0.5 * (y2 + 1);
-xd = @. 0.5 * (xd + 1); yd = @. 0.5 * (yd + 1);
+function usrgeom(r,s)
+    #x = @. 0.5*(r+1)
+    #y = @. 0.5*(s+1)
+    x,y = annulus(0.5,1.0,2pi,r,s)
+return x,y
+end
+
+x1,y1 = usrgeom(x1,y1)
+x2,y2 = usrgeom(x2,y2)
+xd,yd = usrgeom(xd,yd)
 
 Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dr1,Ds1);
 Jac2,Jaci2,rx2,ry2,sx2,sy2 = jac(x2,y2,Dr2,Ds2);
@@ -143,7 +145,7 @@ ub = copy(ut);                       # boundary data
 visc = @. 1+0*x1;
 #visc = @. 0.5*(ut+1);
 
-#f = @. 1+0*x1;
+f = @. 1+0*x1;
 ub= @. 0+0*x1;
 #----------------------------------------------------------------------#
 # set up Laplace Operator
@@ -199,9 +201,9 @@ nx = nx1*Ex;
 ny = ny1*Ey;
 nt = nx*ny;
 
-b =     mass(f,[],Bd,Jr1d,Js1d,[],[]);
+b =     mass(f,[],Bd,Jr1d,Js1d,[],[],mult1);
 b = b - lapl(ub,[],Jr1d,Js1d,[],[],Dr1,Ds1,G11,G12,G22,mult1);
-b =     mass(b,M1,[],[],[],QQtx1,QQty1);
+b =     mass(b,M1,[],[],[],QQtx1,QQty1,mult1);
 
 @time u = pcg(b,opLapl,opFDM,mult1,true)
 u = u + ub;

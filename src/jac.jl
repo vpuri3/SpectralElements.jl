@@ -1,8 +1,12 @@
 #
 export jac
-#
-# computes jacobian
-#
+"""
+    Computes Jacobian and its inverse of transformation
+    x = x(r,s), y = y(r,s)
+
+    J = [xr xs],  Jinv = [rx ry]
+        [yr ys]          [sx sy]
+"""
 function jac(x,y,Dr,Ds)
 
 xr = ABu([],Dr,x); # dx/dr

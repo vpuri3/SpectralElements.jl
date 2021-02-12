@@ -8,6 +8,8 @@ function mesh(x,y,u,a=45,b=60)
     return p
 end
 #--------------------------------------#
+export hmp
+#--------------------------------------#
 function hmp(d)
     display(heatmap(d));
     return d;

@@ -14,7 +14,7 @@ sum(A::AbstractArray, n::Int) = Base.sum(A, dims=n)
 sum(A) = Base.sum(A)
 
 # SEM building blocks
-include("interpMat.jl")
+include("interp.jl")
 include("derivMat.jl")
 include("semmesh.jl")
 include("semq.jl")
@@ -31,9 +31,9 @@ include("mask.jl")
 include("mass.jl")
 include("lapl.jl")
 include("gatherScatter.jl")
-include("gordonHall.jl")
+include("geom.jl")
 
-include("cg.jl")
+include("pcg.jl")
 
 include("adjoint.jl")
 

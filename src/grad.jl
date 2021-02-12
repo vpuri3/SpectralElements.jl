@@ -3,8 +3,10 @@
 export grad
 #--------------------------------------#
 """
- [Dx]*u = [rx sx]*[Dr] * u\n
- [Dy]   = [ry sy] [Ds]
+    Compute gradient
+
+    [Dx] * u = [rx sx] * [Dr] * u
+    [Dy]     = [ry sy]   [Ds]
 """
 function grad(u,Dr,Ds,rx,ry,sx,sy)
 

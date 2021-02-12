@@ -1,8 +1,10 @@
 #
+#--------------------------------------#
 export derivMat
-#
-# Compute derivative matrix of lagrange interpolants on points x
-#
+#--------------------------------------#
+"""
+ Compute derivative matrix of lagrange interpolants on points x
+"""
 function derivMat(x)
     
 n = length(x)
@@ -30,3 +32,4 @@ end end
 
 return D
 end
+#--------------------------------------#
