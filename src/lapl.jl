@@ -21,7 +21,7 @@ export lapl
 
 """
 function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds
-             ,G11,G12,G22)
+             ,G11,G12,G22,mult)
 
 ur = ABu([],Dr,u);
 us = ABu(Ds,[],u);
@@ -32,13 +32,22 @@ Jus = ABu(Js,Jr,us);
 vr = @. G11*Jur + G12*Jus;
 vs = @. G12*Jur + G22*Jus;
 
-wr = ABu(Js',Jr',vr);
-ws = ABu(Js',Jr',vs);
+if typeof(Jr)<:AbstractArray{<:AbstractArray{}}
+    Jrt = broadcast(transpose,Jr)
+    Jst = broadcast(transpose,Js)
+else
+    Jrt = Jr'; Jst = Js'
+end
+wr = ABu(Jst,Jrt,vr);
+ws = ABu(Jst,Jrt,vs);
 
-Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
+Au = ABu([],Dr',wr) .+ ABu(Ds',[],ws);
 
+#Au = Zygote.hook(d->d.*mult,Au)
 Au = gatherScatter(Au,QQtx,QQty);
+
 Au = mask(Au,M);
+
 
 return Au
 end
