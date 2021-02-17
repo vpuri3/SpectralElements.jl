@@ -17,13 +17,7 @@ if(length(B)==0); BJu =      Ju;
 else              BJu = @. B*Ju;
 end
 
-if typeof(Jr)<:AbstractArray{<:AbstractArray{}}
-    Jrt = broadcast(transpose,Jr)
-    Jst = broadcast(transpose,Js)
-else
-    Jrt = Jr'; Jst = Js'
-end
-Bu = ABu(Jst,Jrt,BJu);
+Bu = ABu(tpose(Js),tpose(Jr),BJu);
 
 Bu = mask(Bu,M);
 Bu = gatherScatter(Bu,QQtx,QQty);

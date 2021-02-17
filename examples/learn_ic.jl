@@ -8,19 +8,24 @@ using Krylov
 
 using  Zygote
 
-using DiffEqFlux,Optim
+using DiffEqFlux,Optim,GalacticOptim,IterTools
 using Flux
 using Statistics
+################################################################################
 
-function get_disc(nx1,ny1,Ex,Ey)
+# Define mesh
+Ex, Ey = 16, 16
+nx1, ny1 = 2, 2
+nxd, nyd = 4, 4
+lgrid = (nx1,ny1,Ex,Ey,nxd,nxd)
+hgrid = (8,8,Ex,Ey,12,12)
+
+################################################################################
+
+function get_disc(nx1,ny1,Ex,Ey,nxd,nyd)
 #----------------------------------------------------------------------#
 # size
 #----------------------------------------------------------------------#
-# nx1 = 2; Ex = 16;
-# ny1 = 2; Ey = 16;
-
-nxd = 8;
-nyd = 8;
 
 nxp = 2;
 nyp = 2;
@@ -30,7 +35,7 @@ nyp = 2;
 #----------------------------------------------------------------------#
 zr1,wr1 = gausslobatto(nx1);  zs1,ws1 = gausslobatto(ny1);
 zrd,wrd = gausslobatto(nxd);  zsd,wsd = gausslobatto(nyd);
-zrp     = linspace(-1,1,nxp); zsp     = linspace(-1,1,nyp);
+zrp = range(-1,stop=1,length=nxp); zsp = range(-1,stop=1,length=nyp)
 
 Jr1d = interpMat(zrd,zr1); Js1d = interpMat(zsd,zs1);
 Jr1p = interpMat(zrp,zr1); Js1p = interpMat(zsp,zs1);
@@ -42,6 +47,7 @@ Drd = derivMat(zrd); Dsd = derivMat(zsd);
 # mapping
 #----------------------------------------------------------------------#
 
+ifperiodicX, ifperiodicY = false, false
 # Q: global -> local op, Q': local -> global
 Qx1 = semq(Ex,nx1,ifperiodicX);
 Qy1 = semq(Ey,ny1,ifperiodicY);
@@ -79,10 +85,13 @@ B1  = Jac1 .* (wx1*wy1');
 Bd  = Jacd .* (wxd*wyd');
 Bi1 = 1 ./ B1;
 
-return Jr1d, Js1d, Jr1p, Js1p, Dr1, Ds1, Drd, Dsd, QQtx1, QQty1, mult1,
-       x1, y1, rxd, ryd, sxd, syd, B1, Bd
+return x1, y1, Jr1d, Js1d, Jr1p, Js1p, QQtx1, QQty1, Dr1, Ds1, Bd, rxd, ryd, sxd, syd, mult1
+
+# return Jr1d, Js1d, Jr1p, Js1p, Dr1, Ds1, Drd, Dsd, QQtx1, QQty1, mult1,
+#        x1, y1, rxd, ryd, sxd, syd, B1, Bd
 end
 
+# visc,f,M,x,y,Jr,Js,QQx,QQy,Dr,Ds,B,rx,ry,sx,sy,mult
 #----------------------------------------------------------------------#
 # functions
 #----------------------------------------------------------------------#
@@ -93,17 +102,17 @@ Axd = Matrix(1.0I, nxd, nxd); Axd[end,1:end-1] .= -1
 Ayd = Matrix(1.0I, nyd, nyd); Ayd[end,1:end-1] .= -1
 Ad = Matrix(1.0I, nxd*nyd, nxd*nyd); Ad[end,1:end-1] .= -1
 
-li = Chain(Conv((3,3),5=>16,pad=1,stride=1,swish),
-           Conv((3,3),16=>16,pad=1,stride=1,swish),
-           Conv((3,3),16=>16,pad=1,stride=1,swish),
-           MaxPool((2,2)),
-           Conv((3,3),16=>32,pad=1,stride=1,swish),
-           Conv((3,3),32=>64,pad=1,stride=1,swish),
-           Conv((3,3),64=>(nx1-1)*nxd+(ny1-1)*nyd,pad=1,stride=1))
+li = Chain(Conv((3,3),5=>32,pad=1,stride=1,swish),
+           Conv((3,3),32=>32,pad=1,stride=1,swish),
+           #MaxPool((2,2)),
+           Conv((2,2),32=>128,pad=0,stride=2,swish),
+           Conv((3,3),128=>128,pad=1,stride=1,swish),
+           Conv((3,3),128=>(nx1-1)*nxd+(ny1-1)*nyd,pad=1,stride=1))
 
 p0,re = Flux.destructure(li)
 
-function Jlearn(p,x,y,visc,f,M)
+function Jlearn(p,M,visc,f,x,y)
+
     infields = cat(x,y,visc,f,M,dims=3)
     infields = reshape(infields, (size(infields)...,1))
     Jmats = re(p)(infields)
@@ -118,6 +127,10 @@ function Jlearn(p,x,y,visc,f,M)
     Jr = broadcast(transpose, Ref(Ax1).*Jr)
     Js = broadcast(transpose, Ref(Ay1).*Js)
 
+    # Jr = reshape([reshape(Jmats[1:(nx1-0)*nxd,(i-1)%Ex+1,ceil(Int,i/Ex)],nxd,nx1-0) for i=1:Ex*Ey], Ex, Ey)
+    # Js = reshape([reshape(Jmats[(nx1-0)*nxd+1:(nx1-0)*nxd+(ny1-0)*nyd,
+    #                      (i-1)%Ex+1,ceil(Int,i/Ex)],nyd,ny1-0) for i=1:Ex*Ey], Ex, Ey)
+
     # B = reshape([reshape(Ad*cat(reshape(Jmats[(nx1-1)*nxd+(ny1-1)*nyd+1:end,
     #              (i-1)%Ex+1,ceil(Int,i/Ex)],nxd*nyd-1,1),0,dims=1),nxd,nyd) for i=1:Ex*Ey], Ex, Ey)
     # B = vcat([hcat(B[i,:]...) for i=1:size(B,1)]...)
@@ -126,37 +139,37 @@ function Jlearn(p,x,y,visc,f,M)
 end
 
 
-function problem(p)
+function problem(p,input)
 
-    Jr, Js = Jlearn(p,x1,y1,visc1,f1,M1)
-    Jr, Js, B = Jr.+Ref(Jr1d), Js.+Ref(Js1d), Bd
+    M,visc,f,x,y,Jr,Js,_,_,QQx,QQy,Dr,Ds,B,rx,ry,sx,sy,mult = input
 
-    visc  = visc1
+    Jrc, Jsc = Jlearn(p,M,visc,f,x,y)
+    Jrc, Jsc = Jrc.+Ref(Jr), Jsc.+Ref(Js)
+
     viscd = SEM.ABu(Js,Jr,visc);
-    G11 = @. viscd * B * (rxd * rxd + ryd * ryd);
-    G12 = @. viscd * B * (rxd * sxd + ryd * syd);
-    G22 = @. viscd * B * (sxd * sxd + syd * syd);
+    G11 = @. viscd * B * (rx * rx + ry * ry)
+    G12 = @. viscd * B * (rx * sx + ry * sy)
+    G22 = @. viscd * B * (sx * sx + sy * sy)
 
-    lhs(v) = SEM.lapl(v,M1,Jr,Js,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22,mult1);
+    lhs(v) = SEM.lapl(v,M,Jrc,Jsc,QQx,QQy,Dr,Ds,G11,G12,G22,mult)
 
-    rhs = SEM.mass(f1,M1,B,Jr,Js,QQtx1,QQty1);
+    rhs = SEM.mass(f,M,B,Jr,Js,QQx,QQy)
 
     return lhs, rhs
 end
 
-function problemt(x)
+function problemt(null,input)
 
-    Jr, Js, B = Jr1d, Js1d, Bd
+    M,visc,f,x,y,Jr,Js,_,_,QQx,QQy,Dr,Ds,B,rx,ry,sx,sy,mult = input
 
-    visc  = visc1
-    viscd = SEM.ABu(Js,Jr,visc);
-    G11 = @. viscd * B * (rxd * rxd + ryd * ryd);
-    G12 = @. viscd * B * (rxd * sxd + ryd * syd);
-    G22 = @. viscd * B * (sxd * sxd + syd * syd);
+    viscd = SEM.ABu(Js,Jr,visc)
+    G11 = @. viscd * B * (rx * rx + ry * ry)
+    G12 = @. viscd * B * (rx * sx + ry * sy)
+    G22 = @. viscd * B * (sx * sx + sy * sy)
 
-    lhs(v) = SEM.lapl(v,M1,Jr,Js,QQtx1,QQty1,Dr1,Ds1,G11,G12,G22,mult1);
+    lhs(v) = SEM.lapl(v,M,Jr,Js,QQx,QQy,Dr,Ds,G11,G12,G22,mult)
 
-    rhs = SEM.mass(f1,M1,B,Jr,Js,QQtx1,QQty1);
+    rhs = SEM.mass(f,M,B,Jr,Js,QQx,QQy)
 
     return lhs, rhs
 end
@@ -165,44 +178,72 @@ function opM(v) # preconditioner
     return v
 end
 
-function solver(opA,rhs,adj::Bool)
+function solver(opA,rhs,adj::Bool,mult,M,QQx,QQy)
     if adj
-        rhs = mass(rhs,M1,mult1,[],[],QQtx1,QQty1);
-        out = pcg(rhs,opA,opM,mult1,false)
+        rhs = mass(rhs,M,mult,[],[],QQx,QQy);
+        out = pcg(rhs,opA,opM,mult,false)
         return out;
     else
-        return pcg(rhs,opA,opM,mult1,false);
+        return pcg(rhs,opA,opM,mult,false);
     end
 end
 
-function model(p)
-    u = SEM.linsolve(p,problem,solver,mult1,M1,QQtx1,QQty1) # adjoint support thru Zygote
+function model(p,input)
+    M,visc,f,x,y,Jr,Js,Jro,Jso,QQx,QQy,_,_,_,_,_,_,_,mult = input
+    u = SEM.linsolve(p,input,problem,solver,mult,M,QQx,QQy) # adjoint support thru Zygote
+    # Jrc, Jsc = Jlearn(p,M,visc,f,x,y)
+    # Jrc, Jsc = Jrc.+Ref(Jr), Jsc.+Ref(Js)
+    u = ABu(Jso,Jro,u)
 end
 
-function modelt()
-    u = SEM.linsolve(0,problemt,solver,mult1,M1,QQtx1,QQty1) # adjoint support thru Zygote
+function modelt(input)
+    M,_,_,_,_,Jr,Js,Jro,Jso,QQx,QQy,_,_,_,_,_,_,_,mult = input
+    u = SEM.linsolve(0,input,problemt,solver,mult,M,QQx,QQy) # adjoint support thru Zygote
+    u = ABu(Jso,Jro,u)
 end
 
-function loss(p,ut)
-    u = model(p)
-    u = ABu(Js1p,Jr1p,u)
-    l = sum(abs2,u.-ut)
-    return l, u
+function loss(p,input,ut)
+    u = model(p,input)
+    uth, utl = ut
+    bl = sum(abs2,utl.-uth)
+    l = sum(abs2,u.-uth)
+    return (l-bl), u
 end
 
-function zloss(p)
-   Jr, Js = Jlearn(p,x1,y1,visc1,f1,M1)
-   Jr = vcat([hcat(Jr[i,:]...) for i=1:size(Jr,1)]...)
-   Js = vcat([hcat(Js[i,:]...) for i=1:size(Js,1)]...)
-   l = sum(abs2,Jr)+sum(abs2,Js)
-   return l, (Jr,Js)
+function zloss(p,input)
+    infields = input[1:5]
+    Jr, Js = Jlearn(p,infields...)
+    Jr = vcat([hcat(Jr[i,:]...) for i=1:size(Jr,1)]...)
+    Js = vcat([hcat(Js[i,:]...) for i=1:size(Js,1)]...)
+    l = sum(abs2,Jr)+sum(abs2,Js)
+    return l, (Jr,Js)
 end
 
 global param = p0
 callback = function (p, l, pred; doplot = true)
-  println(l)
   global param = p
+  test_loss = zeros(5)
+  train_loss = zeros(5)
+  for (i,x) in enumerate(dataxyt)
+      input,utf = x
+      u = model(p,input)
+      uth, utl = utf
+      l = sum(abs2,u.-uth)
+      test_loss[i] = l
+  end
+  for (i,x) in enumerate(dataxy)
+      input,utf = x
+      u = model(p,input)
+      uth, utl = utf
+      l = sum(abs2,u.-uth)
+      train_loss[i] = l
+  end
+  println(mean(test_loss./databt)-1," ",mean(train_loss./databt)-1)
   return false
+end
+callback2 = function (p, l, pred)
+    println(l)
+    return false
 end
 
 #----------------------------------------------------------------------#
@@ -210,7 +251,7 @@ end
 #----------------------------------------------------------------------#
 
 function case_setup(f,x1,y1,xlbd,xrbd,ylbd,yrbd)
-    f1 = f.(x1,y1)
+    f1 = f(x1,y1)
     visc1 = @. 1 + 0*x1
     M1 = ones(size(x1))
     if xlbd; M1[1,:] .= 0; end
@@ -223,58 +264,123 @@ end
 force(x,y) = @. 5*sin(2*x*2*pi)-10*cos(5*y*2*pi)
 BCs = (true,false,true,false)
 
-# Spectral true
-Jr1d, Js1d, Jr1p, Js1p, Dr1, Ds1, Drd, Dsd, QQtx1, QQty1, mult1,
-x1, y1, rxd, ryd, sxd, syd, B1, Bd = get_disc(8,8,16,16)
-M1, visc1, f1 = case_setup(force,x1,y1,BCs...)
+discMatsl = get_disc(lgrid...)
+casel = case_setup(force,discMatsl[1],discMatsl[2],BCs...)
+inputl = (casel...,discMatsl...)
 
-ut = ABu(Js1p,Jr1p,modelt())
+discMatsh = get_disc(hgrid...)
+caseh = case_setup(force,discMatsh[1],discMatsh[2],BCs...)
+inputh = (caseh...,discMatsh...)
 
-# FEM
-Jr1d, Js1d, Jr1p, Js1p, Dr1, Ds1, Drd, Dsd, QQtx1, QQty1, mult1,
-x1, y1, rxd, ryd, sxd, syd, B1, Bd = get_disc(2,2,16,16)
-M1, visc1, f1 = case_setup(force,x1,y1,BCs...)
-
-baseline = ABu(Js1p,Jr1p,modelt())
+baseline = modelt(inputl)
+ut = modelt(inputh)
 
 bloss = sum(abs2,baseline.-ut)
 
 #----------------------------------------------------------------------#
 # training
 #----------------------------------------------------------------------#
-iftrain = false
-if iftrain
-# pretrain IC to 0
-zres = DiffEqFlux.sciml_train(p->zloss(p),p0,ADAM(.005),cb=callback,maxiters=500)
 
-opt = ADAM(1e-5)
-# opt.eta = 1e-6
-result = DiffEqFlux.sciml_train(loss,zres.minimizer,opt,
-                    Iterators.repeated((ut,),100),cb=callback)
-best_res = result.minimizer
+function gen_train(n)
+    datax = []; dataxy = []; datab = []; datac = []
+    i = 1
+    while i<=n
+        BCs = (true,false,true,false)
+        rs = rand(4).-.5
+        force(x,y) =    (rs[1]*10)*sin.((rs[2]*8)*x*pi) +
+                        (rs[3]*10)*cos.((rs[4]*8)*y*pi)
+
+        discMatsl = get_disc(lgrid...)
+        casel = case_setup(force,discMatsl[1],discMatsl[2],BCs...)
+        inputl = (casel...,discMatsl...)
+
+        discMatsh = get_disc(hgrid...)
+        caseh = case_setup(force,discMatsh[1],discMatsh[2],BCs...)
+        inputh = (caseh...,discMatsh...)
+
+        uth = modelt(inputh)
+        utl = modelt(inputl)
+        bloss = sum(abs2,utl.-uth)
+
+        if !(bloss > 10 || isnan(bloss))
+            push!(datax,(inputl,))
+            push!(dataxy,(inputl,(uth,utl)))
+            push!(datab,bloss)
+            push!(datac,caseh)
+            i=i+1
+        end
+    end
+    return datax, dataxy, datab, datac
 end
+
+datax, dataxy, datab, datac = gen_train(5)
+dataxt, dataxyt, databt, datact = gen_train(5)
+
+opt = ADAM(1e-4)
+
+println("Pretraining...")
+# pretrain IC to 0
+optfun = OptimizationFunction((θ,p,x)->zloss(θ,x), GalacticOptim.AutoZygote())
+optprob = OptimizationProblem(optfun, p0)
+zres = GalacticOptim.solve(optprob, ADAM(0.001), ncycle(datax,10),
+                           cb=callback2, maxiters=1e3)
+
+println("Training...")
+optfun = OptimizationFunction((θ,p,x,y)->loss(θ,x,y), GalacticOptim.AutoZygote())
+optprob = OptimizationProblem(optfun, zres.minimizer)
+result = GalacticOptim.solve(optprob, opt, ncycle(dataxy,10), cb=callback, maxiters=1e3)
+
+best_res = result.minimizer
+
+pred = model(best_res,inputl)
+
 #----------------------------------------------------------------------#
 # test
 #----------------------------------------------------------------------#
 
-force(x,y) = @. 10*sin(2*x*2*pi)+5*cos(5*y*2*pi)
+force(x,y) = @. 5*sin(3*x*2*pi)+2*cos(2*y*2*pi)
+BCs = (true,false,true,false)
 
-# Spectral true
-Jr1d, Js1d, Jr1p, Js1p, Dr1, Ds1, Drd, Dsd, QQtx1, QQty1, mult1,
-x1, y1, rxd, ryd, sxd, syd, B1, Bd = get_disc(8,8,16,16)
-M1, visc1, f1 = case_setup(force,x1,y1,BCs...)
+discMatsl = get_disc(lgrid...)
+casel = case_setup(force,discMatsl[1],discMatsl[2],BCs...)
+inputl = (casel...,discMatsl...)
 
-@time utt = ABu(Js1p,Jr1p,modelt())
+discMatsh = get_disc(hgrid...)
+caseh = case_setup(force,discMatsh[1],discMatsh[2],BCs...)
+inputh = (caseh...,discMatsh...)
 
-# FEM
-Jr1d, Js1d, Jr1p, Js1p, Dr1, Ds1, Drd, Dsd, QQtx1, QQty1, mult1,
-x1, y1, rxd, ryd, sxd, syd, B1, Bd = get_disc(2,2,16,16)
-M1, visc1, f1 = case_setup(force,x1,y1,BCs...)
+baseline = modelt(inputl)
 
-baselinet = ABu(Js1p,Jr1p,modelt())
-@time predt = ABu(Js1p,Jr1p,model(best_res))
+@time utt = modelt(inputh)
+baselinet = modelt(inputl)
+@time predt = model(best_res,inputl)
 
 blosst = sum(abs2,baselinet.-utt)
 predlosst = sum(abs2,predt.-utt)
 
+println("")
+println("Baseline test loss: ", blosst)
+println("")
+println("")
+println("Test loss: ", predlosst)
+println("")
+
 println(predlosst < blosst)
+
+nxpl = 5*nx1
+nypl = 5*ny1
+zrpl = range(-1,stop=1,length=nxpl); zspl = range(-1,stop=1,length=nypl)
+zrd,wrd = gausslobatto(nxd);  zsd,wsd = gausslobatto(nyd)
+Jrdpl = interpMat(zrpl,zrd); Jsdpl = interpMat(zspl,zsd)
+tpl(u) = ABu(Jsdpl,Jrdpl,u)
+
+test_loss = zeros(5)
+for (i,x) in enumerate(dataxyt)
+    input,utf = x
+    u = model(best_res,input)
+    uth, utl = utf
+    l = sum(abs2,u.-uth)
+    test_loss[i] = l
+end
+
+println(mean(test_loss.-databt))

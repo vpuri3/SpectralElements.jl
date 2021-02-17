@@ -5,14 +5,19 @@ export pcg
 """
  Preconditioned conjugate gradient
 """
-function pcg(b,opA,opM,mult,ifv)
+function pcg(b,opA,opM,mult,ifv;x0=[])
 
 tol = 1e-8;
 n = length(b);
 itmax = n;
 
-x   = @. 0*b;
-Ax  = @. 0*b;
+if length(x0)==0
+    x   = @. 0*b;
+    Ax  = @. 0*b;
+else
+    x = x0
+    Ax = opA(x)
+end
 ra  = b - Ax;
 ha  = 0;
 hp  = 0;

@@ -5,4 +5,4 @@ authors = ["Vedant Puri   <vedantpu@andrew.cmu.edu>",
            "Varun Shankar <vshanka2@andrew.cmu.edu>"]
 
 [compat]
-julia = "1.4.2"
+julia = ">= 1.4.2"
