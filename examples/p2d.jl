@@ -31,8 +31,8 @@ import Krylov
 #ifpr = 1;    # project vel onto a div-free subspace
 #ifps = 0;    # evolve sclr per advection diffusion eqn
 
-nx1 = 32; Ex = 1;
-ny1 = 32; Ey = 1;
+nx1 = 8; Ex = 4;
+ny1 = 8; Ey = 4;
 
 nx2 = nx1-2; nxd = ceil(1.5*nx1);
 ny2 = nx1-2; nyd = ceil(1.5*ny1);

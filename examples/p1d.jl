@@ -6,8 +6,6 @@ using SEM
 using FastGaussQuadrature
 using Plots, LinearAlgebra
 
-import Krylov
-
 #linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
 #cumprod(A::AbstractArray) = Base.cumprod(A, dims=1)
 #cumprod(A::AbstractArray, d::Int) = Base.cumprod(A, dims=d)
@@ -42,24 +40,24 @@ ff = R*f;
 AA = R*A*R';
 BB = R*B*R';
 bb = R*B*f;
-#uu = cg(ff,R*(B\A)*R');
-uu = cg(ff,BB\AA); # what's with the difference in performance???
-uu = cg(bb,AA); # == cg(BB*ff,AA);
+#uu = pcg(ff,R*(B\A)*R');
+uu = pcg(ff,BB\AA); # what's with the difference in performance???
+uu = pcg(bb,AA); # == pcg(BB*ff,AA);
 u  = R'*uu;
 xx = R*x;
 
 ## rank deficinet system
 b  = R'*bb;
 Al = R'*AA*R;
-u  = cg(f,B\Al);
-u  = cg(b,Al);
+u  = pcg(f,B\Al);
+u  = pcg(b,Al);
 
-u  = cgSEM(b,[],[],[],Al);
-u  = cgSEM(b,[],[],B ,Al);
+u  = pcg(b,Al);
+u  = pcg(b,Al,B);
 
-#println("er: ",norm(u - ut,Inf))
-#p=plot(xo,J*u)
-#display(p);
+println("er: ",norm(u - ut,Inf))
+p=plot(xo,J*u)
+display(p);
 
 #----------------------------------------------------------------------#
 #ll,vv=eigen(AA,BB);
@@ -71,7 +69,7 @@ u  = cgSEM(b,[],[],B ,Al);
 #    plot!(xo,Jv[:,i])
 #end
 #display(p);
-e1 = v[:,1];
+#e1 = v[:,1];
 
 #display(ut ./ e1);
 #----------------------------------------------------------------------#
