@@ -1,13 +1,16 @@
 #
 #--------------------------------------#
+import Base.*
+*(op::Function,x) = op(x)
+iscallable(op) = !isempty(methods(op))
+#--------------------------------------#
 export pcg
 #--------------------------------------#
 """
  Preconditioned conjugate gradient
 """
-function pcg(b,opA,opM,mult,ifv)
+function pcg(b,opA,opM=x->x,mult=ones(size(b)),ifv=true,tol=1e-8)
 
-tol = 1e-8;
 n = length(b);
 itmax = n;
 
@@ -23,7 +26,7 @@ u   = 0;
 k   = 0;
 
 while(norm(ra,Inf) > tol)
-ha = opM(ra); # preconditioner
+ha = opM * ra # preconditinoer
 #println("PCG iter: ",k,", res: ",norm(ra,2));
 if(k==itmax) println("warning: res:",norm(ra,Inf)); return x; end;
 k  += 1;
@@ -37,7 +40,7 @@ if(k==1)
 else
     u = hp+(t/sum(rpp.*hpp.*mult))*u;
 end
-Au = opA(u); # operator
+Au = opA * u # operator
 a = t / sum(u.*Au.*mult);
 x = x + a * u;
 ra = rp - a * Au;
