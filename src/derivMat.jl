@@ -3,7 +3,8 @@
 export derivMat
 #--------------------------------------#
 """
- Compute derivative matrix of lagrange interpolants on points x
+ Compute derivative matrix for lagrange
+ interpolants on points [x]
 """
 function derivMat(x)
     
