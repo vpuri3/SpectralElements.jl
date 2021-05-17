@@ -15,9 +15,6 @@ using SEM
 using FastGaussQuadrature
 using Plots,LinearAlgebra,SparseArrays
 
-using LinearOperators
-using Krylov
-
 using Zygote
 
 #using NLopt,Optim

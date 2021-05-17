@@ -18,6 +18,9 @@ iscallable(op) = !isempty(methods(op))
 linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
 sum(A::AbstractArray, n::Int) = Base.sum(A, dims=n)
 sum(A) = Base.sum(A)
+#cumprod(A::AbstractArray) = Base.cumprod(A, dims=1)
+#cumprod(A::AbstractArray, d::Int) = Base.cumprod(A, dims=d)
+#flipdim(A, d) = reverse(A, dims=d)
 #--------------------------------------#
 
 # SEM building blocks

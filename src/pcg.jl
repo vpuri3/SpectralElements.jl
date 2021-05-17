@@ -5,10 +5,13 @@ export pcg
 """
  Preconditioned conjugate gradient
 """
-function pcg(b,opA,opM=x->x,mult=ones(size(b)),ifv=true,tol=1e-8)
+function pcg(b,opA;opM=x->x     # preconditioner
+            ,mult=ones(size(b)) # SEM mult
+            ,ifv=false          # verbose flag
+            ,tol=1e-8           # tolerance
+            ,maxiter=length(b)) # maximum number of iterations
 
 n = length(b);
-itmax = n;
 
 x   = @. 0*b;
 Ax  = @. 0*b;
@@ -24,7 +27,7 @@ k   = 0;
 while(norm(ra,Inf) > tol)
 ha = opM * ra # preconditinoer
 #println("PCG iter: ",k,", res: ",norm(ra,2));
-if(k==itmax) println("warning: res:",norm(ra,Inf)); return x; end;
+if(k==maxiter) println("warning: res:",norm(ra,Inf)); return x; end;
 k  += 1;
 hpp = hp;
 rpp = rp;

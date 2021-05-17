@@ -1,19 +1,12 @@
 #!/usr/bin/env julia
 
-# single element 1D possion solver
+# 1D possion solver
 
 using SEM
 using FastGaussQuadrature
 using Plots, LinearAlgebra
 
-#linspace(zi::Number,ze::Number,n::Integer) = range(zi,stop=ze,length=n)
-#cumprod(A::AbstractArray) = Base.cumprod(A, dims=1)
-#cumprod(A::AbstractArray, d::Int) = Base.cumprod(A, dims=d)
-#sum(A::AbstractArray, n::Int) = Base.sum(A, dims=n)
-#sum(A) = Base.sum(A)
-#flipdim(A, d) = reverse(A, dims=d)
-
-n = 12
+n = 21
 
 x,w = gausslobatto(n)
 xo  = linspace(-1,1,20*n)
@@ -22,55 +15,41 @@ x  = 0.5.*(x .+1)
 xo = 0.5.*(xo.+1)
 w  = 0.5.*w
 
-J = interpMat(xo,x);
-D = derivMat(x);
-B = Matrix(Diagonal(w));
+J = interpMat(xo,x)
+D = derivMat(x)
+B = Matrix(Diagonal(w))
 A = D'*B *D
-R = Matrix(I,n,n);
-R = R[2:end-1,:];
+
+x,w,A,B,_,_ = linearFEM(n-1)
 
 ## CASE SETUP: solve: -\del^2 u = f + hom. dir BC
 k  = @. 1.
 ut = @. sin(k*pi*x)
-f  = @. ut * (k*pi)^2;
-f = @. 0*f + 1.;
+f  = @. ut * (k*pi)^2
+#f = @. 0*f + 1.
+
+## restriction
+R  = Matrix(I,n,n)
+R  = R[2:end-1,:]
 
 ## full rank system
-ff = R*f;
-AA = R*A*R';
-BB = R*B*R';
-bb = R*B*f;
-#uu = pcg(ff,R*(B\A)*R');
-uu = pcg(ff,BB\AA); # what's with the difference in performance???
-uu = pcg(bb,AA); # == pcg(BB*ff,AA);
-u  = R'*uu;
-xx = R*x;
+AA = R*A*R'
+BB = R*B*R'
+bb = R*B*f
+uu = pcg(bb,AA)
+xx = R*x
+u  = R'*uu
 
 ## rank deficinet system
 b  = R'*bb;
 Al = R'*AA*R;
-u  = pcg(f,B\Al);
 u  = pcg(b,Al);
-
-u  = pcg(b,Al);
-u  = pcg(b,Al,B);
+#u  = pcg(f,B\Al);
+#u  = pcg(b,Al,B);
 
 println("er: ",norm(u - ut,Inf))
-p=plot(xo,J*u)
-display(p);
+p=plot(x,u)
+display(p)
 
-#----------------------------------------------------------------------#
-#ll,vv=eigen(AA,BB);
-#ll,vv=eigen(AA);
-#v = R' * vv;
-#Jv = J*v;
-#p=plot(xo,Jv[:,1]);
-#for i=2:n-2
-#    plot!(xo,Jv[:,i])
-#end
-#display(p);
-#e1 = v[:,1];
-
-#display(ut ./ e1);
 #----------------------------------------------------------------------#
 nothing

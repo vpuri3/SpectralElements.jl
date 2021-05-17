@@ -20,9 +20,6 @@ using SEM
 using FastGaussQuadrature
 using Plots, LinearAlgebra, SparseArrays
 
-using LinearOperators
-import Krylov
-
 #----------------------------------------------------------------------#
 # size
 #----------------------------------------------------------------------#
@@ -197,15 +194,11 @@ function opFDM(v)
     return v
 end
 #----------------------------------------------------------------------#
-nx = nx1*Ex;
-ny = ny1*Ey;
-nt = nx*ny;
-
 b =     mass(f,[],Bd,Jr1d,Js1d,[],[],mult1);
 b = b - lapl(ub,[],Jr1d,Js1d,[],[],Dr1,Ds1,G11,G12,G22,mult1);
 b =     mass(b,M1,[],[],[],QQtx1,QQty1,mult1);
 
-@time u = pcg(b,opLapl,opFDM,mult1,true)
+@time u = pcg(b,opLapl,opM=opFDM,mult=mult1,ifv=true)
 u = u + ub;
 #----------------------------------------------------------------------#
 er = norm(ut-u,Inf);
