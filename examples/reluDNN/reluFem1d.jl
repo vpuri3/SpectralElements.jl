@@ -6,7 +6,7 @@ import SEM
 d   = 1
 Lb2 = 1e0
 np  = 201 # sample points
-ng  = 11  # grid points
+ng  = 21  # grid points
 #--------------------------------------#
 # fem grid setup
 
@@ -31,10 +31,12 @@ NN[1].W .= 1.0
 NN[2].b .= 0.0
 NN[2].b[1] = 1.0
 NN[2].W .= Tridiagonal(hi,hh,hi)
-#
+# Coefficients
 NN[3].b .= 0.0
-NN[3].W .= 1.0 # function values
-NN[3].W .= @. xg'^2
+NN[3].W .= @. 2.1 + sin(pi*xg')
+
+# create a restriction layer that enforces Dirichlet BC
+# Neumann BC? Enforce via loss function
 
 fp = NN(flatten(xp))'
 #--------------------------------------#
@@ -45,11 +47,17 @@ fpart = NN(xpart')'
 #--------------------------------------#
 plt = plot()
 
-plt = plot!(xp,fp)
-plt = scatter!(xpart,fpart,color="red")
-plt = plot!(title="f=NN(x)",xlabel="x",ylabel="y=NN(x)")
+plt = plot!(xp,fp,label="y=NN(x)")
+plt = scatter!(xpart,fpart,color="red",label=false)
+plt = plot!(title="ReLU DNN",xlabel="x",ylabel="y")
 #plt = plot!(xlims=(-Lb2,Lb2))
 
-display(plt)
 #--------------------------------------#
+# plt basis just for kicks
+for i=1:ng
+    global plt = plot!(xp,NN[2](NN[1](xp'))[i,:],color="black",label=false)
+end
+#--------------------------------------#
+savefig(plt,"reluFEM.png")
+display(plt)
 #
