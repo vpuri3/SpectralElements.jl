@@ -19,6 +19,9 @@ hh = zeros(ng)
 hh[1:end-1] .-= hi
 hh[2:end  ] .-= hi
 #--------------------------------------#
+# Coefficients
+y(x) = @. 1.0 + sin(pi*x) #x^2
+#--------------------------------------#
 
 NN = Chain(Dense(d ,ng,relu    )
           ,Dense(ng,ng,identity)
@@ -33,12 +36,14 @@ NN[2].b[1] = 1.0
 NN[2].W .= Tridiagonal(hi,hh,hi)
 # Coefficients
 NN[3].b .= 0.0
-NN[3].W .= @. 2.1 + sin(pi*xg')
+NN[3].W .= @. y(xg')
 
 # create a restriction layer that enforces Dirichlet BC
 # Neumann BC? Enforce via loss function
 
 fp = NN(flatten(xp))'
+# error
+maximum(abs.(y(xp).-fp)) |> display
 #--------------------------------------#
 # partitions
 
