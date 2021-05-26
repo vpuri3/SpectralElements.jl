@@ -1,17 +1,16 @@
 #
 module SEM
 
-using FastGaussQuadrature
-using LinearAlgebra
-using SparseArrays
-using Zygote
-using Plots
+using LinearAlgebra,SparseArrays
+import FastGaussQuadrature
+using Zygote,Plots
+using UnPack
 
+import Base:+,-,*,/,\
 #--------------------------------------#
 export linspace,iscallable
 
 #--------------------------------------#
-import Base.*
 *(op::Function,x) = op(x)
 #--------------------------------------#
 iscallable(op) = !isempty(methods(op))
@@ -40,13 +39,14 @@ include("grad.jl")
 include("mask.jl")
 include("mass.jl")
 include("lapl.jl")
+include("hlmz.jl")
 include("gatherScatter.jl")
 include("geom.jl")
 
 include("pcg.jl")
-
 include("adjoint.jl")
-
 include("fem.jl")
+
+include("mesh.jl")
 
 end # module

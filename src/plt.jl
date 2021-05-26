@@ -1,17 +1,10 @@
 #
 #--------------------------------------#
-export mesh
+export meshplt
 #--------------------------------------#
-function mesh(x,y,u,a=45,b=60)
+function meshplt(x,y,u,a=45,b=60)
     p = plot(x,y,u,legend=false,c=:grays,camera=(a,b));
     p = plot!(x',y',u',legend=false,c=:grays,camera=(a,b));
     return p
 end
-#--------------------------------------#
-export hmp
-#--------------------------------------#
-function hmp(d)
-    display(heatmap(d));
-    return d;
-end;
 #--------------------------------------#

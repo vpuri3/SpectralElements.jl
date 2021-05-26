@@ -6,7 +6,7 @@ export semmesh
 #
 function semmesh(E,n)
 
-z0,w0 = gausslobatto(n); # [-1,1]
+z0,w0 = FastGaussQuadrature.gausslobatto(n); # [-1,1]
 
 z0 = 0.5 .* (z0.+1); # [0,1]
 w0 = 0.5 .*  w0;
