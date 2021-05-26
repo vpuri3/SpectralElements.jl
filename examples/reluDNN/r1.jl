@@ -55,15 +55,28 @@ if(d==1)
     plt = plot!(title="f=NN(x)",xlabel="x",ylabel="y=NN(x)")
     plt = plot!(xlims=(-Lb2,Lb2))
 elseif(d==2)
-#   plt = heatmap!(f)
     plt = plot!(xpart,fpart,legend=false,color="black")
-    plt = plot!(title="f=NN(x,y)",xlabel="x",ylabel="y")
+    plt = plot!(title="Shallow ReLU DNN Partitions",xlabel="x",ylabel="y")
 #   plt = plot!(xlims=(-Lb2,Lb2),ylims=(-Lb2,Lb2))
 end
 
+savefig(plt,"reluPartition.png")
 display(plt)
+
+plt1 = plot()
+if(d==2)
+    plt1 = plot()
+    plt1 = heatmap!(f)
+end
+
+savefig(plt1,"reluPartitionHmp.png")
+display(plt1)
+
 #--------------------------------------#
-#min(a,b) = 0.5*(relu(a+b) - relu(-a-b))
-#          -0.5*(relu(a-b) + relu( b-a))
+# min(a,b) = 0.5*(relu(a+b) - relu(-a-b))
+#           -0.5*(relu(a-b) - relu( b-a))
+#--------------------------------------#
+# max(a,b) = 0.5*(relu(a+b) - relu(-a-b))
+#           +0.5*(relu(a-b) + relu( b-a))
 #--------------------------------------#
 #

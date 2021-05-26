@@ -52,17 +52,18 @@ fpart = NN(xpart')'
 #--------------------------------------#
 plt = plot()
 
-plt = plot!(xp,fp,label="y=NN(x)")
-plt = scatter!(xpart,fpart,color="red",label=false)
-plt = plot!(title="ReLU DNN",xlabel="x",ylabel="y")
+plt = plot!(xp,fp,width=3,legend=false)
+plt = scatter!(xpart,fpart,width=4,color="red",label=false)
+plt = plot!(title="y= DNN(x)",xlabel="x",ylabel="y")
 #plt = plot!(xlims=(-Lb2,Lb2))
 
 #--------------------------------------#
 # plt basis just for kicks
 for i=1:ng
-    global plt = plot!(xp,NN[2](NN[1](xp'))[i,:],color="black",label=false)
+    global plt = plot!(xp,NN[2](NN[1](xp'))[i,:],width=2,color="black",label=false)
 end
 #--------------------------------------#
 savefig(plt,"reluFEM.png")
 display(plt)
-#
+#--------------------------------------#
+nothing
