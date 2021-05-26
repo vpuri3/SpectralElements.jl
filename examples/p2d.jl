@@ -1,20 +1,5 @@
 #!/usr/bin/env julia
 
-# struct simulation
-#    ifvelo::Bool
-#    ifconv::Bool
-#    ifstks::Bool
-#    iftemp::Bool
-#    ngrids::Int
-#end
-
-#struct grid
-#    nx1::Int
-#    ny1::Int
-#    Ex ::Int
-#    Ey ::Int
-#end
-
 using SEM
 
 using FastGaussQuadrature
