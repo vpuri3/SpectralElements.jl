@@ -105,7 +105,7 @@ end
 
 function Field(expr::Function,bc::Array{Char,1},msh::Mesh)
 
-    @unpack x,y,nr,ns,Ex,Ey = msh
+    @unpack x,y,nr,ns,Ex,Ey,ifperiodic = msh
 
     u = @. expr(x,y)
     
@@ -120,11 +120,11 @@ function Field(expr::Function,bc::Array{Char,1},msh::Mesh)
     if(bc[3]=='D') xIter = yIter[2:end]   end
     if(bc[4]=='D') xIter = yIter[1:end-1] end
 
+    if(ifperiodic[1]) xIter = collect(1:(Ex*nr)); end
+    if(ifperiodic[2]) yIter = collect(1:(Ey*ns)); end
+
     Rx = Ix[xIter,:];
     Ry = Iy[yIter,:];
-
-    if(ifperiodic[1]) Rx = Ix; end
-    if(ifperiodic[2]) Ry = Iy; end
 
     M = diag(Rx'*Rx) * diag(Ry'*Ry)'
     M = Array(M)
@@ -167,22 +167,6 @@ mutable struct simulation
     J2d::Array
     J21::Array
 
-    # BC, mask info
-    # solver info (poisson, helmholtz, convection, etc)
-    # viscosity?
-
-    function simulation(n1,n2,nd,Ex,Ey,usrgeom,ifperiodic)
-
-        m1 = mesh(n1,n1,Ex,Ey,usrgeom,ifperiodic)
-        m2 = mesh(n2,n2,Ex,Ey,usrgeom,ifperiodic)
-        m3 = mesh(nd,nd,Ex,Ey,usrgeom,ifperiodic)
-
-        Jr1d = interpMat(md.zr,m1.zr); Js1d = interpMat(md.zs,m1.zs);
-        Jr2d = interpMat(md.zr,m2.zr); Js2d = interpMat(md.zs,m2.zs);
-        Jr21 = interpMat(m1.zr,m2.zr); Js21 = interpMat(m1.zs,m2.zs);
-
-        return new()
-    end
 end
 =#
 
