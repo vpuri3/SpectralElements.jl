@@ -27,26 +27,28 @@ include("interp.jl")
 include("derivMat.jl")
 include("semmesh.jl")
 include("semq.jl")
+include("geom.jl")
 
 # utilities
 include("ndgrid.jl")
-include("plt.jl")
 
 # operators
-include("ABu.jl")
 include("jac.jl")
-include("grad.jl")
-include("mask.jl")
-include("mass.jl")
-include("lapl.jl")
-include("hlmz.jl")
+include("ABu.jl")
 include("gatherScatter.jl")
-include("geom.jl")
+
+include("mesh.jl")
 
 include("pcg.jl")
 include("adjoint.jl")
 include("fem.jl")
 
-include("mesh.jl")
+include("grad.jl")
+include("mask.jl")
+include("mass.jl")
+include("lapl.jl")
+include("hlmz.jl")
+
+include("plt.jl")
 
 end # module

@@ -1,8 +1,10 @@
 #
+#--------------------------------------#
 export gatherScatter
-#
-# Q*Q'*u where Q: local -> global operator
-#
+#--------------------------------------#
+"""
+Q*Q'*u where Q: local -> global operator
+"""
 function gatherScatter(u,QQtx,QQty);
 
 # Qtu = ABu(Qy',Qx',  u); # gather

@@ -29,3 +29,14 @@ Bu = mask(Bu,M);
 return Bu
 end
 #--------------------------------------#
+function mass(u,msh::Mesh)
+
+    @unpack B = msh
+
+    Bu = B .* u
+    #Bu = gatherScatter(Bu,QQtx,QQty)
+    #Bu = mask(Bu,M)
+
+return Bu
+end
+#--------------------------------------#

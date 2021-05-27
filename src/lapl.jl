@@ -3,7 +3,7 @@
 export lapl
 #--------------------------------------#
 """
- for v,u in H^1 of Omega
+ for v,u in H^1 of Ω
 
  (v,-del^2 u) = (vx,ux) + (vy,uy)
              := a(v,u)
@@ -38,7 +38,31 @@ Au = mask(Au,M);
 return Au
 end
 #--------------------------------------#
-function laplace(u,Jr,Js,Dr,Ds
+function lapl(u,msh::Mesh)
+
+    @unpack Dr,Ds,G11,G12,G22 = msh
+
+    Au = laplace(u,Dr,Ds,G11,G12,G22)
+#   Au = gatherScatter(Au,QQtx,QQty)
+#   Au = mask(Au,M)
+
+    return Au
+end
+#--------------------------------------#
+function laplace(u,Dr,Ds,G11,G12,G22)
+
+ur = ABu([],Dr,u)
+us = ABu(Ds,[],u)
+
+wr = @. G11*ur + G12*us
+ws = @. G12*ur + G22*us
+
+Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
+
+return Au
+end
+#--------------------------------------#
+function laplace(u,Jr,Js,Dr,Ds  # dealiased
                 ,G11,G12,G22)
 
 ur = ABu([],Dr,u);
