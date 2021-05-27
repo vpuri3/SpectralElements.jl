@@ -2,19 +2,19 @@
 module SEM
 
 using LinearAlgebra,SparseArrays
-import FastGaussQuadrature
 using Zygote,Plots
 using UnPack
 
-import Base:+,-,*,/,\
+import FastGaussQuadrature
 #--------------------------------------#
-export linspace,iscallable
-
+Base.:*(op::Function,x::AbstractArray) = op(x)
 #--------------------------------------#
-*(op::Function,x) = op(x)
-#--------------------------------------#
-iscallable(op) = !isempty(methods(op))
+export linspace
 linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
+#--------------------------------------#
+export iscallable
+iscallable(op) = !isempty(methods(op))
+#--------------------------------------#
 sum(A::AbstractArray, n::Int) = Base.sum(A, dims=n)
 sum(A) = Base.sum(A)
 #cumprod(A::AbstractArray) = Base.cumprod(A, dims=1)
@@ -23,19 +23,16 @@ sum(A) = Base.sum(A)
 #--------------------------------------#
 
 # SEM building blocks
+include("jac.jl")
 include("interp.jl")
 include("derivMat.jl")
 include("semmesh.jl")
 include("semq.jl")
-include("geom.jl")
-
-# utilities
 include("ndgrid.jl")
 
-# operators
-include("jac.jl")
 include("ABu.jl")
-include("gatherScatter.jl")
+include("geom.jl")
+include("mask.jl")
 
 include("mesh.jl")
 
@@ -43,8 +40,8 @@ include("pcg.jl")
 include("adjoint.jl")
 include("fem.jl")
 
+include("gatherScatter.jl")
 include("grad.jl")
-include("mask.jl")
 include("mass.jl")
 include("lapl.jl")
 include("hlmz.jl")

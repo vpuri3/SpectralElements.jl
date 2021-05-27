@@ -38,12 +38,12 @@ Au = mask(Au,M);
 return Au
 end
 #--------------------------------------#
-function lapl(u,msh::Mesh)
+function lapl(u::AbstractArray,msh::Mesh)
 
     @unpack Dr,Ds,G11,G12,G22 = msh
 
     Au = laplace(u,Dr,Ds,G11,G12,G22)
-#   Au = gatherScatter(Au,QQtx,QQty)
+#   Au = gatherScatter(Au,msh)
 #   Au = mask(Au,M)
 
     return Au
@@ -57,7 +57,7 @@ us = ABu(Ds,[],u)
 wr = @. G11*ur + G12*us
 ws = @. G12*ur + G22*us
 
-Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
+Au = ABu([],Dr',wr) + ABu(Ds',[],ws)
 
 return Au
 end
@@ -65,19 +65,19 @@ end
 function laplace(u,Jr,Js,Dr,Ds  # dealiased
                 ,G11,G12,G22)
 
-ur = ABu([],Dr,u);
-us = ABu(Ds,[],u);
+ur = ABu([],Dr,u)
+us = ABu(Ds,[],u)
 
-Jur = ABu(Js,Jr,ur);
-Jus = ABu(Js,Jr,us);
+Jur = ABu(Js,Jr,ur)
+Jus = ABu(Js,Jr,us)
 
-vr = @. G11*Jur + G12*Jus;
-vs = @. G12*Jur + G22*Jus;
+vr = @. G11*Jur + G12*Jus
+vs = @. G12*Jur + G22*Jus
 
-wr = ABu(Js',Jr',vr);
-ws = ABu(Js',Jr',vs);
+wr = ABu(Js',Jr',vr)
+ws = ABu(Js',Jr',vs)
 
-Au = ABu([],Dr',wr) + ABu(Ds',[],ws);
+Au = ABu([],Dr',wr) + ABu(Ds',[],ws)
 
 return Au
 end

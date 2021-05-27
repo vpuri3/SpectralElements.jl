@@ -5,7 +5,7 @@ export gatherScatter
 """
 Q*Q'*u where Q: local -> global operator
 """
-function gatherScatter(u,QQtx,QQty);
+function gatherScatter(u,QQtx,QQty)
 
 # Qtu = ABu(Qy',Qx',  u); # gather
 #QQtu = ABu(Qy ,Qx ,Qtu); # scatter
@@ -13,6 +13,11 @@ function gatherScatter(u,QQtx,QQty);
 QQtu = ABu(QQty,QQtx,u); # gather scatter
 
 return QQtu
+end
+#--------------------------------------#
+function gatherScatter(u,msh::Mesh)
+@unpack QQtx,QQty = msh
+return gatherScatter(u,QQtx,QQty)
 end
 #--------------------------------------#
 #Zygote.@adjoint function gatherScatter(As,Br,u)

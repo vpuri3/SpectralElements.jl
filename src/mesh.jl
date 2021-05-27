@@ -2,7 +2,9 @@
 #----------------------------------------------------------------------
 export Mesh
 #----------------------------------------------------------------------
-#
+"""
+Data structure to hold mesh information
+"""
 mutable struct Mesh{T,N}
     nr::Int
     ns::Int
@@ -94,10 +96,15 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
                           ,G11,G12,G22)
 end
 #----------------------------------------------------------------------
-export generate_mask
+export generateMask
 #----------------------------------------------------------------------
-#
-function generate_mask(bc::Array{Char,1},msh::Mesh)
+"""
+ bc = ['D','N','D','D'] === BC at [xmin,xmax,ymin,ymax]
+
+ D: Hom. Dirichlet = zeros ∂Ω data
+ N: Hom. Neumann   = keeps ∂Ω data
+"""
+function generateMask(bc::Array{Char,1},msh::Mesh)
 
     @unpack nr,ns,Ex,Ey,ifperiodic = msh
 
@@ -123,9 +130,6 @@ function generate_mask(bc::Array{Char,1},msh::Mesh)
     return M
 end
 #----------------------------------------------------------------------
-
-#=
-#----------------------------------------------------------------------
 export Field
 #----------------------------------------------------------------------
 #
@@ -145,30 +149,29 @@ function Field(u::Array{Float64,2},bc::Array{Char,1},msh::Mesh)
     return Field{Float64,2}(u,M)
 end
 
-(+)(f::Field) = f
-(-)(f::Field) = Field(-f.u,f.M)
+Base.:+(f::Field) = f
+Base.:-(f::Field) = Field(-f.u,f.M)
 
-(+)(f0::Field,f1::Field) = Field(f0.u+f1.u,max.(f0.M,f1.M))
-(-)(f0::Field,f1::Field) = Field(f0.u-f1.u,max.(f0.M,f1.M))
+Base.:+(f0::Field,f1::Field) = Field(f0.u+f1.u,max.(f0.M,f1.M))
+Base.:-(f0::Field,f1::Field) = Field(f0.u-f1.u,max.(f0.M,f1.M))
 
-(*)(λ::Number,f::Field) = Field(f.u .* λ,f.M)
-(*)(f::Field,λ::Number) = λ * f
-(*)(f0::Field,f1::Field) = Field(f0.u .* f1.u, f0.M .* f1.M)
+Base.:*(λ::Number,f::Field) = Field(f.u .* λ,f.M)
+Base.:*(f::Field,λ::Number) = λ * f
+Base.:*(f0::Field,f1::Field) = Field(f0.u .* f1.u, f0.M .* f1.M)
 
-(/)(f0::Field,f1::Field) = Field(f0.u ./ f1.u, f0.M .* f1.M)
-(\)(f0::Field,f1::Field) = Field(f0.u .\ f1.u, f0.M .* f1.M)
+Base.:/(f0::Field,f1::Field) = Field(f0.u ./ f1.u, f0.M .* f1.M)
+Base.:\(f0::Field,f1::Field) = Field(f0.u .\ f1.u, f0.M .* f1.M)
 
-(^)(λ::Number,f::Field) = Field(λ .^ f.u,f.M)
-(^)(f::Field,λ::Number) = Field(f.u .^ λ,f.M)
-(^)(f0::Field,f1::Field) = Field(f0.u .^ f1.u, f0.M .* f1.M)
+Base.:^(λ::Number,f::Field) = Field(λ .^ f.u,f.M)
+Base.:^(f::Field,λ::Number) = Field(f.u .^ λ,f.M)
+Base.:^(f0::Field,f1::Field) = Field(f0.u .^ f1.u, f0.M .* f1.M)
 
-# todo: function application, arithmatic ops with fields and Arrays (like B)
+# todo: function application like sin(f)
+# arithmatic ops like B .* f
 
 #u = Field( (x,y) -> sin(π*x)*sin(π*y),bc,m1)
 #plt = meshplt(u,m1)
 #display(plt)
-
-=#
 
 #----------------------------------------------------------------------
 #=

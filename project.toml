@@ -1,8 +1,0 @@
-name = "SEM"
-uuid = "d4487159-3b51-4aca-bf07-c08957b918bd";
-version = "0.0.1"
-authors = ["Vedant Puri   <vedantpu@andrew.cmu.edu>",
-           "Varun Shankar <vshanka2@andrew.cmu.edu>"]
-
-[compat]
-julia = "1.4.2"
