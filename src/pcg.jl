@@ -5,7 +5,8 @@ export pcg
 """
  Preconditioned conjugate gradient
 """
-function pcg(b,opA;opM=x->x     # preconditioner
+function pcg(b,opA
+            ;opM=x->x           # preconditioner
             ,mult=ones(size(b)) # SEM mult
             ,ifv=false          # verbose flag
             ,tol=1e-8           # tolerance
@@ -13,7 +14,7 @@ function pcg(b,opA;opM=x->x     # preconditioner
 
 n = length(b);
 
-x   = @. 0*b;
+x   = @. 0*b; # zero initial condition
 Ax  = @. 0*b;
 ra  = b - Ax;
 ha  = 0;
@@ -48,5 +49,24 @@ end
 if(ifv) println("PCG iter: ",k,", res: ",norm(ra,2)); end
 
 return x
+end
+#--------------------------------------#
+export pcg!
+#--------------------------------------#
+function pcg!(x,b,opA
+             ;opM=x->x           # preconditioner
+             ,mult=ones(size(b)) # SEM mult
+             ,ifv=false          # verbose flag
+             ,tol=1e-8           # tolerance
+             ,maxiter=length(b)) # maximum number of iterations
+
+    x .= pcg(b,opA
+            ;opM=opM          # preconditioner
+            ,mult=mult        # SEM mult
+            ,ifv=ifv          # verbose flag
+            ,tol=tol          # tolerance
+            ,maxiter=maxiter) # maximum number of iterations
+
+return
 end
 #--------------------------------------#
