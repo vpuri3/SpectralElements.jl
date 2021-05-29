@@ -55,11 +55,15 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     Ds  = derivMat(zs)
 
     # mappings
-    # Q: global -> local op, Q': local -> global
+    # Q : glo -> loc (scatter)
+    # Q': loc -> glo (gather)
     Qx = semq(Ex,nr,ifperiodic[1])
     Qy = semq(Ex,ns,ifperiodic[2])
     QQtx = Qx*Qx'
     QQty = Qy*Qy'
+
+    # inner product weights
+    # (u,v) = sum(u .* v .* mult)
     mult = ones(nr*Ex,ns*Ey)
     mult = gatherScatter(mult,QQtx,QQty)
     mult = @. 1 / mult
@@ -101,8 +105,15 @@ export generateMask
 """
  bc = ['D','N','D','D'] === BC at [xmin,xmax,ymin,ymax]
 
- D: Hom. Dirichlet = zeros ∂Ω data
- N: Hom. Neumann   = keeps ∂Ω data
+ 'D': Hom. Dirichlet = zeros ∂Ω data\n
+ 'N': Hom. Neumann   = keeps ∂Ω data
+
+ A periodic mesh overwrites 'D' to 'N' in direction of periodicity.
+
+ To achieve inhomogeneous Dirichlet condition, apply the formulation
+ u = ub + uh, where uh is homogeneous part, and ub holds boundary
+ data, and solve for uh.
+
 """
 function generateMask(bc::Array{Char,1},msh::Mesh)
 
@@ -111,19 +122,19 @@ function generateMask(bc::Array{Char,1},msh::Mesh)
     Ix = sparse(I,Ex*nr,Ex*nr)
     Iy = sparse(I,Ey*ns,Ey*ns)
 
-    xIter = collect(1:(Ex*nr))
-    yIter = collect(1:(Ey*ns))
+    ix = collect(1:(Ex*nr))
+    iy = collect(1:(Ey*ns))
 
-    if(bc[1]=='D') xIter = xIter[2:end]   end
-    if(bc[2]=='D') xIter = xIter[1:end-1] end
-    if(bc[3]=='D') yIter = yIter[2:end]   end
-    if(bc[4]=='D') yIter = yIter[1:end-1] end
+    if(bc[1]=='D') ix = ix[2:end]   end
+    if(bc[2]=='D') ix = ix[1:end-1] end
+    if(bc[3]=='D') iy = iy[2:end]   end
+    if(bc[4]=='D') iy = iy[1:end-1] end
 
-    if(ifperiodic[1]) xIter = collect(1:(Ex*nr)); end
-    if(ifperiodic[2]) yIter = collect(1:(Ey*ns)); end
+    if(ifperiodic[1]) ix = collect(1:(Ex*nr)); end
+    if(ifperiodic[2]) iy = collect(1:(Ey*ns)); end
 
-    Rx = Ix[xIter,:]
-    Ry = Iy[yIter,:]
+    Rx = Ix[ix,:]
+    Ry = Iy[iy,:]
 
     M = diag(Rx'*Rx) * diag(Ry'*Ry)'
     M = Array(M)
