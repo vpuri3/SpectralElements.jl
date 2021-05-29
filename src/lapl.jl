@@ -5,15 +5,15 @@ export lapl
 """
  for v,u in H^1 of Ω
 
- (v,-del^2 u) = (vx,ux) + (vy,uy)
-             := a(v,u)
-              = v' * A * u
-              = (Q*R'*v)'*A_l*(Q*R'*u)
-              = v'*R*Q'*A_l*Q*R'*u
+ (v,-del^2 u) = (vx,ux) + (vy,uy)\n
+             := a(v,u)\n
+              = v' * A * u\n
+              = (Q*R'*v)'*A_l*(Q*R'*u)\n
+              = v'*R*Q'*A_l*Q*R'*u\n
 
  implemented as
 
- R'R * QQ' * A_l * u_loc 
+ R'R * QQ' * A_l * u_loc
  where A_l is
 
  [Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
@@ -22,6 +22,22 @@ export lapl
  = [Dr]' * [G11 G12]' * [Dr]
    [Ds]    [G12 G22]    [Ds]
 """
+function lapl(u::AbstractArray,msh::Mesh)
+
+    @unpack Dr,Ds,G11,G12,G22 = msh
+
+    Au = laplace(u,Dr,Ds,G11,G12,G22)
+#   Au = gatherScatter(Au,msh)
+#   Au = mask(Au,M)
+
+    return Au
+end
+#--------------------------------------#
+function lapl(u::AbstractArray,msh1::Mesh,msh2::Mesh)
+    # Dealiased implementation
+    return lapl(u,msh1)
+end
+#--------------------------------------#
 function lapl(u,M,Jr,Js,QQtx,QQty,Dr,Ds
              ,G11,G12,G22,mult)
 
@@ -36,17 +52,6 @@ Au = gatherScatter(Au,QQtx,QQty);
 Au = mask(Au,M);
 
 return Au
-end
-#--------------------------------------#
-function lapl(u::AbstractArray,msh::Mesh)
-
-    @unpack Dr,Ds,G11,G12,G22 = msh
-
-    Au = laplace(u,Dr,Ds,G11,G12,G22)
-#   Au = gatherScatter(Au,msh)
-#   Au = mask(Au,M)
-
-    return Au
 end
 #--------------------------------------#
 function laplace(u,Dr,Ds,G11,G12,G22)

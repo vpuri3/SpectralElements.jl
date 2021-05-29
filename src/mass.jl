@@ -9,6 +9,23 @@ export mass
 
  (QQ' * R'R * B_loc) * u_loc
 """
+function mass(u::AbstractArray,msh::Mesh)
+
+    @unpack B = msh
+
+    Bu = B .* u
+    #Bu = gatherScatter(Bu,QQtx,QQty)
+    #Bu = mask(Bu,M)
+
+return Bu
+end
+#--------------------------------------#
+function mass(u::AbstractArray,msh1::Mesh,msh2::Mesh)
+    # Dealiased implementation
+
+    return mass(u,msh1)
+end
+#--------------------------------------#
 function mass(u,M,B,Jr,Js,QQtx,QQty
              ,mult);
 
@@ -25,17 +42,6 @@ Bu = Zygote.hook(d->d .* mult,Bu);
 
 Bu = gatherScatter(Bu,QQtx,QQty);
 Bu = mask(Bu,M);
-
-return Bu
-end
-#--------------------------------------#
-function mass(u::AbstractArray,msh::Mesh)
-
-    @unpack B = msh
-
-    Bu = B .* u
-    #Bu = gatherScatter(Bu,QQtx,QQty)
-    #Bu = mask(Bu,M)
 
 return Bu
 end
