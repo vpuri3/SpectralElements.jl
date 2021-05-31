@@ -28,6 +28,7 @@ x1 = m1.x
 y1 = m1.y
 
 ν  = @. 1+0*x1
+k  = @. 0+0*x1
 f  = @. 1+0*x1
 ub = @. 0+0*x1
 
@@ -51,7 +52,8 @@ end
 #----------------------------------#
 
 function opLapl(v)
-    Au = lapl(v,m1)
+#   Au = ν .* lapl(v,m1)
+    Au = hlmz(v,ν,k .*0,m1)
     Au = gatherScatter(Au,m1.QQtx,m1.QQty)
     Au = mask(Au,M1)
     return Au
@@ -67,9 +69,9 @@ b = b - lapl(ub,m1)
 b = mask(b ,M1)
 b = gatherScatter(b,m1)
 
-u = copy(b)
-#u = pcg(b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
-@time pcg!(u,b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
+#u = copy(b)
+#@time pcg!(u,b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
+@time u = pcg(b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
 
 u = u + ub
 #----------------------------------#
