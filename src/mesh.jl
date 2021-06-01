@@ -72,7 +72,7 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     ye,_ = semmesh(Ey,ns)
     x,y  = ndgrid(xe,ye)
 
-    # mesh deformation
+    # deform Ω = [-1,1]^2 to desired shape
     x,y = deform(x,y)
 
     # jacobian
@@ -137,8 +137,8 @@ function generateMask(bc::Array{Char,1},msh::Mesh)
     Ry = Iy[iy,:]
 
     M = diag(Rx'*Rx) * diag(Ry'*Ry)'
-    M = Array(M)
-    return M
+    M = Array(M) .== 1
+    return M # convert to boolean array
 end
 #----------------------------------------------------------------------
 export Field
