@@ -111,8 +111,8 @@ export generateMask
  A periodic mesh overwrites 'D' to 'N' in direction of periodicity.
 
  To achieve inhomogeneous Dirichlet condition, apply the formulation
- u = ub + uh, where uh is homogeneous part, and ub holds boundary
- data, and solve for uh.
+ u = ub + uh, where uh is homogeneous part, and ub is an arbitrary
+ smooth function on Ω. Then, solve for uh
 
 """
 function generateMask(bc::Array{Char,1},msh::Mesh)
@@ -138,7 +138,7 @@ function generateMask(bc::Array{Char,1},msh::Mesh)
 
     M = diag(Rx'*Rx) * diag(Ry'*Ry)'
     M = Array(M) .== 1
-    return M # convert to boolean array
+    return M
 end
 #----------------------------------------------------------------------
 export Field
