@@ -5,11 +5,11 @@ export lapl
 """
  for v,u in H^1 of Ω
 
- (v,-del^2 u) = (vx,ux) + (vy,uy)\n
-             := a(v,u)\n
-              = v' * A * u\n
-              = (Q*R'*v)'*A_l*(Q*R'*u)\n
-              = v'*R*Q'*A_l*Q*R'*u\n
+ (v,-∇² u) = (vx,ux) + (vy,uy)\n
+          := a(v,u)\n
+           = v' * A * u\n
+           = (Q*R'*v)'*A_l*(Q*R'*u)\n
+           = v'*R*Q'*A_l*Q*R'*u\n
 
  implemented as
 

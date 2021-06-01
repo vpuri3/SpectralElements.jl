@@ -2,78 +2,88 @@
 
 using Revise
 using SEM
-using LinearAlgebra,Plots,UnPack
-using BenchmarkTools
+using LinearAlgebra,Plots,BenchmarkTools
 
 #----------------------------------#
 Ex = 8; nr1 = 8;
 Ey = 8; ns1 = 8;
 
 function deform(x,y)
-    x,y = SEM.annulus(0.5,1.0,2pi,x,y)
-#   x = @. 0.5*(x+1)
-#   y = @. 0.5*(y+1)
+    x = @. 0.5*(x+1)
+    y = @. 0.5*(y+1)
     return x,y
 end
 
-ifperiodic = [false, true]
+ifperiodic = [false,false] # [xdir, ydir]
 
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 
 #----------------------------------#
-# case setup
+# solve with Newton Raphson approximation
+#
+# ∇²u + G(u,x) = f(x)
 #----------------------------------#
-
 x1 = m1.x
 y1 = m1.y
 
+G(v,msh::Mesh) = @. v^2
+Gdu(v,mesh::Mesh) = @. 2v
+
 ν  = @. 1+0*x1
-k  = @. 0+0*x1
-f  = @. 1+0*x1
-ub = @. 0+0*x1
 
-M1 = generateMask(['D','D','N','N'],m1)
-Mb = generateMask(['N','N','N','N'],m1)
+kx = 2.0
+ky = 2.0
+ut = @. sin(kx*pi*x1)*sin(ky*pi*y1) # true solution
+f  = @. ut*((kx^2+ky^2)*pi^2)       # forcing/RHS
+f += G(ut,m1)
 
-function F(u,msh::Mesh)
-    @unpack x,y = msh
-    Fu = @. u^2
-    return Fu
+ub  = @. 0+0*x1 # boundary data
+δub = @. 0+0*x1
+
+M1 = generateMask(['D','D','D','D'],m1) # [xmin,xmax,ymin,ymax]
+
+function residual(v,msh::Mesh)
+    resi  = mass(f,msh)
+    resi -= mass(G(v,msh),msh) .+ ν.*lapl(v,msh)
+    return resi
 end
 
-function dF(u,msh::Mesh)
-    @unpack x,y = msh
-    dFdu = @. 2u
-    return dFdu
+function opHlmz(v,k,msh::Mesh) # LHS op
+    Hu = hlmz(v,ν,k,msh)
+    Hu = gatherScatter(Hu,msh)
+    Hu = mask(Hu,M1)
+    return Hu
 end
 
-#----------------------------------#
-# ops for PCG
-#----------------------------------#
+u  = @. 0+0*x1 # initial guess
+δu = @. 0+0*x1
+for i=1:10
+    local g = G(u,m1)
+    local k = Gdu(u,m1)
 
-function opLapl(v)
-#   Au = ν .* lapl(v,m1)
-    Au = hlmz(v,ν,k .*0,m1)
-    Au = gatherScatter(Au,m1.QQtx,m1.QQty)
-    Au = mask(Au,M1)
-    return Au
+    # LHS
+    opLHS(v) = opHlmz(v,k,m1)
+
+    # RHS
+    b  = mass(f,m1)
+    b -= ν.*lapl(u,m1) .+ mass(g,m1)
+    b  = mask(b,M1)
+    b  = gatherScatter(b,m1)
+
+    # solve
+    pcg!(δu,b,opLHS,mult=m1.mult,ifv=false)
+    u .+= δu
+
+    r  = residual(u,m1) # residual calculation is not adding up...
+    r .= mask(r,M1)
+    r .= gatherScatter(r,m1)
+
+    bb = norm(b ,Inf); println("At iter $i, RHS norm is $bb")
+    uu = norm(δu,Inf); println("At iter $i, δu  norm is $uu")
+    rr = norm(r ,Inf); println("At iter $i, res norm is $rr")
+
+    if(rr < 1e-6) break end
 end
-
-function opFDM(v) # preconditioner
-    return v
-end
-#----------------------------------#
-b =     mass(f ,m1)
-b = b - lapl(ub,m1)
-
-b = mask(b ,M1)
-b = gatherScatter(b,m1)
-
-#u = copy(b)
-#@time pcg!(u,b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
-@time u = pcg(b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
-
-u = u + ub
 #----------------------------------#
 plt = meshplt(u,m1)
 display(plt)

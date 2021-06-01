@@ -7,7 +7,8 @@ export mask
 
  masks dirichlet boundary points
 """
-function mask(u,M)
+function mask(u::AbstractArray
+             ,M::AbstractArray)
 
 if(length(M)==0) Mu = copy(u)
 else             Mu = @. M*u

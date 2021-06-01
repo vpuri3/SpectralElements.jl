@@ -5,7 +5,9 @@ export hlmz
 """
  for v,u in H^1 of Omega
 
- (v,(-ν∇² + k) u )
+ (v,(-ν∇² + k)u)\n
+          = ν * a(v,u)
+          + k *  (v,u)
 """
 function hlmz(u::AbstractArray
              ,ν::AbstractArray

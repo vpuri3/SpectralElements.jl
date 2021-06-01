@@ -8,13 +8,13 @@ Ex = 8; nr1 = 8; #nr2 = nr1-2; nrd = Int(ceil(1.5*nr1));
 Ey = 8; ns1 = 8; #ns2 = ns1-2; nsd = Int(ceil(1.5*ns1));
 
 function deform(x,y)
-    x,y = SEM.annulus(0.5,1.0,2pi,x,y)
-#   x = @. 0.5*(x+1)
-#   y = @. 0.5*(y+1)
+#   x,y = SEM.annulus(0.5,1.0,2pi,x,y)
+    x = @. 0.5*(x+1)
+    y = @. 0.5*(y+1)
     return x,y
 end
 
-ifperiodic = [false, true]
+ifperiodic = [false,false]
 
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 #m2 = Mesh(nr2,ns2,Ex,Ey,deform,ifperiodic)
@@ -39,7 +39,7 @@ visc = @. 1+0*x1
 f = @. 1+0*x1
 ub= @. 0+0*x1
 
-M1 = generateMask(['D','D','N','N'],m1)
+M1 = generateMask(['D','D','D','D'],m1)
 Mb = generateMask(['N','N','N','N'],m1)
 
 #----------------------------------#
