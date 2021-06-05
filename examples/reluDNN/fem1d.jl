@@ -18,25 +18,6 @@ up = udata(xp)
 ug = udata(xg)
 #--------------------------------------#
 """
-    Given grid NN[1].b = -x, fix NN[2].W, NN[3].W to get
-    adjusted lagrange basis functions, and scaling coeffs
-"""
-function updateNN!(NN)
-    x = -NN[1].b
-    u = udata(x) # replace with some linear solve
-
-    h  = diff(x)
-    hi = 1.0 ./ h 
-    hh = zeros(size(x))
-    hh[1:end-1] .-= hi
-    hh[2:end  ] .-= hi
-
-    NN[2].W .= Tridiagonal(hi,hh,hi)
-    NN[3].W .= u'
-    return
-end
-#--------------------------------------#
-"""
     Initialize 3-layer shallow ReLU neural network.
 
     Layer 1 - fix FEM node location (activation layer)\n
@@ -61,6 +42,25 @@ function initializeNN(x,u)
     updateNN!(NN) # NN[2].W .= Tridiagonal(hi,hh,hi); NN[3].W .= u'
 
     return NN
+end
+#--------------------------------------#
+"""
+    Given grid NN[1].b = -x, fix NN[2].W, NN[3].W to get
+    adjusted lagrange basis functions, and scaling coeffs
+"""
+function updateNN!(NN)
+    x = -NN[1].b
+    u = udata(x) # replace with some linear solve
+
+    h  = diff(x)
+    hi = 1.0 ./ h 
+    hh = zeros(size(x))
+    hh[1:end-1] .-= hi
+    hh[2:end  ] .-= hi
+
+    NN[2].W .= Tridiagonal(hi,hh,hi)
+    NN[3].W .= u'
+    return
 end
 #--------------------------------------#
 function makeplot()
@@ -107,7 +107,6 @@ end
 #--------------------------------------#
 model = initializeNN(xg,ug)
 callback(doplot=true)
-
 #res = Flux.train!(loss,Flux.params(),data,ADAM(0.05),cb=cb)
 #--------------------------------------#
 # create a restriction layer that enforces Dirichlet BC
