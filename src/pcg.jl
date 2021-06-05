@@ -14,16 +14,16 @@ function pcg(b,opA
 
 n = length(b);
 
-x   = @. 0*b; # zero initial condition
-Ax  = @. 0*b;
+x   = zero(b) # zero out initial condition
+Ax  = zero(b)
 ra  = b - Ax;
-ha  = 0;
-hp  = 0;
-hpp = 0;
-rp  = 0;
-rpp = 0;
-u   = 0;
-k   = 0;
+ha  = zero(b)
+hp  = zero(b)
+hpp = zero(b)
+rp  = zero(b)
+rpp = zero(b)
+u   = zero(b)
+k   = 0
 
 while(norm(ra,Inf) > tol)
 ha = opM * ra # preconditinoer
@@ -61,11 +61,11 @@ function pcg!(x,b,opA
              ,maxiter=length(b)) # maximum number of iterations
 
     x .= pcg(b,opA
-            ;opM=opM          # preconditioner
-            ,mult=mult        # SEM mult
-            ,ifv=ifv          # verbose flag
-            ,tol=tol          # tolerance
-            ,maxiter=maxiter) # maximum number of iterations
+            ;opM=opM
+            ,mult=mult
+            ,ifv=ifv
+            ,tol=tol
+            ,maxiter=maxiter)
 
 return
 end

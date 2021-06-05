@@ -3,7 +3,7 @@
 export lapl
 #--------------------------------------#
 """
- for v,u in H^1 of Ω
+ for v,u in H¹₀(Ω)
 
  (v,-∇² u) = (vx,ux) + (vy,uy)\n
           := a(v,u)\n

@@ -2,9 +2,10 @@
 export jac
 """
     Computes Jacobian and its inverse of transformation
+
     x = x(r,s), y = y(r,s)
 
-    J = [xr xs],  Jinv = [rx ry]
+    J = [xr xs],  Jinv = [rx ry]\n
         [yr ys]          [sx sy]
 """
 function jac(x,y,Dr,Ds)

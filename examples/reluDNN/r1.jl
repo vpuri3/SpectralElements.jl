@@ -66,7 +66,7 @@ display(plt)
 plt1 = plot()
 if(d==2)
     plt1 = plot()
-    plt1 = heatmap!(f)
+    plt1 = heatmap!(f')
 end
 
 savefig(plt1,"reluPartitionHmp.png")
