@@ -1,21 +1,19 @@
 #
+cd(@__DIR__)
+using Pkg
+Pkg.activate(".")
+
 using Flux, NNlib, DiffEqFlux, Optim, LinearAlgebra, Plots
 #--------------------------------------#
 np  = 2001 # data points
 ng  = 31   # FEM  points
-#--------------------------------------#
+
 function udata(x)
     u   = @. sin(10*pi*x)*(-1<=x<=0)
     u  += @. sin(01*pi*x)*( 0< x<=1)
     u .+= 2.0
     return u
 end
-
-xp = Array(range(-1,stop=1,length=np))
-xg = Array(range(-1,stop=1,length=ng)) # initialize equidistant FEM grid
-
-up = udata(xp)
-ug = udata(xg)
 #--------------------------------------#
 """
     Initialize 3-layer shallow ReLU neural network.
@@ -50,7 +48,7 @@ end
 """
 function updateNN!(NN)
     x = -NN[1].b
-    u = udata(x) # replace with some linear solve
+    u = llsq(x)
 
     h  = diff(x)
     hi = 1.0 ./ h 
@@ -63,6 +61,12 @@ function updateNN!(NN)
     return
 end
 #--------------------------------------#
+function llsq(x)
+    # do a linear least square solve on up
+    u = udata(x)
+    return u
+end
+#--------------------------------------#
 function makeplot()
     fp = model(xp')'
 
@@ -73,7 +77,7 @@ function makeplot()
     plt = plot!(xp,fp,width=3,label="prediction")
     plt = scatter!(xg,model(xg')',width=4,color="red",label=false)
     
-    # FEM Basis
+    # hat functions
     for i=1:ng
         scale = model[3].W[i]
         scale = 1.0
@@ -88,7 +92,7 @@ end
 #--------------------------------------#
 function loss()
     fp = model(xp')'
-    loss = sum(abs2,fp .- up)
+    loss = sum(abs2,fp .- up)/length(xp)
     return loss
 end
 #--------------------------------------#
@@ -103,13 +107,31 @@ function callback(;doplot=false)
     println("∞ norm: $er, loss: $l2")
 
     if(doplot) makeplot() end
+    return false
 end
 #--------------------------------------#
+xp = Array(range(-1,stop=1,length=np))
+xg = Array(range(-1,stop=1,length=ng)) # initialize with equidistant FEM grid
+
+L2   = []
+LInf = []
+
+up = udata(xp)
+ug = udata(xg)
+
 model = initializeNN(xg,ug)
 callback(doplot=true)
-#res = Flux.train!(loss,Flux.params(),data,ADAM(0.05),cb=cb)
+
+#res = Flux.train!(loss,Flux.params(),data,ADAM(0.05),cb=callback)
 #--------------------------------------#
 # create a restriction layer that enforces Dirichlet BC
 # Neumann BC? Enforce via loss function
+#
+# use this to approximate the thin boundary layer
+# of the steady state advection diffusion equation
+#
+# (u⋅∇ - ν∇²) T = f
+#
+#
 
 nothing
