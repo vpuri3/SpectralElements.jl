@@ -1,4 +1,5 @@
 name = "SEM.jl"
+uuid = "0e8ceff7-dec4-4c6b-b4a8-fe063cb3693d"
 authors = ["Vedant Puri <vedantpuri@gmail.com> and contributors"]
 version = "0.1.0"
 
