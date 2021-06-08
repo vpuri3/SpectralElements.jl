@@ -4,6 +4,7 @@ module SEM
 using LinearAlgebra,SparseArrays
 using Zygote,Plots
 using UnPack
+using StaticArrays
 
 import FastGaussQuadrature
 #--------------------------------------#

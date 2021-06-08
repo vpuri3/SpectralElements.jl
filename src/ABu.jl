@@ -3,7 +3,7 @@
 export ABu
 #--------------------------------------#
 """
- (As kron Br) * u
+ (As ⊗ Br) * u
 """
 function ABu(As,Br,u)
 
