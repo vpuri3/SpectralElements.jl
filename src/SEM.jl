@@ -50,3 +50,14 @@ include("hlmz.jl")
 include("plt.jl")
 
 end # module
+#--------------------------------------#
+# Chris' comments:
+# -use a packaged iterative solver (IterativeSolvers.jl)
+# -replace ndgrid with broadcast arrays or something
+# -use NNlib's optimized gather scatter
+#
+# Vedant's thoughts:
+# -NNlib's gather scatter might help me extend this code to
+#  unstructured grids (BIG BIG WIN!!)
+# -profile code, use nonallocating functions everywhere to imrpove efficiency
+# -use stuff like StaticArrays.jl, LazyArrays.jl
