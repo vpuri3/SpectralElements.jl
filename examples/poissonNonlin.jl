@@ -32,27 +32,30 @@ m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 x1 = m1.x
 y1 = m1.y
 
-function G(v,msh::Mesh) # G(u,x⃗)
+function G(u,msh::Mesh) # G(u,x⃗)
     @unpack x,y = msh
-    Gu = @. v^3
+#   Gu = @. u^3
+    Gu = @. -exp.(-u)
     return Gu
 end
-function Gdu(v,msh::Mesh) # d/du G(u,x⃗)
+function Gdu(u,msh::Mesh) # d/du G(u,x⃗)
     @unpack x,y = msh
-    Gdu = @. 3v^2
+#   Gdu = @. 3u^2
+    Gdu = @. exp.(-u)
     return Gdu
 end
 
-# contrived example
 ν  = @. 1+0*x1
-kx = 2.0
-ky = 2.0
-ut = @. 0 + sin(kx*pi*x1)*sin(ky*pi*y1) # true solution
-f  = @. ut*((kx^2+ky^2)*pi^2)           # forcing/RHS
-f += G(ut,m1)
-
 u  = @. 0+0*x1 # initial guess (must agree with boundary data)
 δu = @. 0+0*x1 # initialize
+f  = @. 1+0*x1
+
+# contrived example
+kx = 3
+ky = 3
+ut = @. 0 + sin(kx*pi*x1)*sin(ky*pi*y1) # true solution
+f  = @. ut*((kx^2+ky^2)*pi^2)         # forcing/RHS
+f += G(ut,m1)
 
 # boundary condition
 # 'N': Neumann (homogeneous)
@@ -60,7 +63,7 @@ u  = @. 0+0*x1 # initial guess (must agree with boundary data)
 M1 = generateMask(['D','D','D','D'],m1) # [xmin,xmax,ymin,ymax]
 
 #----------------------------------#
-# solve homogeneous linearized equation for δu
+# solve linearized homogeneous equation for δu
 #----------------------------------#
 function residual(v,msh::Mesh)
     resi  = mass(f,msh)
@@ -98,7 +101,7 @@ for i=1:100
     if(rr < 1e-8) break end
 end
 #----------------------------------#
-er=ut-u; er=norm(er,Inf); println("infinity norm of error is $er")
+er=ut-u; er=norm(er,Inf); println("Error ∞ norm: $er")
 plt = meshplt(u,m1)
 display(plt)
 #----------------------------------#
