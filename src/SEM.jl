@@ -55,6 +55,7 @@ end # module
 # -use a packaged iterative solver (IterativeSolvers.jl)
 # -replace ndgrid with broadcast arrays or something
 # -use NNlib's optimized gather scatter
+# -linsolve function is redundant since \ (backslash) already has an adjoint
 #
 # Vedant's thoughts:
 # -NNlib's gather scatter might help me extend this code to
