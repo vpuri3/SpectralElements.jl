@@ -8,9 +8,9 @@ using UnPack
 #----------------------------------#
 function caseSetup!(dfn::Diffusion)
 
+    kx=2.0
+    ky=2.0
     function utrue(x,y,t)
-        kx=2.0
-        ky=2.0
         ut = @. sin(kx*pi*x)*sin.(ky*pi*y)
         return ut
     end
@@ -33,6 +33,8 @@ function caseSetup!(dfn::Diffusion)
 
     function setForcing!(f,x,y,t)
         f .= @. 1.0 + 0*x
+#       ut = utrue(x,y,t)
+#       f .= @. ut*((kx^2+ky^2)*pi^2)
         return
     end
 

@@ -2,8 +2,7 @@
 #--------------------------------------#
 export bdfExtK
 #--------------------------------------#
-"""
- k'th Order Backward Difference Formula with Extrapolation for integrating
+""" k'th Order Backward Difference Formula with Extrapolation for integrating
 
  du = f(t) + g(t)           (1)
  dt
@@ -30,32 +29,27 @@ export bdfExtK
 
 """
 function bdfExtK(t;k=3)
+    t  = unique(t)
     kk = length(t) - 1
+
     t1 = t[1]
     t0 = t[2:end]
 
-    b = interpMat(t1,t0)
-    a = derivMat(t)[1,:]'
+    a = interpMat(t1,t0)
+    b = derivMat(t)[1,:]'
 
     if(kk < k)
         global a = hcat(a,zeros(1,k-kk))
         global b = hcat(b,zeros(1,k-kk))
+    else
+        a = a[1:k]
+        b = b[1:k+1]
+    end
+
+    if(kk==0) # steady state
+        global a[1] = 1.0
     end
 
     return a,b
-end
-#--------------------------------------#
-export updateHist!
-#--------------------------------------#
-function updateHist!(uu...)
-    
-    tmp = uu[end]
-    for i=length(uu):-1:2
-        uu[i] = uu[i-1] # exchange pointers
-    end
-    uu[1]  = tmp
-    uu[1] .= uu[2]
-
-    return
 end
 #--------------------------------------#

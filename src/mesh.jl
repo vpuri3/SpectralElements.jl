@@ -161,3 +161,30 @@ function Field(bc::Array{Char,1},msh::Mesh{T,N}) where {T,N}
     return Field{T,N}(u,u1,u2,u3,ub,M,Ref(msh))
 end
 #----------------------------------------------------------------------
+export updateHist!
+#--------------------------------------#
+function updateHist!(uu...)
+    
+    tmp = uu[end]
+    for i=length(uu):-1:2
+        uu[i] = uu[i-1] # exchange pointers
+    end
+    uu[1]  = tmp
+    uu[1] .= uu[2]
+
+    return
+end
+
+function updateHist!(fld::Field)
+    @unpack u,u1,u2,u3 = fld
+
+    tmp = u3 # exchanging pointers
+    u3  = u2 
+    u2  = u1
+    u1  = u
+    u   = tmp
+
+    u  .= u1
+    return
+end
+#--------------------------------------#

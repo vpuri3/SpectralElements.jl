@@ -7,6 +7,8 @@ mutable struct Diffusion{T,N}
     fld ::Field{T,N}
 
     time::Array{T,1}
+    bdfA::Array{T,1}
+    bdfB::Array{T,1}
 
     ν  ::Array{T,N} # viscosity
     f  ::Array{T,N} # forcing
@@ -17,10 +19,11 @@ end
 
 function Diffusion(fld::Field)
     time = zeros(4)
+    bdfA,bdfB = bdfExtK(time)
     f    = zero(fld.u)
     ν    = zero(fld.u)
     rhs  = zero(fld.u)
-    return Diffusion(fld,time,ν,f,rhs,fld.mshRef)
+    return Diffusion(fld,time,bdfA,bdfB,ν,f,rhs,fld.mshRef)
 end
 
 function Diffusion(bc::Array{Char,1},msh::Mesh{T,N}) where {T,N}
@@ -73,7 +76,7 @@ function evolve!(dfn::Diffusion
 #   updateHist!(fld)
 
 #   dfn.time[1] += dt
-#   bdfA, bdfB = bdfExtK(time)
+    bdfA, bdfB = bdfExtK(time)
 
     setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
     setForcing!(f,mshRef[].x,mshRef[].y,time[1])
