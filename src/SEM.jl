@@ -27,6 +27,7 @@ sum(A) = Base.sum(A)
 include("jac.jl")
 include("interp.jl")
 include("derivMat.jl")
+include("time.jl")
 include("semmesh.jl")
 include("semq.jl")
 include("ndgrid.jl")
@@ -39,13 +40,14 @@ include("mesh.jl")
 
 include("pcg.jl")
 include("adjoint.jl")
-include("fem.jl")
 
 include("gatherScatter.jl")
 include("grad.jl")
 include("mass.jl")
 include("lapl.jl")
 include("hlmz.jl")
+
+include("diffusion.jl")
 
 include("plt.jl")
 

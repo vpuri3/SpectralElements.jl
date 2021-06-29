@@ -2,9 +2,6 @@
 #----------------------------------------------------------------------
 export Mesh
 #----------------------------------------------------------------------
-"""
-Data structure to hold mesh information
-"""
 mutable struct Mesh{T,N}
     nr::Int
     ns::Int
@@ -143,65 +140,24 @@ end
 #----------------------------------------------------------------------
 export Field
 #----------------------------------------------------------------------
-#
 mutable struct Field{T,N}
-    u::Array{T,N} # value
-    M::Array{T,N} # mask
+    u ::Array{T,N} # value
+    u1::Array{T,N} # histories
+    u2::Array{T,N}
+    u3::Array{T,N}
+    ub::Array{T,N} # boundary data
+    M ::Array{T,N} # BC mask
+
+    mshRef::Ref{Mesh{T,N}} # underlying mesh
 end
 
-function Field(expr::Function,bc::Array{Char,1},msh::Mesh)
-    u = @. expr(msh.x,msh.y)
-    M = generate_mask(bc,msh)
-    return Field{Float64,2}(u,M)
+function Field(bc::Array{Char,1},msh::Mesh{T,N}) where {T,N}
+    u  = zero(msh.x)
+    u1 = copy(u)
+    u2 = copy(u)
+    u3 = copy(u)
+    ub = copy(u)
+    M  = generateMask(bc,msh)
+    return Field{T,N}(u,u1,u2,u3,ub,M,Ref(msh))
 end
-
-function Field(u::Array{Float64,2},bc::Array{Char,1},msh::Mesh)
-    M = generate_mask(bc,msh)
-    return Field{Float64,2}(u,M)
-end
-
-Base.:+(f::Field) = f
-Base.:-(f::Field) = Field(-f.u,f.M)
-
-Base.:+(f0::Field,f1::Field) = Field(f0.u+f1.u,max.(f0.M,f1.M))
-Base.:-(f0::Field,f1::Field) = Field(f0.u-f1.u,max.(f0.M,f1.M))
-
-Base.:*(λ::Number,f::Field) = Field(f.u .* λ,f.M)
-Base.:*(f::Field,λ::Number) = λ * f
-Base.:*(f0::Field,f1::Field) = Field(f0.u .* f1.u, f0.M .* f1.M)
-
-Base.:/(f0::Field,f1::Field) = Field(f0.u ./ f1.u, f0.M .* f1.M)
-Base.:\(f0::Field,f1::Field) = Field(f0.u .\ f1.u, f0.M .* f1.M)
-
-Base.:^(λ::Number,f::Field) = Field(λ .^ f.u,f.M)
-Base.:^(f::Field,λ::Number) = Field(f.u .^ λ,f.M)
-Base.:^(f0::Field,f1::Field) = Field(f0.u .^ f1.u, f0.M .* f1.M)
-
-# todo: function application like sin(f)
-# arithmatic ops like B .* f
-
-#u = Field( (x,y) -> sin(π*x)*sin(π*y),bc,m1)
-#plt = meshplt(u,m1)
-#display(plt)
-
 #----------------------------------------------------------------------
-#=
-mutable struct simulation
-
-#   ifvl = 0    # evolve  vel field per NS eqn
-#   ifad = 1    # advect  vel, sclr
-#   ifpr = 0    # project vel onto a div-free subspace
-#   ifps = 1    # evolve sclr per advection diffusion eqn
-
-    m1::mesh    # velocity mesh
-    m2::mesh    # pressure mesh
-    md::mesh    # dealiasing mesh
-
-    # mesh interpolation operators
-    J1d::Array
-    J2d::Array
-    J21::Array
-
-end
-=#
-
