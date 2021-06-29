@@ -2,11 +2,9 @@
 
 using Revise
 using SEM
-using LinearAlgebra,Plots
-
-using UnPack
+using LinearAlgebra,Plots, UnPack
 #----------------------------------#
-function caseSetup!(dfn::Diffusion)
+function caseSetup(dfn::Diffusion)
 
     kx=2.0
     ky=2.0
@@ -27,14 +25,14 @@ function caseSetup!(dfn::Diffusion)
     end
 
     function setBC!(ub,x,y,t)
-        ub .= @. 0*x
+        ub .= @. 0+0*x
         return
     end
 
     function setForcing!(f,x,y,t)
         f .= @. 1.0 + 0*x
-#       ut = utrue(x,y,t)
-#       f .= @. ut*((kx^2+ky^2)*pi^2)
+        ut = utrue(x,y,t)
+        f .= @. ut*((kx^2+ky^2)*pi^2)
         return
     end
 
@@ -51,9 +49,9 @@ Ex = 8; nr1 = 8;
 Ey = 8; ns1 = 8;
 
 function deform(x,y) # deform [-1,1]^2
-    x,y = SEM.annulus(0.5,1.0,2pi,x,y)
-#   x = @. 0.5*(x+1)
-#   y = @. 0.5*(y+1)
+#   x,y = SEM.annulus(0.5,1.0,2pi,x,y)
+    x = @. 0.5*(x+1)
+    y = @. 0.5*(y+1)
     return x,y
 end
 
@@ -63,8 +61,9 @@ m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 bc = ['D','D','N','N']
 diffuseU = Diffusion(bc,m1)
 
-setBC!, setForcing!, setVisc!, callback = caseSetup!(diffuseU)
+# set up time stepper (updateHist!, dt, loop)
+# set up nonallocating, packaged, iterative solver
 
-evolve!(diffuseU,setBC!,setForcing!,setVisc!,callback)
+evolve!(diffuseU,caseSetup(diffuseU)...)
 #----------------------------------#
 nothing
