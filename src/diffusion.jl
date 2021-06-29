@@ -6,13 +6,17 @@ export Diffusion
 struct Diffusion{T,N}
     fld ::Field{T,N}
 
-    time::Array{T,1}
-    bdfA::Array{T,1}
-    bdfB::Array{T,1}
+    time::Vector{T}
+    bdfA::Vector{T}
+    bdfB::Vector{T}
 
     ν  ::Array{T,N} # viscosity
     f  ::Array{T,N} # forcing
     rhs::Array{T,N} # RHS
+
+    istep::Array{Int64,1} # time step
+    dt   ::Array{T,1}
+    Tend ::Array{T,1}     # end time
 
     mshRef::Ref{Mesh{T,N}} # underlying mesh
 end
@@ -20,17 +24,25 @@ end
 function Diffusion(fld::Field)
     time = zeros(4)
     bdfA,bdfB = bdfExtK(time)
+
     ν    = zero(fld.u)
     f    = zero(fld.u)
     rhs  = zero(fld.u)
-    return Diffusion(fld,time,bdfA,bdfB,ν,f,rhs,fld.mshRef)
+
+    istep = [0]
+    dt    = zeros(1)
+    Tend  = zeros(1)
+
+    return Diffusion(fld,time,bdfA,bdfB
+                    ,ν,f,rhs
+                    ,istep,dt,Tend
+                    ,fld.mshRef)
 end
 
 function Diffusion(bc::Array{Char,1},msh::Mesh{T,N}) where {T,N}
     return Diffusion(Field(bc,msh))
 end
 #----------------------------------------------------------------------
-
 function opLHS(u,dfn::Diffusion)
     @unpack fld,mshRef, ν,bdfB = dfn
 
@@ -66,7 +78,7 @@ function solve!(dfn::Diffusion)
     opL(u) = opLHS(u,dfn)
     opP(u) = opPrecond(u,dfn)
 
-    @time pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=true)
+    pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=true)
     u .= u + ub
     return
 end
@@ -74,25 +86,33 @@ end
 #----------------------------------------------------------------------
 export evolve!
 #----------------------------------------------------------------------
-function evolve!(dfn::Diffusion
-                ,setBC!::Function,setForcing!::Function
-                ,setVisc!::Function ,callback::Function)
+function evolve!(dfn::Diffusion,setIC!::Function,setBC!::Function
+                ,setForcing!::Function,setVisc!::Function
+                ,setDT!::Function,callback!::Function)
 
-    @unpack fld, f, ν, mshRef, time = dfn
-    updateHist!(time)
-    updateHist!(fld)
+    @unpack fld, f, ν, mshRef, time, bdfA, bdfB, istep, dt, Tend = dfn
 
-#   dfn.time[1] += dt
-    bdfA, bdfB = bdfExtK(time)
+    setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
 
-    setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
-    setForcing!(f,mshRef[].x,mshRef[].y,time[1])
-    setVisc!(ν   ,mshRef[].x,mshRef[].y,time[1])
+    while time[1] <= Tend[1]
+        updateHist!(fld)
+        updateHist!(time)
 
-    makeRHS!(dfn)
-    solve!(dfn)
+        istep .+= 1
+        setDT!(dt)
+        dfn.time[1] += dt[1]
+        bdfExtK!(bdfA,bdfB,time)
 
-    callback(dfn)
+        setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
+        setForcing!(f,mshRef[].x,mshRef[].y,time[1])
+        setVisc!(ν   ,mshRef[].x,mshRef[].y,time[1])
+
+        makeRHS!(dfn)
+        solve!(dfn)
+
+        callback!(dfn)
+
+    end
 
     return
 end

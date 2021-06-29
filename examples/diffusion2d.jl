@@ -4,23 +4,22 @@ using Revise
 using SEM
 using LinearAlgebra,Plots, UnPack
 #----------------------------------#
-function caseSetup(dfn::Diffusion)
+function caseSetup!(dfn::Diffusion)
 
     kx=2.0
     ky=2.0
+    kt=2.0
+    ν =1.0
+
+    dfn.Tend .= 1.0
+
     function utrue(x,y,t)
-        ut = @. sin(kx*pi*x)*sin.(ky*pi*y)
+        ut = @. sin(kx*pi*x)*sin.(ky*pi*y)*cos(kt*pi*t)
         return ut
     end
 
-    function callback(dfn::Diffusion)
-        @unpack fld,mshRef,time = dfn
-        ut = utrue(mshRef[].x,mshRef[].y,time[1])
-        u  = fld.u
-        er = norm(ut-u,Inf)
-        print("er: ",er,"\n")
-        p = meshplt(u,mshRef[])
-        display(p)
+    function setIC!(u,x,y,t)
+        u .= utrue(x,y,t)
         return
     end
 
@@ -30,9 +29,9 @@ function caseSetup(dfn::Diffusion)
     end
 
     function setForcing!(f,x,y,t)
-        f .= @. 1.0 + 0*x
         ut = utrue(x,y,t)
-        f .= @. ut*((kx^2+ky^2)*pi^2)
+        f  .= @. ut*((kx^2+ky^2)*pi^2*ν)
+        f .+= @. - sin(kx*pi*x)*sin(ky*pi*y)*sin(kt*pi*t)*(kt*pi)
         return
     end
 
@@ -41,7 +40,22 @@ function caseSetup(dfn::Diffusion)
         return
     end
 
-    return setBC!, setForcing!, setVisc!, callback
+    function setDT!(dt)
+        dt .= 0.01
+    end
+
+    function callback!(dfn::Diffusion)
+        @unpack fld,mshRef,time = dfn
+        ut = utrue(mshRef[].x,mshRef[].y,time[1])
+        u  = fld.u
+        er = norm(ut-u,Inf)
+        print("time=$(dfn.time[1]), er: ",er,"\n")
+        p = meshplt(u,mshRef[])
+        display(p)
+        return
+    end
+
+    return setIC!,setBC!,setForcing!,setVisc!,setDT!,callback!
 end
 
 #----------------------------------#
@@ -55,15 +69,15 @@ function deform(x,y) # deform [-1,1]^2
     return x,y
 end
 
-ifperiodic = [false,true]
+ifperiodic = [false,false]
 
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
-bc = ['D','D','N','N']
+bc = ['D','D','D','D']
 diffuseU = Diffusion(bc,m1)
 
-# set up time stepper (updateHist!, dt, loop)
-# set up nonallocating, packaged, iterative solver
+setIC!,setBC!,setForcing!,setVisc!,setDT!,callback! = caseSetup!(diffuseU)
 
-evolve!(diffuseU,caseSetup(diffuseU)...)
+evolve!(diffuseU,setIC!,setBC!,setForcing!,setVisc!,setDT!,callback!)
 #----------------------------------#
+# use a nonallocating, packaged iterative solver
 nothing
