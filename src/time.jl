@@ -1,7 +1,6 @@
 #
 #--------------------------------------#
-export bdfExtK
-#--------------------------------------#
+export bdfExtK #--------------------------------------#
 """ k'th Order Backward Difference Formula with Extrapolation for integrating
 
  du = f(t) + g(t)           (1)
@@ -31,7 +30,6 @@ export bdfExtK
 function bdfExtK(t;k=3)
     t  = unique(t)
     kk = length(t) - 1
-
     t1 = t[1]
     t0 = t[2:end]
 
@@ -51,5 +49,20 @@ function bdfExtK(t;k=3)
     end
 
     return reshape(a,k), reshape(b,k+1)
+end
+#--------------------------------------#
+export bdfExtK!
+#--------------------------------------#
+function bdfExtK!(a::AbstractVector
+                 ,b::AbstractVector
+                 ,t::AbstractVector)
+
+    k = length(t) - 1
+    aa,bb = bdfExtK(t;k=k)
+
+    a .= aa
+    b .= bb
+
+    return
 end
 #--------------------------------------#
