@@ -2,7 +2,7 @@
 #----------------------------------------------------------------------
 export Mesh
 #----------------------------------------------------------------------
-mutable struct Mesh{T,N}
+struct Mesh{T,N}
     nr::Int
     ns::Int
     Ex::Int
@@ -140,7 +140,7 @@ end
 #----------------------------------------------------------------------
 export Field
 #----------------------------------------------------------------------
-mutable struct Field{T,N}
+struct Field{T,N}
     u ::Array{T,N} # value
     u1::Array{T,N} # histories
     u2::Array{T,N}
@@ -163,28 +163,22 @@ end
 #----------------------------------------------------------------------
 export updateHist!
 #--------------------------------------#
-function updateHist!(uu...)
-    
-    tmp = uu[end]
-    for i=length(uu):-1:2
-        uu[i] = uu[i-1] # exchange pointers
-    end
-    uu[1]  = tmp
-    uu[1] .= uu[2]
+function updateHist!(fld::Field)
+    @unpack u,u1,u2,u3 = fld
+
+    u3[:,:] .= u2
+    u2[:,:] .= u1
+    u1[:,:] .= u 
 
     return
 end
 
-function updateHist!(fld::Field)
-    @unpack u,u1,u2,u3 = fld
+function updateHist!(u::AbstractArray)
 
-    tmp = u3 # exchanging pointers
-    u3  = u2 
-    u2  = u1
-    u1  = u
-    u   = tmp
-
-    u  .= u1
+    for i=length(u):-1:2
+        u[i] = u[i-1]
+    end
+    u[1] = u[2]
     return
 end
 #--------------------------------------#

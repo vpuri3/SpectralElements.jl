@@ -10,9 +10,7 @@ export hlmz
           + k *  (v,u)
 """
 function hlmz(u::AbstractArray
-             ,ν::AbstractArray
-             ,k::AbstractArray
-             ,msh::Mesh)
+             ,ν,k,msh::Mesh)
 
     Hu  = ν .* lapl(u,msh)
     Hu += k .* mass(u,msh)
@@ -22,8 +20,7 @@ end
 #--------------------------------------#
 # dealiased version
 function hlmz(u::AbstractArray
-             ,ν::AbstractArray
-             ,k::AbstractArray
+             ,ν,k
              ,msh1::Mesh
              ,msh2::Mesh)
 

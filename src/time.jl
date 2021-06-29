@@ -50,6 +50,6 @@ function bdfExtK(t;k=3)
         global a[1] = 1.0
     end
 
-    return a,b
+    return reshape(a,k), reshape(b,k+1)
 end
 #--------------------------------------#
