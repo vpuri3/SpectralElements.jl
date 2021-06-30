@@ -24,3 +24,13 @@ end
 #return ABu(As,Br,u),dv->(nothing,nothing,ABu(As',Br',dv));
 #end
 #--------------------------------------#
+#function gatherScatter(u,l2g)
+#    
+#    # scatter op: dst[:] .= @view 
+#
+#    Gu = NNlib.scatter(+,u,l2g) # gather - nnlib has its terminology reversed
+#    v  = Gu[l2g]
+#    v  = NNlib.gather(Gu,l2g) # scatter
+#
+#    return v
+#end

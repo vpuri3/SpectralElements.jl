@@ -39,45 +39,47 @@ Zygote.@adjoint function ABu(As,Br,u)
 return ABu(As,Br,u),dv->(nothing,nothing,ABu(As',Br',dv));
 end
 #--------------------------------------#
-#"""
-# (As kron Br) * u
-#"""
-#function ABu(As,Br,u)
-#
-#if(length(As)==0 && length(Br)==0); v = u;
-#elseif(length(As)==0);              v = Br*u ;
-#elseif(length(Br)==0);              v = u*As';
-#else                                v = Br*u*As';
-#end
-#
-#return v;
-#end
+export ABu1
 #--------------------------------------#
-#export ABu3
+"""
+ (As ⊗ Br) * u
+"""
+function ABu1(As,Br,u)
+
+    m = size(As)[1]
+    n = size(Br)[1]
+    E = size(u )[3]
+
+    v = zeros(m,n,E)
+
+    ABu1!(v,As,Br,u,E)
+
+return v
+end
 #--------------------------------------#
-#"""
-# (As kron Br) * u
-#"""
-#function ABu3(As,Br,u)
-#
-#    m,n,E = size(u);
-#
-#    Bu = u;
-#    if(length(Br)!=0)
-#        m ,nb = size(Br);
-#        Bu    = reshape(Bu,nb,:);
-#        Bu    = Br * Bu;
-#    end
-#
-#    ABu = Bu;
-#    if(length(As)!=0)
-#        n ,na = size(As);
-#        ABu   = reshape(ABu,:,na)
-#        ABu   = ABu * As';
-#    end
-#
-#    ABu = reshape(ABu,m,n,E);
-#
-#return ABu
-#end
+export ABu1!
+#--------------------------------------#
+"""
+ v = (As ⊗ Br) * u
+
+ To adopt this (general) implementation of the tensor product operation,
+ we need to get the following to work with arrays of shape (nx,ny,ne)
+
+ 1. geometry: x,y <= semreshape
+ 2. mask: <= construct in square domain, and then do sem_reshape
+ 3. gather scatter ops <= global ⟺   local numbering and do sem_reshape;
+
+ sem_reshape -- should only be done when generating Mesh object
+
+ focus on deformed([-1,1]²) for now. think about general geomtries later
+
+"""
+function ABu1!(v,As,Br,u;E)
+
+    for ie=1:E
+        v[:,:,ie] = @view Bs * u[:,:,ie] * Ar'
+    end
+
+return
+end
 #--------------------------------------#

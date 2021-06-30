@@ -1,5 +1,7 @@
 #
+#--------------------------------------#
 export semmesh
+#--------------------------------------#
 #
 # creates 1D sem mesh of poly. order n-1
 # and e elements [-1,1].
@@ -23,4 +25,28 @@ w = reshape(w,E*n);
 
 return z,w 
 end
+#--------------------------------------#
+export semreshape
+#--------------------------------------#
+function semreshape(u,nr,ns,Ex,Ey)
 
+    v = zeros(nr,ns,Ex*Ey)
+
+    Ix = 1:nr
+    Iy = 1:ns
+
+    for i=1:Ex
+        for j=1:Ey
+
+            ie = j + (i-1)*Ey
+
+            ix = Ix .+ (i-1)*nr
+            iy = Iy .+ (j-1)*ns
+
+            v[:,:,ie] = @view u[ix,iy]
+        end
+    end
+
+    return v
+end
+#--------------------------------------#

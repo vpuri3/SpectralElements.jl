@@ -59,17 +59,32 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     QQtx = Qx*Qx'
     QQty = Qy*Qy'
 
+    (nxl,nxg) = size(Qx)
+    (nyl,nyg) = size(Qy)
+
+    loc2glo = Array(1:nxg*nyg)
+    loc2glo = reshape(loc2glo,nxg,nyg)
+    loc2glo = ABu(Qy,Qx,loc2glo) # shape of local with global indices
+
+    # loc2glo = semreshape(loc2glo,nr,ns,Ex,Ey)
+
     # inner product weights
     # (u,v) = sum(u .* v .* mult)
     mult = ones(nr*Ex,ns*Ey)
     mult = gatherScatter(mult,QQtx,QQty)
     mult = @. 1 / mult
+    
+    # mult = semreshape(mult,nr,ns,Ex,Ey)
 
     xe,_ = semmesh(Ex,nr)
     ye,_ = semmesh(Ey,ns)
     x,y  = ndgrid(xe,ye)
 
-    # deform Ω = [-1,1]^2 to desired shape
+    # x = semreshape(x   ,nr,ns,Ex,Ey)
+    # y = semreshape(y   ,nr,ns,Ex,Ey)
+
+
+    # deform Ω = [-1,1]²
     x,y = deform(x,y)
 
     # jacobian
@@ -135,6 +150,8 @@ function generateMask(bc::Array{Char,1},msh::Mesh)
 
     M = diag(Rx'*Rx) * diag(Ry'*Ry)'
     M = Array(M) .== 1
+
+    # M = semreshape(M,nr,ns,Ex,Ey)
     return M
 end
 #----------------------------------------------------------------------
