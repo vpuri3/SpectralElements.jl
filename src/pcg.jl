@@ -4,6 +4,14 @@ export pcg
 #--------------------------------------#
 """
  Preconditioned conjugate gradient
+
+ We can't just use any packaged iterative solver for the PCG because
+ we need to overwrite not just A*x, A'*x ops for Ax=b which is
+ complicated enough since x,b  are multidimensional arrays (would have
+ to allocate memory in converting and reconverting arrays to vecs), but
+ also <u,v>, the dot product. because of the SEM construction, the dot
+ product isnt just sum(u.*v) , but it's sum(u.*v.* SEM_mult)
+
 """
 function pcg(b,opA
             ;opM=x->x           # preconditioner

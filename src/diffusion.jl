@@ -10,13 +10,13 @@ struct Diffusion{T,N}
     bdfA::Vector{T}
     bdfB::Vector{T}
 
-    ν  ::Array{T,N} # viscosity
-    f  ::Array{T,N} # forcing
-    rhs::Array{T,N} # RHS
+    ν  ::Array{T,N}        # viscosity
+    f  ::Array{T,N}        # forcing
+    rhs::Array{T,N}        # RHS
 
-    istep::Array{Int64,1} # time step
-    dt   ::Array{T,1}
-    Tend ::Array{T,1}     # end time
+    istep::Array{Int64,1}  # step number
+    dt   ::Array{T,1}      # time step
+    Tend ::Array{T,1}      # end time
 
     mshRef::Ref{Mesh{T,N}} # underlying mesh
 end
@@ -48,8 +48,8 @@ function opLHS(u,dfn::Diffusion)
 
     lhs = hlmz(u,ν,bdfB[1],mshRef[])
 
-    lhs  .= gatherScatter(lhs,mshRef[])
-    lhs  .= mask(lhs,fld.M)
+    lhs .= gatherScatter(lhs,mshRef[])
+    lhs .= mask(lhs,fld.M)
     return lhs
 end
 
@@ -78,7 +78,7 @@ function solve!(dfn::Diffusion)
     opL(u) = opLHS(u,dfn)
     opP(u) = opPrecond(u,dfn)
 
-    pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=true)
+    pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=false)
     u .= u + ub
     return
 end
@@ -111,6 +111,8 @@ function evolve!(dfn::Diffusion,setIC!::Function,setBC!::Function
         solve!(dfn)
 
         callback!(dfn)
+
+        if(time[1] < 1e-12) break end
 
     end
 

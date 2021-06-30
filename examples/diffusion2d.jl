@@ -11,7 +11,7 @@ function caseSetup!(dfn::Diffusion)
     kt=2.0
     ν =1.0
 
-    dfn.Tend .= 1.0
+    dfn.Tend .= 0.0
 
     function utrue(x,y,t)
         ut = @. sin(kx*pi*x)*sin.(ky*pi*y)*cos(kt*pi*t)
@@ -32,6 +32,7 @@ function caseSetup!(dfn::Diffusion)
         ut = utrue(x,y,t)
         f  .= @. ut*((kx^2+ky^2)*pi^2*ν)
         f .+= @. - sin(kx*pi*x)*sin(ky*pi*y)*sin(kt*pi*t)*(kt*pi)
+#       f  .= @. 1+0*x
         return
     end
 
@@ -41,7 +42,7 @@ function caseSetup!(dfn::Diffusion)
     end
 
     function setDT!(dt)
-        dt .= 0.01
+        dt .= 0.00
     end
 
     function callback!(dfn::Diffusion)
@@ -49,7 +50,7 @@ function caseSetup!(dfn::Diffusion)
         ut = utrue(mshRef[].x,mshRef[].y,time[1])
         u  = fld.u
         er = norm(ut-u,Inf)
-        print("time=$(dfn.time[1]), er: ",er,"\n")
+        println("iter= $(dfn.istep[1]), time=$(dfn.time[1]), er=$er")
         p = meshplt(u,mshRef[])
         display(p)
         return
@@ -75,9 +76,7 @@ m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 bc = ['D','D','D','D']
 diffuseU = Diffusion(bc,m1)
 
-setIC!,setBC!,setForcing!,setVisc!,setDT!,callback! = caseSetup!(diffuseU)
-
-evolve!(diffuseU,setIC!,setBC!,setForcing!,setVisc!,setDT!,callback!)
+evolve!(diffuseU,caseSetup!(diffuseU)...)
 #----------------------------------#
 # use a nonallocating, packaged iterative solver
 nothing

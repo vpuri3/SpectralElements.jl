@@ -3,6 +3,8 @@
 using Revise
 using SEM
 using LinearAlgebra,Plots
+import IterativeSolvers, Krylov
+using LinearMaps
 
 #----------------------------------#
 Ex = 8; nr1 = 8; #nr2 = nr1-2; nrd = Int(ceil(1.5*nr1));
@@ -15,7 +17,7 @@ function deform(x,y)
     return x,y
 end
 
-ifperiodic = [false,true]
+ifperiodic = [false,false]
 
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 
@@ -35,15 +37,17 @@ ub = copy(ut);                       # boundary data
 
 visc = @. 1+0*x1
 
-f = @. 1+0*x1
+#f = @. 1+0*x1
 ub= @. 0+0*x1
 
-M1 = generateMask(['D','D','N','N'],m1)
+M1 = generateMask(['D','D','D','D'],m1)
 Mb = generateMask(['N','N','N','N'],m1)
 
 #----------------------------------#
 # ops for PCG
 #----------------------------------#
+
+Base.:*(op::Function,x::AbstractArray) = op(x)
 
 function opLapl(v)
     Au = lapl(v,m1)
@@ -51,7 +55,16 @@ function opLapl(v)
     Au = mask(Au,M1)
     return Au
 end
-#
+
+function opL(v) # accepts vec
+    v  = reshape(v,size(m1.x)) # conveerts to arr
+    Av = opLapl(v)
+    Av = vec(Av)    # spits out vec
+    return Av
+end
+
+A = LinearMap(opL,64*64,issymmetric=true,ishermitian=true,isposdef=true)
+
 function opFDM(v)
     return v
 end
@@ -62,12 +75,25 @@ b = b - lapl(ub,m1)
 b = mask(b ,M1)
 b = gatherScatter(b,m1)
 
-@time u = pcg(b,opLapl,opM=opFDM,mult=m1.mult,ifv=true)
-u = u + ub
+function solve1(rhs)
+    u = pcg(rhs,opLapl,mult=m1.mult,ifv=true)
+    u = u + ub
+    return u
+end
+
+function solve2(rhs) # accepts arr
+    rhs = vec(rhs) # converts to vec
+    Au  = IterativeSolvers.cg(A,rhs,verbose=false)
+    Au  = reshape(Au,size(m1.x)) # converts to arr
+    return Au
+end
+
+u1 = solve1(b)
+u2 = solve2(b)
 #----------------------------------#
-er = norm(ut-u,Inf)
-print("er: ",er,"\n")
-p = meshplt(u,m1)
-display(p)
+#er = norm(ut-u,Inf)
+#print("er: ",er,"\n")
+#p = meshplt(u,m1)
+#display(p)
 #----------------------------------#
 nothing
