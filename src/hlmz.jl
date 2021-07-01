@@ -12,8 +12,8 @@ export hlmz
 function hlmz(u::AbstractArray
              ,ν,k,msh::Mesh)
 
-    Hu  = ν .* lapl(u,msh)
-    Hu += k .* mass(u,msh)
+    Hu   = ν .* lapl(u,msh)
+    Hu .+= k .* mass(u,msh)
 
 return Hu
 end
@@ -24,8 +24,7 @@ function hlmz(u::AbstractArray
              ,msh1::Mesh
              ,msh2::Mesh)
 
-    Hu  = ν .* lapl(u,msh1,msh2)
-    Hu += k .* mass(u,msh1,msh2)
+    Hu = hlmz(u,ν,k,msh1)
 
 return Hu
 end

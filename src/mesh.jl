@@ -24,6 +24,7 @@ struct Mesh{T,N}
     QQtx::Array{T,2} # gather scatter op (loc -> loc)
     QQty::Array{T,2}
     mult::Array{T,N} # weights for inner product
+    l2g ::Array{T,N} # local to global mapping
 
     Jac ::Array{T,N} # jacobian
     Jaci::Array{T,N}
@@ -62,11 +63,11 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     (nxl,nxg) = size(Qx)
     (nyl,nyg) = size(Qy)
 
-    loc2glo = Array(1:nxg*nyg)
-    loc2glo = reshape(loc2glo,nxg,nyg)
-    loc2glo = ABu(Qy,Qx,loc2glo) # shape of local with global indices
+    l2g = Array(1:nxg*nyg)
+    l2g = reshape(l2g,nxg,nyg)
+    l2g = ABu(Qy,Qx,l2g) # shape of local with global indices
 
-    # loc2glo = semreshape(loc2glo,nr,ns,Ex,Ey)
+    # l2g = semreshape(l2g,nr,ns,Ex,Ey)
 
     # inner product weights
     # (u,v) = sum(u .* v .* mult)
@@ -105,7 +106,7 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     return Mesh{Float64,2}(nr,ns,Ex,Ey
                           ,deform,ifperiodic
                           ,zr,zs,wr,ws,Dr,Ds,x,y
-                          ,QQtx,QQty,mult
+                          ,QQtx,QQty,mult,l2g
                           ,Jac,Jaci
                           ,rx,ry,sx,sy
                           ,B,Bi

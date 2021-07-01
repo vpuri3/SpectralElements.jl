@@ -77,7 +77,8 @@ export ABu1!
 function ABu1!(v,As,Br,u;E)
 
     for ie=1:E
-        v[:,:,ie] = @view Bs * u[:,:,ie] * Ar'
+#       v[:,:,ie] = Bs * @view u[:,:,ie] * Ar'
+        v[:,:,ie] = Bs * u[:,:,ie] * Ar'
     end
 
 return

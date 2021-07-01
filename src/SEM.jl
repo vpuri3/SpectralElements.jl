@@ -7,6 +7,7 @@ using UnPack
 using StaticArrays
 
 import FastGaussQuadrature
+import NNlib
 #--------------------------------------#
 Base.:*(op::Function,x::AbstractArray) = op(x)
 #--------------------------------------#
