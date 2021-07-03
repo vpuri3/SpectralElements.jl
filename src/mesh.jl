@@ -232,7 +232,6 @@ end
 function TimeStepper(Ti,Tf,dt,k) # add flag for variable dt
 
     time = [Ti] .* ones(k+1)
-    time[1] += dt[1]
     bdfA,bdfB = bdfExtK(time)
 
     istep = [0]

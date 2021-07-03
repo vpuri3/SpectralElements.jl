@@ -11,7 +11,7 @@ function caseSetup!(dfn::Diffusion)
     kt=2.0
     ν =1.0
 
-    dfn.Tend .= 1.0
+#   dfn.Tend .= 1.0
 #   dfn.Tend .= 0.0
 
     function utrue(x,y,t)
@@ -43,23 +43,20 @@ function caseSetup!(dfn::Diffusion)
         return
     end
 
-    function setDT!(dt)
-        dt .= 0.00
-        dt .= 0.01
-    end
-
     function callback!(dfn::Diffusion)
-        @unpack fld,mshRef,time = dfn
+        @unpack fld,mshRef = dfn
+        @unpack time, istep = dfn.tstep
+
         ut = utrue(mshRef[].x,mshRef[].y,time[1])
         u  = fld.u
         er = norm(ut-u,Inf)
-        println("iter= $(dfn.istep[1]), time=$(dfn.time[1]), er=$er")
+        println("iter= $(istep[1]), time=$(time[1]), er=$er")
         p = meshplt(u,mshRef[])
         display(p)
         return
     end
 
-    return setIC!,setBC!,setForcing!,setVisc!,setDT!,callback!
+    return setIC!,setBC!,setForcing!,setVisc!,callback!
 end
 
 #----------------------------------#
@@ -79,8 +76,8 @@ ifperiodic = [false,false]
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 bc = ['D','D','N','N']
 bc = ['D','D','D','D']
-diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
+diffuseU = Diffusion(bc,m1,Tf=1.0,dt=0.01)
 
-evolve!(diffuseU,caseSetup!(diffuseU)...)
+simulate!(diffuseU,caseSetup!(diffuseU)...)
 #----------------------------------#
 nothing

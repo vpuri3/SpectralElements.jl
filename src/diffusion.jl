@@ -3,51 +3,37 @@
 export Diffusion
 #----------------------------------------------------------------------
 struct Diffusion{T,U} # {T,N,K} # type, ndim, k (bdfK order)
-    fld ::Field{T}
 
-    time::Vector{T}
-    bdfA::Vector{T}
-    bdfB::Vector{T}
+    fld ::Field{T}
 
     ν  ::Array{T} # viscosity
     f  ::Array{T} # forcing
     rhs::Array{T} # RHS
 
-    istep::Array{U,1} # step number
-    dt   ::Array{T,1} # time step
-    Tend ::Array{T,1} # end time
+    tstep::TimeStepper{T,U}
 
     mshRef::Ref{Mesh{T}} # underlying mesh
-
-    tstep::TimeStepper{T,U}
 end
 #--------------------------------------#
 function Diffusion(bc::Array{Char,1},msh::Mesh
                   ;Ti=0.,Tf=0.,dt=0.,k=3)
 
-    tstep = TimeStepper(Ti,Tf,dt,k)
-
     fld  = Field(bc,msh)
-    time = zeros(4)
-    bdfA,bdfB = bdfExtK(time)
-
     ν    = zero(fld.u)
     f    = zero(fld.u)
     rhs  = zero(fld.u)
 
-    istep = [0]
-    dt    = zeros(1)
-    Tend  = zeros(1)
+    tstep = TimeStepper(Ti,Tf,dt,k)
 
-    return Diffusion(fld,time,bdfA,bdfB
+    return Diffusion(fld
                     ,ν,f,rhs
-                    ,istep,dt,Tend
-                    ,fld.mshRef
-                    ,tstep)
+                    ,tstep
+                    ,Ref(msh))
 end
 #----------------------------------------------------------------------
-function opLHS(u,dfn::Diffusion)
-    @unpack fld,mshRef, ν,bdfB = dfn
+function opLHS(u::AbstractArray,dfn::Diffusion)
+    @unpack fld, mshRef, ν = dfn
+    @unpack bdfB = dfn.tstep
 
     lhs = hlmz(u,ν,bdfB[1],mshRef[])
 
@@ -56,12 +42,13 @@ function opLHS(u,dfn::Diffusion)
     return lhs
 end
 
-function opPrecond(u,dfn::Diffusion)
+function opPrecond(u::AbstractArray,dfn::Diffusion)
     return u
 end
 
 function makeRHS!(dfn::Diffusion)
-    @unpack fld,rhs,ν,f,bdfA,bdfB,mshRef = dfn
+    @unpack fld, rhs, ν, f, mshRef = dfn
+    @unpack bdfA, bdfB = dfn.tstep
 
     rhs  .=            mass(f     ,mshRef[]) # forcing
     rhs .-= ν       .* lapl(fld.ub,mshRef[]) # boundary data
@@ -85,33 +72,55 @@ function solve!(dfn::Diffusion)
     u .= u + ub
     return
 end
-
+#----------------------------------------------------------------------
+function fixU!(u::AbstractArray,x,y,t)
+    return
+end
+function fixU!(u::Number)
+    return
+end
 #----------------------------------------------------------------------
 export evolve!
 #----------------------------------------------------------------------
-function evolve!(dfn::Diffusion,setIC!::Function,setBC!::Function
-                ,setForcing!::Function,setVisc!::Function
-                ,setDT!::Function,callback!::Function)
+function evolve!(dfn::Diffusion
+                ,setBC! =fixU!
+                ,setForcing! =fixU!
+                ,setVisc! =fixU!)
 
-    @unpack fld, f, ν, mshRef, time, bdfA, bdfB, istep, dt, Tend, tstep = dfn
+    @unpack fld, f, ν, mshRef = dfn
+    @unpack time, bdfA, bdfB, istep, dt = dfn.tstep
+
+    updateHist!(fld)
+    updateHist!(time)
+
+    istep .+= 1
+    time[1] += dt[1]
+    bdfExtK!(bdfA,bdfB,time)
+
+    setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
+    setForcing!(f,mshRef[].x,mshRef[].y,time[1])
+    setVisc!(ν   ,mshRef[].x,mshRef[].y,time[1])
+
+    makeRHS!(dfn)
+    solve!(dfn)
+
+    return
+end
+#----------------------------------------------------------------------
+export simulate!
+#----------------------------------------------------------------------
+function simulate!(dfn::Diffusion,setIC!::Function,setBC!::Function
+                  ,setForcing!::Function,setVisc!::Function
+                  ,callback!::Function)
+
+    @unpack fld, mshRef = dfn
+    @unpack time, istep, dt, Tf = dfn.tstep
 
     setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
 
-    while time[1] <= Tend[1]
-        updateHist!(fld)
-        updateHist!(time)
+    while time[1] <= Tf[1]
 
-        tstep.istep .+= 1
-        setDT!(dt)
-        dfn.time[1] += dt[1]
-        bdfExtK!(bdfA,bdfB,time)
-
-        setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
-        setForcing!(f,mshRef[].x,mshRef[].y,time[1])
-        setVisc!(ν   ,mshRef[].x,mshRef[].y,time[1])
-
-        makeRHS!(dfn)
-        solve!(dfn)
+        evolve!(dfn,setBC!,setForcing!,setVisc!)
 
         callback!(dfn)
 
