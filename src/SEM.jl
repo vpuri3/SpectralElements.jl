@@ -47,6 +47,7 @@ include("grad.jl")
 include("mass.jl")
 include("lapl.jl")
 include("hlmz.jl")
+include("advect.jl")
 
 include("diffusion.jl")
 

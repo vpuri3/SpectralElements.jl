@@ -21,6 +21,7 @@ export lapl
 
  = [Dr]' * [G11 G12]' * [Dr]
    [Ds]    [G12 G22]    [Ds]
+
 """
 function lapl(u::AbstractArray
              ,msh::Mesh)
@@ -32,6 +33,15 @@ function lapl(u::AbstractArray
 #   Au = mask(Au,M)
 
     return Au
+end
+#--------------------------------------#
+function lapl(u::AbstractArray
+             ,ν::AbstractArray
+             ,msh::Mesh)
+
+    # -∇⋅(ν∇u)
+
+    return ν .* lapl(u,msh)
 end
 #--------------------------------------#
 function lapl(u::AbstractArray
@@ -70,8 +80,10 @@ Au = ABu([],Dr',wr) + ABu(Ds',[],ws)
 return Au
 end
 #--------------------------------------#
-function laplace(u,Jr,Js,Dr,Ds  # dealiased
+function laplace(u,Jr,Js,Dr,Ds
                 ,G11,G12,G22)
+
+# dealiased
 
 ur = ABu([],Dr,u)
 us = ABu(Ds,[],u)
