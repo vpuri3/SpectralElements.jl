@@ -18,10 +18,10 @@ end
 function Diffusion(bc::Array{Char,1},msh::Mesh
                   ;Ti=0.,Tf=0.,dt=0.,k=3)
 
-    fld  = Field(bc,msh)
-    ν    = zero(fld.u)
-    f    = zero(fld.u)
-    rhs  = zero(fld.u)
+    fld = Field(bc,msh)
+    ν   = zero(fld.u)
+    f   = zero(fld.u)
+    rhs = zero(fld.u)
 
     tstep = TimeStepper(Ti,Tf,dt,k)
 

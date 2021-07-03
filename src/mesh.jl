@@ -98,7 +98,6 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     # x = semreshape(x   ,nr,ns,Ex,Ey)
     # y = semreshape(y   ,nr,ns,Ex,Ey)
 
-
     # deform Ω = [-1,1]²
     x,y = deform(x,y)
 
@@ -171,6 +170,25 @@ end
 #----------------------------------------------------------------------
 export Field
 #----------------------------------------------------------------------
+#export ff
+#struct ff{T,K}
+#    u ::Array{T}        # value
+#    uh::Array{Array{T}} # histories
+#    ub::Array{T}        # boundary data
+#    M ::Array{T}        # BC mask
+#
+#    mshRef::Ref{Mesh{T}} # underlying mesh
+#end
+##--------------------------------------#
+#function ff(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
+#    u  = zero(msh.x)
+#    uh = Array[ zero(msh.x) for i in 1:k]
+#    ub = zero(msh.x)
+#    M  = generateMask(bc,msh)
+#
+#    return ff{T,k}(u,uh,ub,M,Ref(msh))
+#end
+#--------------------------------------#
 struct Field{T}
     u ::Array{T} # value
     u1::Array{T} # histories
@@ -182,7 +200,7 @@ struct Field{T}
     mshRef::Ref{Mesh{T}} # underlying mesh
 end
 #--------------------------------------#
-function Field(bc::Array{Char,1},msh::Mesh{T}) where {T}
+function Field(bc::Array{Char,1},msh::Mesh{T}) where{T}
     u  = zero(msh.x)
     u1 = copy(u)
     u2 = copy(u)

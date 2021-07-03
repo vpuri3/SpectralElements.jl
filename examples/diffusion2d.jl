@@ -11,9 +11,6 @@ function caseSetup!(dfn::Diffusion)
     kt=2.0
     ν =1.0
 
-#   dfn.Tend .= 1.0
-#   dfn.Tend .= 0.0
-
     function utrue(x,y,t)
         ut = @. sin(kx*pi*x)*sin.(ky*pi*y)*cos(kt*pi*t)
         return ut
@@ -76,7 +73,7 @@ ifperiodic = [false,false]
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 bc = ['D','D','N','N']
 bc = ['D','D','D','D']
-diffuseU = Diffusion(bc,m1,Tf=1.0,dt=0.01)
+diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
 
 simulate!(diffuseU,caseSetup!(diffuseU)...)
 #----------------------------------#
