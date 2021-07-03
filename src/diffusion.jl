@@ -2,26 +2,32 @@
 #----------------------------------------------------------------------
 export Diffusion
 #----------------------------------------------------------------------
-
-struct Diffusion{T,N}
-    fld ::Field{T,N}
+struct Diffusion{T,U} # {T,N,K} # type, ndim, k (bdfK order)
+    fld ::Field{T}
 
     time::Vector{T}
     bdfA::Vector{T}
     bdfB::Vector{T}
 
-    ν  ::Array{T,N}        # viscosity
-    f  ::Array{T,N}        # forcing
-    rhs::Array{T,N}        # RHS
+    ν  ::Array{T} # viscosity
+    f  ::Array{T} # forcing
+    rhs::Array{T} # RHS
 
-    istep::Array{Int64,1}  # step number
-    dt   ::Array{T,1}      # time step
-    Tend ::Array{T,1}      # end time
+    istep::Array{U,1} # step number
+    dt   ::Array{T,1} # time step
+    Tend ::Array{T,1} # end time
 
-    mshRef::Ref{Mesh{T,N}} # underlying mesh
+    mshRef::Ref{Mesh{T}} # underlying mesh
+
+    tstep::TimeStepper{T,U}
 end
+#--------------------------------------#
+function Diffusion(bc::Array{Char,1},msh::Mesh
+                  ;Ti=0.,Tf=0.,dt=0.,k=3)
 
-function Diffusion(fld::Field)
+    tstep = TimeStepper(Ti,Tf,dt,k)
+
+    fld  = Field(bc,msh)
     time = zeros(4)
     bdfA,bdfB = bdfExtK(time)
 
@@ -36,11 +42,8 @@ function Diffusion(fld::Field)
     return Diffusion(fld,time,bdfA,bdfB
                     ,ν,f,rhs
                     ,istep,dt,Tend
-                    ,fld.mshRef)
-end
-
-function Diffusion(bc::Array{Char,1},msh::Mesh{T,N}) where {T,N}
-    return Diffusion(Field(bc,msh))
+                    ,fld.mshRef
+                    ,tstep)
 end
 #----------------------------------------------------------------------
 function opLHS(u,dfn::Diffusion)
@@ -90,7 +93,7 @@ function evolve!(dfn::Diffusion,setIC!::Function,setBC!::Function
                 ,setForcing!::Function,setVisc!::Function
                 ,setDT!::Function,callback!::Function)
 
-    @unpack fld, f, ν, mshRef, time, bdfA, bdfB, istep, dt, Tend = dfn
+    @unpack fld, f, ν, mshRef, time, bdfA, bdfB, istep, dt, Tend, tstep = dfn
 
     setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
 
@@ -98,7 +101,7 @@ function evolve!(dfn::Diffusion,setIC!::Function,setBC!::Function
         updateHist!(fld)
         updateHist!(time)
 
-        istep .+= 1
+        tstep.istep .+= 1
         setDT!(dt)
         dfn.time[1] += dt[1]
         bdfExtK!(bdfA,bdfB,time)
@@ -119,3 +122,4 @@ function evolve!(dfn::Diffusion,setIC!::Function,setBC!::Function
     return
 end
 #----------------------------------------------------------------------
+#

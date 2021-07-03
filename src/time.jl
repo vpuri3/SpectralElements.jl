@@ -1,6 +1,7 @@
 #
 #--------------------------------------#
-export bdfExtK #--------------------------------------#
+export bdfExtK
+#--------------------------------------#
 """ k'th Order Backward Difference Formula with Extrapolation for integrating
 
  du = f(t) + g(t)           (1)
