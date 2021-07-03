@@ -11,7 +11,8 @@ function caseSetup!(dfn::Diffusion)
     kt=2.0
     ν =1.0
 
-    dfn.Tend .= 0.0
+    dfn.Tend .= 1.0
+#   dfn.Tend .= 0.0
 
     function utrue(x,y,t)
         ut = @. sin(kx*pi*x)*sin.(ky*pi*y)*cos(kt*pi*t)
@@ -25,6 +26,7 @@ function caseSetup!(dfn::Diffusion)
 
     function setBC!(ub,x,y,t)
         ub .= @. 0+0*x
+#       ub .= utrue(x,y,t)
         return
     end
 
@@ -43,6 +45,7 @@ function caseSetup!(dfn::Diffusion)
 
     function setDT!(dt)
         dt .= 0.00
+        dt .= 0.01
     end
 
     function callback!(dfn::Diffusion)
@@ -60,8 +63,8 @@ function caseSetup!(dfn::Diffusion)
 end
 
 #----------------------------------#
-Ex = 8; nr1 = 8;
-Ey = 8; ns1 = 8;
+Ex = 10; nr1 = 8;
+Ey = 10; ns1 = 8;
 
 function deform(x,y) # deform [-1,1]^2
 #   x,y = SEM.annulus(0.5,1.0,2pi,x,y)
@@ -70,13 +73,14 @@ function deform(x,y) # deform [-1,1]^2
     return x,y
 end
 
+ifperiodic = [false,true] # overwrites bc from 'D' to 'N' in periodic dir
 ifperiodic = [false,false]
 
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
+bc = ['D','D','N','N']
 bc = ['D','D','D','D']
-diffuseU = Diffusion(bc,m1)
+diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
 
 evolve!(diffuseU,caseSetup!(diffuseU)...)
 #----------------------------------#
-# use a nonallocating, packaged iterative solver
 nothing
