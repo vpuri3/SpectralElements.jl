@@ -170,54 +170,33 @@ end
 #----------------------------------------------------------------------
 export Field
 #----------------------------------------------------------------------
-#export ff
-#struct ff{T,K}
-#    u ::Array{T}        # value
-#    uh::Array{Array{T}} # histories
-#    ub::Array{T}        # boundary data
-#    M ::Array{T}        # BC mask
-#
-#    mshRef::Ref{Mesh{T}} # underlying mesh
-#end
-##--------------------------------------#
-#function ff(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
-#    u  = zero(msh.x)
-#    uh = Array[ zero(msh.x) for i in 1:k]
-#    ub = zero(msh.x)
-#    M  = generateMask(bc,msh)
-#
-#    return ff{T,k}(u,uh,ub,M,Ref(msh))
-#end
-#--------------------------------------#
-struct Field{T}
-    u ::Array{T} # value
-    u1::Array{T} # histories
-    u2::Array{T}
-    u3::Array{T}
-    ub::Array{T} # boundary data
-    M ::Array{T} # BC mask
+struct Field{T,K}
+    u ::Array{T}     # value
+    uh::Array{Array} # histories
+    ub::Array{T}     # boundary data
+    M ::Array{T}     # BC mask
 
     mshRef::Ref{Mesh{T}} # underlying mesh
 end
 #--------------------------------------#
-function Field(bc::Array{Char,1},msh::Mesh{T}) where{T}
+function Field(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
     u  = zero(msh.x)
-    u1 = copy(u)
-    u2 = copy(u)
-    u3 = copy(u)
-    ub = copy(u)
+    uh = Array[ zero(msh.x) for i in 1:k]
+    ub = zero(msh.x)
     M  = generateMask(bc,msh)
-    return Field{T}(u,u1,u2,u3,ub,M,Ref(msh))
+
+    return Field{T,k}(u,uh,ub,M,Ref(msh))
 end
 #--------------------------------------#
 export updateHist!
 #--------------------------------------#
 function updateHist!(fld::Field)
-    @unpack u,u1,u2,u3 = fld
+    @unpack u,uh = fld
 
-    u3[:,:] .= u2
-    u2[:,:] .= u1
-    u1[:,:] .= u 
+    for i=length(uh):-1:2
+        uh[i] .= uh[i-1]
+    end
+    uh[1] .= u
 
     return
 end

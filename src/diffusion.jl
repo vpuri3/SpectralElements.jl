@@ -2,7 +2,7 @@
 #----------------------------------------------------------------------
 export Diffusion
 #----------------------------------------------------------------------
-struct Diffusion{T,U} # {T,N,K} # type, ndim, k (bdfK order)
+struct Diffusion{T,U} # {T,U,D,K} # Type, dimension, k (bdfK order)
 
     fld ::Field{T}
 
@@ -52,9 +52,13 @@ function makeRHS!(dfn::Diffusion)
 
     rhs  .=            mass(f     ,mshRef[]) # forcing
     rhs .-= ν       .* lapl(fld.ub,mshRef[]) # boundary data
-    rhs .-= bdfB[2] .* mass(fld.u1,mshRef[]) # histories
-    rhs .-= bdfB[3] .* mass(fld.u2,mshRef[])
-    rhs .-= bdfB[4] .* mass(fld.u3,mshRef[])
+#   rhs .-= bdfB[2] .* mass(fld.u1,mshRef[]) # histories
+#   rhs .-= bdfB[3] .* mass(fld.u2,mshRef[])
+#   rhs .-= bdfB[4] .* mass(fld.u3,mshRef[])
+
+    for i=1:length(fld.uh) # histories
+        rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshRef[])
+    end
 
     rhs  .= mask(rhs,fld.M)
     rhs  .= gatherScatter(rhs,mshRef[])

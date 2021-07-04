@@ -68,13 +68,12 @@ function deform(x,y) # deform [-1,1]^2
 end
 
 ifperiodic = [false,true] # overwrites bc from 'D' to 'N' in periodic dir
-ifperiodic = [false,false]
+#ifperiodic = [false,false]
 
 m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
 bc = ['D','D','N','N']
 bc = ['D','D','D','D']
-diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
+diffuseU = Diffusion(bc,m1,Tf=1.0,dt=0.01)
 
 simulate!(diffuseU,caseSetup!(diffuseU)...)
 #----------------------------------#
-nothing
