@@ -2,6 +2,16 @@
 #----------------------------------------------------------------------
 export Diffusion
 #----------------------------------------------------------------------
+#struct ConvectionDiffusion
+#    fld::Field{T}
+#    Diffusion{}
+#    Convection{}
+#end
+#
+#struct Convection{T,U}
+#    fld::Field{T}
+#end
+
 struct Diffusion{T,U} # {T,U,D,K} # Type, dimension, k (bdfK order)
 
     fld ::Field{T}
@@ -50,10 +60,10 @@ function makeRHS!(dfn::Diffusion)
     @unpack fld, rhs, ν, f, mshRef = dfn
     @unpack bdfA, bdfB = dfn.tstep
 
-    rhs  .=            mass(f     ,mshRef[]) # forcing
-    rhs .-= ν       .* lapl(fld.ub,mshRef[]) # boundary data
+    rhs  .=      mass(f     ,mshRef[]) # forcing
+    rhs .-= ν .* lapl(fld.ub,mshRef[]) # boundary data
 
-    for i=1:length(fld.uh)                   # histories
+    for i=1:length(fld.uh)             # histories
         rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshRef[])
     end
 

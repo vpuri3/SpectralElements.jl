@@ -59,7 +59,7 @@ Ey = 10; ns1 = 8;
 
 m1 = Mesh(nr1,ns1,Ex,Ey)
 bc = ['D','D','D','D']
-diffuseU = Diffusion(bc,m1,Tf=1.0,dt=0.01)
+Temperature = Diffusion(bc,m1,Tf=1.0,dt=0.01)
 
-simulate!(diffuseU,caseSetup!(diffuseU)...)
+simulate!(Temperature,caseSetup!(Temperature)...)
 #----------------------------------#

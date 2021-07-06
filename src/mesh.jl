@@ -86,7 +86,7 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
 
     l2g = Array(1:nxg*nyg)
     l2g = reshape(l2g,nxg,nyg)
-    l2g = ABu(Qy,Qx,l2g) # shape of local with global indices
+#   l2g = ABu(Qy,Qx,l2g) # shape of local with global indices
 
 
     # inner product weights

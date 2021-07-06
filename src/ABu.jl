@@ -5,7 +5,7 @@ export ABu
 """
  (As ⊗ Br) * u
 """
-function ABu(As::Matrix,Br::Matrix,u::Array)
+function ABu(As::AbstractArray,Br::AbstractArray,u::AbstractArray)
 
 m,n = size(u);
 
