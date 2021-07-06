@@ -52,11 +52,8 @@ function makeRHS!(dfn::Diffusion)
 
     rhs  .=            mass(f     ,mshRef[]) # forcing
     rhs .-= ν       .* lapl(fld.ub,mshRef[]) # boundary data
-#   rhs .-= bdfB[2] .* mass(fld.u1,mshRef[]) # histories
-#   rhs .-= bdfB[3] .* mass(fld.u2,mshRef[])
-#   rhs .-= bdfB[4] .* mass(fld.u3,mshRef[])
 
-    for i=1:length(fld.uh) # histories
+    for i=1:length(fld.uh)                   # histories
         rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshRef[])
     end
 
@@ -77,13 +74,6 @@ function solve!(dfn::Diffusion)
     return
 end
 #----------------------------------------------------------------------
-function fixU!(u::AbstractArray,x,y,t)
-    return
-end
-function fixU!(u::Number)
-    return
-end
-#----------------------------------------------------------------------
 export evolve!
 #----------------------------------------------------------------------
 function evolve!(dfn::Diffusion
@@ -97,7 +87,7 @@ function evolve!(dfn::Diffusion
     updateHist!(fld)
     updateHist!(time)
 
-    istep .+= 1
+    istep  .+= 1
     time[1] += dt[1]
     bdfExtK!(bdfA,bdfB,time)
 
@@ -113,15 +103,18 @@ end
 #----------------------------------------------------------------------
 export simulate!
 #----------------------------------------------------------------------
-function simulate!(dfn::Diffusion,setIC!::Function,setBC!::Function
-                  ,setForcing!::Function,setVisc!::Function
-                  ,callback!::Function)
+function simulate!(dfn::Diffusion,callback!::Function
+                  ,setIC! =fixU!
+                  ,setBC! =fixU!
+                  ,setForcing! =fixU!
+                  ,setVisc! =fixU!)
 
     @unpack fld, mshRef = dfn
     @unpack time, istep, dt, Tf = dfn.tstep
 
     setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
 
+    callback!(dfn)
     while time[1] <= Tf[1]
 
         evolve!(dfn,setBC!,setForcing!,setVisc!)

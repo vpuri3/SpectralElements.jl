@@ -1,7 +1,7 @@
 #
-#--------------------------------------#
-export bdfExtK
-#--------------------------------------#
+#----------------------------------------------------------------------
+export bdfExtK, bdfExtK!
+#----------------------------------------------------------------------
 """ k'th Order Backward Difference Formula with Extrapolation for integrating
 
  du = f(t) + g(t)           (1)
@@ -52,8 +52,6 @@ function bdfExtK(t;k=3)
     return reshape(a,k), reshape(b,k+1)
 end
 #--------------------------------------#
-export bdfExtK!
-#--------------------------------------#
 function bdfExtK!(a::AbstractVector
                  ,b::AbstractVector
                  ,t::AbstractVector)
@@ -66,4 +64,37 @@ function bdfExtK!(a::AbstractVector
 
     return
 end
+#----------------------------------------------------------------------
+export TimeStepper
+#----------------------------------------------------------------------
+struct TimeStepper{T,U}
+    time::Vector{T}
+    bdfA::Vector{T}
+    bdfB::Vector{T}
+
+    istep::Array{U,1} # current step
+    fstep::Array{U,1} # final step
+
+    dt::Array{T,1} # time step size
+    Ti::Array{T,1} # start time
+    Tf::Array{T,1} # end time
+
+end
 #--------------------------------------#
+function TimeStepper(Ti,Tf,dt,k) # add flag for variable dt
+
+    time = [Ti] .* ones(k+1)
+    bdfA,bdfB = bdfExtK(time)
+
+    istep = [0]
+    fstep = [0] # steady
+
+    if(dt != 0)
+        global fstep = [Int64(ceil(Tf/dt))]
+    end
+
+    return TimeStepper{Float64,Int64}(time,bdfA,bdfB
+                                     ,istep,fstep
+                                     ,[dt],[Ti],[Tf])
+end
+#----------------------------------------------------------------------

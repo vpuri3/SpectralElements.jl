@@ -1,5 +1,12 @@
 #
 #----------------------------------------------------------------------
+function fixU!(u...)
+    return
+end
+function fixU(u...)
+    return u
+end
+#----------------------------------------------------------------------
 export Mesh
 #----------------------------------------------------------------------
 """
@@ -10,7 +17,6 @@ export Mesh
  and QQ' is the local -> local gather-scatter operator
 
  R is the restriction operation, that removes
-
 
  M = R'R is the Dirichlet boundary condition mask, i.e. it zeros out
  data of ∂Ω_D  
@@ -58,7 +64,8 @@ struct Mesh{T}
 end
 #--------------------------------------#
 function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
-             ,deform::Function,ifperiodic::Array{Bool,1})
+             ,ifperiodic=[false,false]
+             ,deform=fixU)
 
     zr,wr = FastGaussQuadrature.gausslobatto(nr)
     zs,ws = FastGaussQuadrature.gausslobatto(ns)
@@ -208,38 +215,5 @@ function updateHist!(u::AbstractArray)
     end
     u[1] = u[2]
     return
-end
-#----------------------------------------------------------------------
-export TimeStepper
-#----------------------------------------------------------------------
-struct TimeStepper{T,U}
-    time::Vector{T}
-    bdfA::Vector{T}
-    bdfB::Vector{T}
-
-    istep::Array{U,1} # current step
-    fstep::Array{U,1} # final step
-
-    dt::Array{T,1} # time step size
-    Ti::Array{T,1} # start time
-    Tf::Array{T,1} # end time
-
-end
-#--------------------------------------#
-function TimeStepper(Ti,Tf,dt,k) # add flag for variable dt
-
-    time = [Ti] .* ones(k+1)
-    bdfA,bdfB = bdfExtK(time)
-
-    istep = [0]
-    fstep = [0] # steady
-
-    if(dt != 0)
-        global fstep = [Int64(ceil(Tf/dt))]
-    end
-
-    return TimeStepper{Float64,Int64}(time,bdfA,bdfB
-                                     ,istep,fstep
-                                     ,[dt],[Ti],[Tf])
 end
 #----------------------------------------------------------------------

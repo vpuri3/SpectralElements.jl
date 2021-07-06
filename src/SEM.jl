@@ -28,7 +28,6 @@ sum(A) = Base.sum(A)
 include("jac.jl")
 include("interp.jl")
 include("derivMat.jl")
-include("time.jl")
 include("semmesh.jl")
 include("semq.jl")
 include("ndgrid.jl")
@@ -37,6 +36,7 @@ include("ABu.jl")
 include("geom.jl")
 include("mask.jl")
 
+include("time.jl")
 include("mesh.jl")
 
 include("pcg.jl")
@@ -65,4 +65,4 @@ end # module
 # -NNlib's gather scatter might help me extend this code to
 #  unstructured grids (BIG BIG WIN!!)
 # -profile code, use nonallocating functions everywhere to imrpove efficiency
-# -use stuff like StaticArrays.jl, LazyArrays.jl
+# -use StaticArrays.jl, LazyArrays.jl for performance

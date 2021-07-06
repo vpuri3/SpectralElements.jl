@@ -37,7 +37,7 @@ export annulus
  internal/external radii r0,r1,
  and angular extent span
 """
-function annulus(r0,r1,span,r,s)
+function annulus(r,s;r0=0.5,r1=1.0,span=2pi)
 
 R  = @. (r1-r0)/2*(r+1) + r0
 th = @. span   /2*(s+1) + 0.

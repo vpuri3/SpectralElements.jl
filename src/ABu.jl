@@ -52,7 +52,7 @@ function ABu1(As,Br,u)
 
     v = zeros(m,n,E)
 
-    ABu1!(v,As,Br,u,E)
+    ABu1!(v,As,Br,u,E=E)
 
 return v
 end
@@ -74,11 +74,10 @@ export ABu1!
  focus on deformed([-1,1]²) for now. think about general geomtries later
 
 """
-function ABu1!(v,As,Br,u;E)
+function ABu1!(v,As,Br,u;E=5)
 
-    for ie=1:E
-#       v[:,:,ie] = Bs * @view u[:,:,ie] * Ar'
-        v[:,:,ie] = Bs * u[:,:,ie] * Ar'
+    @views for ie=1:E
+        v[:,:,ie] .= Br * u[:,:,ie] * As'
     end
 
 return
