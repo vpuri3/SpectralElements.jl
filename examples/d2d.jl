@@ -1,6 +1,5 @@
 #!/usr/bin/env julia
 
-using Revise
 using SEM
 using LinearAlgebra,Plots, UnPack
 #----------------------------------#
@@ -23,7 +22,6 @@ function caseSetup!(dfn::Diffusion)
 
     function setBC!(ub,x,y,t)
         ub .= @. 0+0*x
-#       ub .= utrue(x,y,t)
         return
     end
 
@@ -31,7 +29,6 @@ function caseSetup!(dfn::Diffusion)
         ut = utrue(x,y,t)
         f  .= @. ut*((kx^2+ky^2)*pi^2*ν)
         f .+= @. - sin(kx*pi*x)*sin(ky*pi*y)*sin(kt*pi*t)*(kt*pi)
-#       f  .= @. 1+0*x
         return
     end
 
@@ -48,30 +45,19 @@ function caseSetup!(dfn::Diffusion)
         u  = fld.u
         er = norm(ut-u,Inf)
         println("iter= $(istep[1]), time=$(time[1]), er=$er")
-        p = meshplt(u,mshRef[])
-        display(p)
+        plt = meshplt(u,mshRef[])
+        display(plt)
         return
     end
 
-    return setIC!,setBC!,setForcing!,setVisc!,callback!
+    return callback! ,setIC! ,setBC! ,setForcing! ,setVisc!
 end
 
 #----------------------------------#
 Ex = 10; nr1 = 8;
 Ey = 10; ns1 = 8;
 
-function deform(x,y) # deform [-1,1]^2
-#   x,y = SEM.annulus(0.5,1.0,2pi,x,y)
-    x = @. 0.5*(x+1)
-    y = @. 0.5*(y+1)
-    return x,y
-end
-
-ifperiodic = [false,true] # overwrites bc from 'D' to 'N' in periodic dir
-#ifperiodic = [false,false]
-
-m1 = Mesh(nr1,ns1,Ex,Ey,deform,ifperiodic)
-bc = ['D','D','N','N']
+m1 = Mesh(nr1,ns1,Ex,Ey)
 bc = ['D','D','D','D']
 diffuseU = Diffusion(bc,m1,Tf=1.0,dt=0.01)
 
