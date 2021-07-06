@@ -12,7 +12,7 @@ export grad
  [Dy]     = [ry sy]   [Ds]
 
 """
-function grad(u  ::AbstractArray
+function grad(u  ::Array
              ,msh::Mesh)
 
     @unpack Dr,Ds,rx,ry,sx,sy = msh

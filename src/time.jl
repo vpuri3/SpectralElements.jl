@@ -52,9 +52,9 @@ function bdfExtK(t;k=3)
     return reshape(a,k), reshape(b,k+1)
 end
 #--------------------------------------#
-function bdfExtK!(a::AbstractVector
-                 ,b::AbstractVector
-                 ,t::AbstractVector)
+function bdfExtK!(a::Vector
+                 ,b::Vector
+                 ,t::Vector)
 
     k = length(t) - 1
     aa,bb = bdfExtK(t;k=k)

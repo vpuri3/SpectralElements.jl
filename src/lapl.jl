@@ -23,7 +23,7 @@ export lapl
    [Ds]    [G12 G22]    [Ds]
 
 """
-function lapl(u::AbstractArray
+function lapl(u::Array
              ,msh::Mesh)
 
     @unpack Dr,Ds,G11,G12,G22 = msh
@@ -35,8 +35,8 @@ function lapl(u::AbstractArray
     return Au
 end
 #--------------------------------------#
-function lapl(u::AbstractArray
-             ,ν::AbstractArray
+function lapl(u::Array
+             ,ν::Array
              ,msh::Mesh)
 
     # -∇⋅(ν∇u)
@@ -44,7 +44,7 @@ function lapl(u::AbstractArray
     return ν .* lapl(u,msh)
 end
 #--------------------------------------#
-function lapl(u::AbstractArray
+function lapl(u::Array
              ,msh1::Mesh
              ,msh2::Mesh)
     # Dealiased implementation

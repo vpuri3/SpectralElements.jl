@@ -88,7 +88,6 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     l2g = reshape(l2g,nxg,nyg)
     l2g = ABu(Qy,Qx,l2g) # shape of local with global indices
 
-    # l2g = semreshape(l2g,nr,ns,Ex,Ey)
 
     # inner product weights
     # (u,v) = sum(u .* v .* mult)
@@ -96,14 +95,14 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     mult = gatherScatter(mult,QQtx,QQty)
     mult = @. 1 / mult
     
-    # mult = semreshape(mult,nr,ns,Ex,Ey)
-
     xe,_ = semmesh(Ex,nr)
     ye,_ = semmesh(Ey,ns)
     x,y  = ndgrid(xe,ye)
 
-    # x = semreshape(x   ,nr,ns,Ex,Ey)
-    # y = semreshape(y   ,nr,ns,Ex,Ey)
+    # mult = semreshape(mult,nr,ns,Ex,Ey)
+    # l2g  = semreshape(l2g ,nr,ns,Ex,Ey)
+    # x    = semreshape(x   ,nr,ns,Ex,Ey)
+    # y    = semreshape(y   ,nr,ns,Ex,Ey)
 
     # deform Ω = [-1,1]²
     x,y = deform(x,y)
@@ -208,7 +207,7 @@ function updateHist!(fld::Field)
     return
 end
 
-function updateHist!(u::AbstractArray)
+function updateHist!(u::Array)
 
     for i=length(u):-1:2
         u[i] = u[i-1]

@@ -21,9 +21,9 @@ export advect
  for dealiasing
 
 """
-function advect(T  ::AbstractArray
-               ,ux ::AbstractArray
-               ,uy ::AbstractArray
+function advect(T  ::Array
+               ,ux ::Array
+               ,uy ::Array
                ,msh::Mesh)
 
     @unpack B = msh
@@ -39,9 +39,9 @@ function advect(T  ::AbstractArray
     return Cu
 end
 #--------------------------------------#
-function advect(T   ::AbstractArray
-               ,ux  ::AbstractArray
-               ,uy  ::AbstractArray
+function advect(T   ::Array
+               ,ux  ::Array
+               ,uy  ::Array
                ,msh1::Mesh 
                ,msh2::Mesh) # dealias
 

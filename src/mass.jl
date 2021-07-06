@@ -9,7 +9,7 @@ export mass
 
  (QQ' * R'R * B_loc) * u_loc
 """
-function mass(u::AbstractArray
+function mass(u::Array
              ,msh::Mesh)
 
     @unpack B = msh
@@ -22,7 +22,7 @@ return Bu
 end
 #--------------------------------------#
 # Dealiased implementation
-function mass(u::AbstractArray
+function mass(u::Array
              ,msh1::Mesh
              ,msh2::Mesh)
 

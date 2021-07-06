@@ -31,7 +31,7 @@ function Diffusion(bc::Array{Char,1},msh::Mesh
                     ,Ref(msh))
 end
 #----------------------------------------------------------------------
-function opLHS(u::AbstractArray,dfn::Diffusion)
+function opLHS(u::Array,dfn::Diffusion)
     @unpack fld, mshRef, ν = dfn
     @unpack bdfB = dfn.tstep
 
@@ -42,7 +42,7 @@ function opLHS(u::AbstractArray,dfn::Diffusion)
     return lhs
 end
 
-function opPrecond(u::AbstractArray,dfn::Diffusion)
+function opPrecond(u::Array,dfn::Diffusion)
     return u
 end
 
