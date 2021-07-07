@@ -17,8 +17,8 @@ export advect
                     [Dx]
 
  ux,uy, ∇T are interpolated to
- a higher polynomial order grid
- for dealiasing
+ a grid with higher polynomial order
+ for dealiasing (over-integration)
 
 """
 function advect(T  ::Array
@@ -42,13 +42,11 @@ end
 function advect(T   ::Array
                ,ux  ::Array
                ,uy  ::Array
-               ,msh1::Mesh 
-               ,msh2::Mesh) # dealias
+               ,mshV::Mesh 
+               ,mshD::Mesh  # dealias
+               ,Jr,Js)
 
-    Jr = interpMat(msh2.zr,msh1.zr)
-    Js = interpMat(msh2.zs,msh1.zs)
-
-    Tx,Ty = grad(T,msh)
+    Tx,Ty = grad(T,mshV)
 
     JTx = ABu(Js,Jr,Tx)
     JTy = ABu(Js,Jr,Ty)
@@ -56,8 +54,22 @@ function advect(T   ::Array
     Juy = ABu(Js,Jr,uy)
 
     JCu   = @. Jux*JTx + Juy*JTy
-    JCu .*= msh2.B
+    JCu .*= mshD.B
     Cu    = ABu(Js',Jr',JCu)
+
+    return Cu
+end
+#--------------------------------------#
+function advect(T   ::Array
+               ,ux  ::Array
+               ,uy  ::Array
+               ,mshV::Mesh 
+               ,mshD::Mesh) # dealias
+  
+    Jr = interpMat(mshD.zr,mshV.zr)
+    Js = interpMat(mshD.zs,mshV.zs)
+
+    Cu = advect(T,ux,uy,mshV,mshD,Jr,Js)
 
     return Cu
 end

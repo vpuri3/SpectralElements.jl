@@ -50,6 +50,7 @@ include("hlmz.jl")
 include("advect.jl")
 
 include("diffusion.jl")
+include("ConvectionDiffusion.jl")
 
 include("plt.jl")
 

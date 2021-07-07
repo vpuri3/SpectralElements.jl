@@ -1,18 +1,10 @@
 #
+abstract type Equation end
+
 #----------------------------------------------------------------------
 export Diffusion
 #----------------------------------------------------------------------
-#struct ConvectionDiffusion
-#    fld::Field{T}
-#    Diffusion{}
-#    Convection{}
-#end
-#
-#struct Convection{T,U}
-#    fld::Field{T}
-#end
-
-struct Diffusion{T,U} # {T,U,D,K} # Type, dimension, k (bdfK order)
+struct Diffusion{T,U} <: Equation # {T,U,D,K} # Type, dimension, k (bdfK order)
 
     fld ::Field{T}
 
