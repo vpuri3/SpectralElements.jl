@@ -61,7 +61,6 @@ function opPrecond(u::Array,cdn::ConvectionDiffusion)
     @unpack tstep, mshVRef = cdn
     Mu = u ./ mshVRef[].B ./ tstep.bdfB[1]
     return Mu
-#   return u
 end
 
 function makeRHS!(cdn::ConvectionDiffusion)
@@ -90,9 +89,9 @@ function solve!(cdn::ConvectionDiffusion)
     @unpack u,ub = fld
 
     opL(u) = opLHS(u,cdn)
-    opP(u) = opPrecond(u,cdn)
+    opM(u) = opPrecond(u,cdn)
 
-    pcg!(u,rhs,opL;opM=opP,mult=mshVRef[].mult,ifv=true)
+    pcg!(u,rhs,opL;opM=opM,mult=mshVRef[].mult,ifv=true)
     u .= u + ub
     return
 end

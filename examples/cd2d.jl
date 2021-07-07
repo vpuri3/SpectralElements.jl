@@ -23,7 +23,7 @@ function caseSetup!(cdn::ConvectionDiffusion)
     end
 
     function setBC!(ub,x,y,t)
-        ub .= @. 0+0*x
+        ub .= 0.0
         return
     end
 
