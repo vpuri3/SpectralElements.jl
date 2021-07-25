@@ -48,37 +48,38 @@ function opPrecond(u::Array,dfn::Diffusion)
     return u
 end
 
-function makeRHS!(dfn::Diffusion)
-    @unpack fld, rhs, ν, f, mshRef = dfn
+function makeRHS(dfn::Diffusion)
+    @unpack fld, ν, f, mshRef = dfn
     @unpack bdfA, bdfB = dfn.tstep
 
-    rhs  .=      mass(f     ,mshRef[]) # forcing
+    rhs  =       mass(f     ,mshRef[]) # forcing
     rhs .-= ν .* lapl(fld.ub,mshRef[]) # boundary data
 
     for i=1:length(fld.uh)             # histories
         rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshRef[])
     end
 
-    rhs  .= mask(rhs,fld.M)
-    rhs  .= gatherScatter(rhs,mshRef[])
-    return
+    rhs  = mask(rhs,fld.M)
+    rhs  = gatherScatter(rhs,mshRef[])
+    return Diffusion(fld,ν,f,rhs,dfn.tstep,mshRef)
 end
 
-function solve!(dfn::Diffusion)
+function solve(dfn::Diffusion)
     @unpack rhs, mshRef, fld = dfn
-    @unpack u,ub = fld
+    @unpack uh, ub, M = fld
 
     opL(u) = opLHS(u,dfn)
     opP(u) = opPrecond(u,dfn)
 
-    pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=false)
-    u .= u + ub
-    return
+    u = pcg(rhs,opL;opM=opP,mult=mshRef[].mult,ifv=false)
+    u = u .+ ub
+    newfld = Field(u,uh,ub,M,mshRef)
+    return Diffusion(newfld,ν,f,rhs,dfn.tstep,mshRef)
 end
 #----------------------------------------------------------------------
-export evolve!
+export evolve
 #----------------------------------------------------------------------
-function evolve!(dfn::Diffusion
+function evolve(dfn::Diffusion
                 ,setBC! =fixU!
                 ,setForcing! =fixU!
                 ,setVisc! =fixU!)
