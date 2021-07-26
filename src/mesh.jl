@@ -41,6 +41,8 @@ struct Mesh{T}
     x::Array{T} # grid
     y::Array{T}
 
+    Qx::Array{T,2}
+    Qy::Array{T,2}
     QQtx::Array{T,2} # gather scatter op (loc -> loc)
     QQty::Array{T,2}
     mult::Array{T} # weights for inner product
@@ -125,7 +127,7 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     return Mesh{Float64}(nr,ns,Ex,Ey
                         ,deform,ifperiodic
                         ,zr,zs,wr,ws,Dr,Ds,x,y
-                        ,QQtx,QQty,mult,l2g
+                        ,Qx,Qy,QQtx,QQty,mult,l2g
                         ,Jac,Jaci
                         ,rx,ry,sx,sy
                         ,B,Bi

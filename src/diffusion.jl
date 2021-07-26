@@ -15,6 +15,9 @@ mutable struct Diffusion{T,U} <: Equation # {T,U,D,K} # Type, dimension, k (bdfK
     tstep::TimeStepper{T,U}
 
     mshRef::Ref{Mesh{T}} # underlying mesh
+
+    opLHS::Function # LHS operator
+    LHSargs::Function # returns args to opLHS
 end
 #--------------------------------------#
 function Diffusion(bc::Array{Char,1},msh::Mesh
@@ -27,19 +30,24 @@ function Diffusion(bc::Array{Char,1},msh::Mesh
 
     tstep = TimeStepper(Ti,Tf,dt,k)
 
-    return Diffusion(fld
-                    ,ν,f,rhs
-                    ,tstep
-                    ,Ref(msh))
+    function opLHS(u::Array,args...)
+        ν,bdfB,mshRef,M = args
+        lhs = hlmz(u,ν,bdfB[1],mshRef[])
+    
+        lhs = gatherScatter(lhs,mshRef[])
+        lhs = mask(lhs,M)
+        return lhs
+    end
+    LHSargs(dfn::Diffusion) = dfn.ν, dfn.tstep.bdfB, dfn.mshRef, dfn.fld.M
+
+    return Diffusion(fld,
+                    ν,f,rhs,
+                    tstep,
+                    Ref(msh),
+                    opLHS,
+                    LHSargs)
 end
 #----------------------------------------------------------------------
-function opLHS(u::Array,ν,bdfB,mshRef,M)
-    lhs = hlmz(u,ν,bdfB[1],mshRef[])
-
-    lhs = gatherScatter(lhs,mshRef[])
-    lhs = mask(lhs,M)
-    return lhs
-end
 
 function opPrecond(u::Array,dfn::Diffusion)
     return u
@@ -63,30 +71,37 @@ function makeRHS!(dfn::Diffusion)
 end
 
 function solve!(dfn::Diffusion)
-    @unpack rhs,ν,mshRef,fld = dfn
-    @unpack u,ub,M = fld
-    bdfB = dfn.tstep.bdfB
+    @unpack rhs,mshRef,fld = dfn
+    @unpack u,ub = fld
 
     opP(u) = opPrecond(u,dfn)
 
-    u = lsolve(rhs,ν,bdfB,mshRef,M;opM=opP,mult=mshRef[].mult,ifv=false)
+    largs = dfn.LHSargs(dfn)
+    u = pcgdiff(dfn.opLHS,rhs,largs...;opM=opP,mult=mshRef[].mult,ifv=false)
+
     u = u + ub
     @pack! dfn.fld = u
     return
 end
 
-function lsolve(rhs,ν,bdfB,mshRef,M;kwargs...)
-    opL(u) = opLHS(u,ν,bdfB,mshRef,M)
+function pcgdiff(oplhs,rhs,largs...;kwargs...)
+    opL(u) = oplhs(u,largs...)
     pcg(rhs,opL;kwargs...)
 end
-Zygote.@adjoint function lsolve(rhs,ν,bdfB,mshRef,M;kwarg...)
-    opL(u) = opLHS(u,ν,bdfB,mshRef,M)
-    u = pcg(rhs,opL;kwarg...)
+Zygote.@adjoint function pcgdiff(oplhs,rhs,largs...;kwargs...)
+    opL(u) = oplhs(u,largs...)
+    u = pcg(rhs,opL;kwargs...)
     function fun(u̅)
-        λ = pcg(u̅,opL;kwarg...)
-        g(rhs,ν,bdfB,mshRef,M) = rhs .- opLHS(u,ν,bdfB,mshRef,M)
-        _,dgdp = pullback(g,rhs,ν,bdfB,mshRef,M)
-        return dgdp(λ)
+        g(u,rhs,largs...) = rhs .- oplhs(u,largs...)
+        _,dgdup = pullback(g,u,rhs,largs...)
+        function opT(λ)
+            out = -dgdup(λ)[1]
+            mask(out,largs[5])
+        end
+        λ = pcg(u̅,opL;kwargs...)
+        display(opL(λ).-opT(λ))
+        # display(opT(λ))
+        return (nothing,dgdup(λ)[2:end]...)
     end
     return u,fun
 end
