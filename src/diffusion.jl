@@ -48,7 +48,7 @@ function opPrecond(u::Array,dfn::Diffusion)
     return u
 end
 
-function makeRHS(dfn::Diffusion)
+function makeRHS!(dfn::Diffusion)
     @unpack fld, ν, f, mshRef = dfn
     @unpack bdfA, bdfB = dfn.tstep
 
