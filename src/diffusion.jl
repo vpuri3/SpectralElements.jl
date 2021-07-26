@@ -34,9 +34,6 @@ function Diffusion(bc::Array{Char,1},msh::Mesh
 end
 #----------------------------------------------------------------------
 function opLHS(u::Array,ν,bdfB,mshRef,M)
-    # @unpack fld, mshRef, ν = dfn
-    # @unpack bdfB = dfn.tstep
-
     lhs = hlmz(u,ν,bdfB[1],mshRef[])
 
     lhs = gatherScatter(lhs,mshRef[])
@@ -52,7 +49,7 @@ function makeRHS!(dfn::Diffusion)
     @unpack fld, ν, f, mshRef = dfn
     @unpack bdfA, bdfB = dfn.tstep
 
-    rhs  =      mass(f     ,mshRef[]) # forcing
+    rhs =  mass(f     ,mshRef[]) # forcing
     rhs = rhs .- ν .* lapl(fld.ub,mshRef[]) # boundary data
 
     for i=1:length(fld.uh)             # histories
@@ -65,18 +62,19 @@ function makeRHS!(dfn::Diffusion)
     return
 end
 
-function solve!(ps,dfn::Diffusion)
+function solve!(dfn::Diffusion)
     @unpack rhs,ν,mshRef,fld = dfn
     @unpack u,ub,M = fld
     bdfB = dfn.tstep.bdfB
 
     opP(u) = opPrecond(u,dfn)
-    # ν = Zygote.@showgrad(ν)
+
     u = lsolve(rhs,ν,bdfB,mshRef,M;opM=opP,mult=mshRef[].mult,ifv=false)
     u = u + ub
     @pack! dfn.fld = u
     return
 end
+
 function lsolve(rhs,ν,bdfB,mshRef,M;kwargs...)
     opL(u) = opLHS(u,ν,bdfB,mshRef,M)
     pcg(rhs,opL;kwargs...)
@@ -88,7 +86,6 @@ Zygote.@adjoint function lsolve(rhs,ν,bdfB,mshRef,M;kwarg...)
         λ = pcg(u̅,opL;kwarg...)
         g(rhs,ν,bdfB,mshRef,M) = rhs .- opLHS(u,ν,bdfB,mshRef,M)
         _,dgdp = pullback(g,rhs,ν,bdfB,mshRef,M)
-        # @show(dgdp(λ))
         return dgdp(λ)
     end
     return u,fun
@@ -96,7 +93,7 @@ end
 #----------------------------------------------------------------------
 export evolve
 #----------------------------------------------------------------------
-function evolve!(ps,dfn::Diffusion
+function evolve!(dfn::Diffusion
                 ,setBC! =fixU!
                 ,setForcing! =fixU!
                 ,setVisc! =fixU!)
@@ -121,14 +118,14 @@ function evolve!(ps,dfn::Diffusion
     @pack! dfn = f, ν
 
     makeRHS!(dfn)
-    solve!(ps,dfn)
+    solve!(dfn)
 
     return
 end
 #----------------------------------------------------------------------
 export simulate!
 #----------------------------------------------------------------------
-function simulate!(ps,dfn::Diffusion,callback!::Function
+function simulate!(dfn::Diffusion,callback!::Function
                   ,setIC! =fixU!
                   ,setBC! =fixU!
                   ,setForcing! =fixU!
@@ -143,7 +140,7 @@ function simulate!(ps,dfn::Diffusion,callback!::Function
     callback!(dfn)
     while time[1] <= Tf[1]
 
-        evolve!(ps,dfn,setBC!,setForcing!,setVisc!)
+        evolve!(dfn,setBC!,setForcing!,setVisc!)
 
         callback!(dfn)
 

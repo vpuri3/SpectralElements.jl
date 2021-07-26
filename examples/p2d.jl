@@ -55,15 +55,14 @@ m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic)
 bc = ['D','D','D','D']
 diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
 
-ps = 0
-simulate!(ps,diffuseU,caseSetup!(diffuseU)...)
+simulate!(diffuseU,caseSetup!(diffuseU)...)
 #----------------------------------#
 
 utrue = diffuseU.fld.u
 
 callback! ,setIC! ,setBC! ,setForcing! ,setVisc! = caseSetup!(diffuseU)
 
-nu = [.8]
+nu = [1.2]
 ps = Params([nu])
 
 function model()
@@ -74,7 +73,7 @@ function model()
         ν = @. nu+0*x
         return ν
     end
-    simulate!(ps,dU,callback! ,setIC! ,setBC! ,setForcing! ,varVisc)
+    simulate!(dU,callback! ,setIC! ,setBC! ,setForcing! ,varVisc)
     upred = dU.fld.u
 end
 function loss()
