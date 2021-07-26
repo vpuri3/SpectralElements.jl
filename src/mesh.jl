@@ -193,9 +193,9 @@ function Field(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
 
     return Field{T,k}(u,uh,ub,M,Ref(msh))
 end
-#--------------------------------------#
+#----------------------------------------------------------------------
 export updateHist!
-#--------------------------------------#
+#----------------------------------------------------------------------
 function updateHist!(fld::Field)
     @unpack u,uh = fld
 
@@ -206,7 +206,7 @@ function updateHist!(fld::Field)
 
     return
 end
-
+#--------------------------------------#
 function updateHist!(u::Array)
 
     for i=length(u):-1:2

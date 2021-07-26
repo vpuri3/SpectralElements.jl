@@ -2,14 +2,14 @@
 #----------------------------------------------------------------------
 export ConvectionDiffusion
 #----------------------------------------------------------------------
-struct ConvectionDiffusion{T,U}
+struct ConvectionDiffusion{T,U} <: Equation
     fld::Field{T}
     vx ::Array{T}
     vy ::Array{T}
 
-    ν  ::Array{T} # viscosity
-    f  ::Array{T} # forcing
-    rhs::Array{T} # RHS
+    ν  ::Array{T}     # viscosity
+    f  ::Array{T}     # forcing
+    rhs::Array{T}     # RHS
     exH::Array{Array} # storage history of explicit term (convection)
 
     tstep::TimeStepper{T,U}
@@ -58,7 +58,7 @@ function opLHS(u::Array,cdn::ConvectionDiffusion)
 end
 
 function opPrecond(u::Array,cdn::ConvectionDiffusion)
-    @unpack tstep, mshVRef = cdn
+    @unpack fld, tstep, mshVRef = cdn
     Mu = u ./ mshVRef[].B ./ tstep.bdfB[1]
     return Mu
 end
@@ -79,8 +79,8 @@ function makeRHS!(cdn::ConvectionDiffusion)
         rhs .+= bdfA[i]   .* exH[i]
     end
 
-    rhs  .= mask(rhs,fld.M)
-    rhs  .= gatherScatter(rhs,mshVRef[])
+    rhs .= mask(rhs,fld.M)
+    rhs .= gatherScatter(rhs,mshVRef[])
     return
 end
 
@@ -91,8 +91,8 @@ function solve!(cdn::ConvectionDiffusion)
     opL(u) = opLHS(u,cdn)
     opM(u) = opPrecond(u,cdn)
 
-    pcg!(u,rhs,opL;opM=opM,mult=mshVRef[].mult,ifv=true)
-    u .= u + ub
+    pcg!(u,rhs,opL;opM=opM,mult=mshVRef[].mult,ifv=false)
+    u .+= ub
     return
 end
 #----------------------------------------------------------------------

@@ -56,14 +56,20 @@ include("plt.jl")
 
 end # module
 #--------------------------------------#
-# Chris' comments:
+# TODO
 # -use a packaged iterative solver (IterativeSolvers.jl)
+#       -overwrite A*x, A'x, <x,y>
+#   
 # -replace ndgrid with broadcast arrays or something
+#
 # -use NNlib's optimized gather scatter
+#       -could help extend code to unstructued grids (big win!!)
+#
 # -linsolve function is redundant since \ (backslash) already has an adjoint
 #
-# Vedant's thoughts:
-# -NNlib's gather scatter might help me extend this code to
-#  unstructured grids (BIG BIG WIN!!)
-# -profile code, use nonallocating functions everywhere to imrpove efficiency
 # -use StaticArrays.jl, LazyArrays.jl for performance
+#
+# -profile code, use nonallocating functions everywhere to imrpove efficiency
+#
+# -see what the people at gridap.jl are up to
+#
