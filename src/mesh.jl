@@ -176,7 +176,7 @@ end
 #----------------------------------------------------------------------
 export Field
 #----------------------------------------------------------------------
-struct Field{T,K}
+mutable struct Field{T,K}
     u ::Array{T}     # value
     uh::Array{Array} # histories
     ub::Array{T}     # boundary data
@@ -199,11 +199,12 @@ export updateHist!
 function updateHist!(fld::Field)
     @unpack u,uh = fld
 
-    for i=length(uh):-1:2
-        uh[i] .= uh[i-1]
-    end
-    uh[1] .= u
-
+    # for i=length(uh):-1:2
+    #     uh[i] = uh[i-1]
+    # end
+    # uh[1] = u
+    uh = Array[u,uh[1:end-1]...]
+    @pack! fld = uh
     return
 end
 

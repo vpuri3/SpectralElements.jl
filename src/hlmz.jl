@@ -13,7 +13,7 @@ function hlmz(u::Array
              ,ν,k,msh::Mesh)
 
     Hu   = ν .* lapl(u,msh)
-    Hu .+= k .* mass(u,msh)
+    Hu   = Hu .+ k .* mass(u,msh)
 
 return Hu
 end
