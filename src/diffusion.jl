@@ -34,8 +34,8 @@ function Diffusion(bc::Array{Char,1},msh::Mesh
         ν,bdfB,mshRef,M = args
         lhs = hlmz(u,ν,bdfB[1],mshRef[])
     
-        lhs = gatherScatter(lhs,mshRef[])
-        lhs = mask(lhs,M)
+        # lhs = gatherScatter(lhs,mshRef[])
+        # lhs = mask(lhs,M)
         return lhs
     end
     LHSargs(dfn::Diffusion) = dfn.ν, dfn.tstep.bdfB, dfn.mshRef, dfn.fld.M
@@ -77,31 +77,44 @@ function solve!(dfn::Diffusion)
     opP(u) = opPrecond(u,dfn)
 
     largs = dfn.LHSargs(dfn)
-    u = pcgdiff(dfn.opLHS,rhs,largs...;opM=opP,mult=mshRef[].mult,ifv=false)
+    u = pcgdiff(dfn,dfn.opLHS,rhs,largs...;opM=opP,mult=mshRef[].mult,ifv=false)
 
     u = u + ub
     @pack! dfn.fld = u
     return
 end
 
-function pcgdiff(oplhs,rhs,largs...;kwargs...)
-    opL(u) = oplhs(u,largs...)
+function GSM(f,mshRef,M)
+    function opLHS(u,largs...)
+        lhs = f(u,largs...)
+        lhs = gatherScatter(lhs,mshRef[])
+        lhs = mask(lhs,M)
+    end
+end
+
+function pcgdiff(dfn,oplhs,rhs,largs...;kwargs...)
+    opLHS = GSM(oplhs,dfn.mshRef,dfn.fld.M)
+    opL(u) = opLHS(u,largs...)
     pcg(rhs,opL;kwargs...)
 end
-Zygote.@adjoint function pcgdiff(oplhs,rhs,largs...;kwargs...)
-    opL(u) = oplhs(u,largs...)
+Zygote.@adjoint function pcgdiff(dfn,oplhs,rhs,largs...;kwargs...)
+    opLHS = GSM(oplhs,dfn.mshRef,dfn.fld.M)
+    opL(u) = opLHS(u,largs...)
     u = pcg(rhs,opL;kwargs...)
     function fun(u̅)
-        g(u,rhs,largs...) = rhs .- oplhs(u,largs...)
-        _,dgdup = pullback(g,u,rhs,largs...)
+        g1(u) = rhs .- oplhs(u,largs...)
+        _,dgdu = pullback(g1,u)
         function opT(λ)
-            out = -dgdup(λ)[1]
-            mask(out,largs[5])
+            out = -dgdu(λ)[1]
+            out = gatherScatter(out,dfn.mshRef[])
+            mask(out,dfn.fld.M)
         end
-        λ = pcg(u̅,opL;kwargs...)
-        display(opL(λ).-opT(λ))
+        λ = pcg(u̅,opT;kwargs...)
+        g2(rhs,largs...) = rhs .- opLHS(u,largs...)
+        _,dgdp = pullback(g2,rhs,largs...)
+        # display(opL(λ).-opT(λ))
         # display(opT(λ))
-        return (nothing,dgdup(λ)[2:end]...)
+        return (nothing,nothing,dgdp(λ)...)
     end
     return u,fun
 end

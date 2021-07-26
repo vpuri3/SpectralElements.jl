@@ -47,8 +47,8 @@ function caseSetup!(dfn::Diffusion)
 end
 
 #----------------------------------#
-Ex = 2; nr1 = 8;
-Ey = 2; ns1 = 8;
+Ex = 8; nr1 = 2;
+Ey = 8; ns1 = 2;
 
 ifperiodic = [false,false]
 m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic)
@@ -62,11 +62,11 @@ utrue = diffuseU.fld.u
 
 callback! ,setIC! ,setBC! ,setForcing! ,setVisc! = caseSetup!(diffuseU)
 
-nu = [1.5]
+nu = [2.]
 oper = Conv((3,3),1=>1,pad=1,stride=1)
-oper.weight[:,:,1,1].=-[0 1 0;1 -4.1 1;0 1 0]#./(.2)^2
+# oper.weight[:,:,1,1].=-[0 1.1 0;1 -3.9 1;0 1 0]#./(.2)^2
 p,re = Flux.destructure(oper)
-ps = Params([nu])
+ps = Params([p])
 
 function model()
     dU = Zygote.ignore() do
@@ -74,21 +74,18 @@ function model()
     end
     varVisc(ν,x,y,t) = @. nu+0*x
 
-    function opLHS(u::Array,p,args...)
-        ν,bdfB,mshRef,M = args
-        # u = Zygote.@showgrad(u)
-        lhs = p.*hlmz(u,ν,bdfB[1],mshRef[])
+    function opLHS(u::Array,ν,bdfB,mshRef,M,p)
+        # ν,bdfB,mshRef,M = args
         
-        # lhs = ABu(mshRef[].Qy',mshRef[].Qx',mshRef[].mult.*u) # gather
-        # lhs = re(p)(reshape(lhs,size(lhs)...,1,1))[:,:,1,1]
-        # lhs = ABu(mshRef[].Qy,mshRef[].Qx,lhs) # scatter
+        # lhs = p.*hlmz(u,ν,bdfB[1],mshRef[])
         
-        lhs = gatherScatter(lhs,mshRef[])
-        lhs = mask(lhs,M)
-        
+        lhs = ABu(mshRef[].Qy',mshRef[].Qx',mshRef[].mult.*u) # gather
+        lhs = re(p)(reshape(lhs,size(lhs)...,1,1))[:,:,1,1]
+        lhs = ABu(mshRef[].Qy,mshRef[].Qx,lhs) # scatter
+
         return lhs
     end
-    LHSargs(dfn::Diffusion) = nu, dfn.ν, dfn.tstep.bdfB, dfn.mshRef, dfn.fld.M
+    LHSargs(dfn::Diffusion) = dfn.ν, dfn.tstep.bdfB, dfn.mshRef, dfn.fld.M, p
     dU.opLHS, dU.LHSargs = opLHS, LHSargs
 
     simulate!(dU,callback! ,setIC! ,setBC! ,setForcing! , setVisc!)
@@ -96,11 +93,11 @@ function model()
 end
 function loss()
     upred = model()
-    sum(abs2,upred.-utrue)
+    mean(abs2,upred.-utrue)
 end
 
-# opt = ADAM(5e-3)
-# Flux.train!(loss,ps,Iterators.repeated((), 100),opt, cb = () -> println(loss()))
+opt = ADAM(5e-4)
+Flux.train!(loss,ps,Iterators.repeated((), 300),opt, cb = () -> println(loss()))
 grads = gradient(loss,ps)
 grads[[p for p in ps]...]
 

@@ -36,7 +36,7 @@ k   = 0
 while(norm(ra,Inf) > tol)
 ha = opM * ra # preconditinoer
 #println("PCG iter: ",k,", res: ",norm(ra,2));
-if(k==maxiter) println("warning: res:",norm(ra,Inf)); 
+if(k==maxiter) #println("warning: res:",norm(ra,Inf)); 
     return x; end;
 k  += 1;
 hpp = hp;
