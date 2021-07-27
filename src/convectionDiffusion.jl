@@ -71,12 +71,10 @@ function makeRHS!(cdn::ConvectionDiffusion)
     rhs  .=      mass(f     ,mshVRef[]) # forcing
     rhs .-= ν .* lapl(fld.ub,mshVRef[]) # boundary data
 
-    # explicit convection term
-    exH[1] .= -advect(fld.uh[1],vx,vy,mshVRef[],mshDRef[],JrVD,JsVD)
-
-    for i=1:length(fld.uh)              # histories
-        rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshVRef[])
-        rhs .+= bdfA[i]   .* exH[i]
+    for i=1:length(fld.uh)
+        exH[i] .= -advect(fld.uh[i],vx,vy,mshVRef[],mshDRef[],JrVD,JsVD)
+        rhs   .-= bdfB[1+i] .* mass(fld.uh[i],mshVRef[])
+        rhs   .+= bdfA[i]   .* exH[i]
     end
 
     rhs .= mask(rhs,fld.M)

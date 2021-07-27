@@ -199,6 +199,13 @@ export updateHist!
 function updateHist!(fld::Field)
     @unpack u,uh = fld
 
+    updateHist!(u,uh)
+
+    return
+end
+#--------------------------------------#
+function updateHist!(u::Array,uh::Array) # array, array of arrays
+
     for i=length(uh):-1:2
         uh[i] .= uh[i-1]
     end

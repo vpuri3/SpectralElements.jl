@@ -1,55 +1,100 @@
 #!/usr/bin/env julia
 
-# 1D possion solver
-
-using SEM
+using Revise,SEM
 using FastGaussQuadrature
-using Plots, LinearAlgebra
+using Plots,LinearAlgebra
 
-n = 21
-
+n = 16
 x,w = gausslobatto(n)
 xo  = linspace(-1,1,20*n)
 
-x  = 0.5.*(x .+1)
-xo = 0.5.*(xo.+1)
-w  = 0.5.*w
-
 J = interpMat(xo,x)
 D = derivMat(x)
-B = Matrix(Diagonal(w))
+
+# neumann operators
+B = diagm(w)
 A = D'*B *D
+C(v) = B * diagm(v) * D
 
-x,w,A,B,_,_ = linearFEM(n-1)
+## CASE SETUP
+function utrue(x,v,t)
+    xx = @. x - v*t
+    return @. sin(2pi*xx)
+end
+f = @. 0+0*x
+vl= 1.0
+v = @. vl+0*x
+ν = 0e-0
+u = utrue(x,vl,0.0)
+id= Matrix(I,n,n)
 
-## CASE SETUP: solve: -\del^2 u = f + hom. dir BC
-k  = @. 1.
-ut = @. sin(k*pi*x)
-f  = @. ut * (k*pi)^2
-#f = @. 0*f + 1.
+#R = id[2:end-1,:] # double dirichlet
+R = id[1:end-0,:] # periodic
+Q = semq(1,n,true)
 
-## restriction
-R  = Matrix(I,n,n)
-R  = R[2:end-1,:]
+CFL = 0.1
+dx = minimum(diff(x))
+dt = dx * CFL / vl
+println("CFL=$CFL, dt=$dt")
 
-## full rank system
-AA = R*A*R'
-BB = R*B*R'
-bb = R*B*f
-uu = pcg(bb,AA)
+## global system (full rank)
 xx = R*x
-u  = R'*uu
+AA = R*A*R' .* ν
+BB = R*B
+CC = R*C(v)*R'
+bb = BB*f
+AC = AA + CC
 
-## rank deficinet system
-b  = R'*bb;
-Al = R'*AA*R;
-u  = pcg(b,Al);
-#u  = pcg(f,B\Al);
-#u  = pcg(b,Al,B);
+## local system (rank deficient)
+b  = R'*bb
+Al = R'*AA*R
+Bl = R'*BB
+Cl = R'*CC*R
+Hl = Al + Bl
 
-println("er: ",norm(u - ut,Inf))
-p=plot(x,u)
+#println("er: ",norm(u - ut,Inf))
+p=plot(xo,J*u,width=3,ylims=(-1.5,1.5))
 display(p)
 
+uh = [zero(u) for i in 1:3] # histories
+gh = [zero(u) for i in 1:3] # explicit term
+
+T = 1.0
+t = zeros(4,1)
+nstep = Int(floor(T/dt))
+
+for istep=1:nstep
+    global u,rhs,Hl,bdfA,bdfB
+
+    updateHist!(t)
+    updateHist!(u,uh)
+
+    t[1] += dt
+    bdfA,bdfB = bdfExtK(t)
+
+    gh[1] = -Cl*uh[1] # convection
+
+    rhs = Bl * f
+    for i=1:3
+        gh[i] = -Cl*uh[i]                 # convection
+        rhs  += -bdfB[1+i] .* (Bl *uh[i]) # histories
+        rhs  +=  bdfA[i]   .* gh[i]       # explicit term
+    end
+
+    Hl = Al + bdfB[1]*Bl
+
+    Hl  = Q*Q'*Hl
+    rhs = Q*Q'*rhs
+    u = pcg(rhs,Hl)
+
+    ut = utrue(x,vl,t[1])
+    er = norm(u .- ut,Inf)
+    println("Pointwise error: $er")
+
+    plt = plot(xo,J*u,width=3)
+    plt = plot!(title="Step $istep, Time $(t[1])")
+    plt = plot!(ylims=(-1.5,1.5))
+    display(plt)
+end
 #----------------------------------------------------------------------#
 nothing

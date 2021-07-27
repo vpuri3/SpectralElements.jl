@@ -4,7 +4,7 @@ abstract type Equation end
 #----------------------------------------------------------------------
 export Diffusion
 #----------------------------------------------------------------------
-struct Diffusion{T,U} <: Equation # {T,U,D,K} # Type, dimension, k (bdfK order)
+struct Diffusion{T,U} <: Equation # {T,U,D,K} # type, dimension, (bdfK order)
 
     fld ::Field{T}
 
@@ -59,8 +59,8 @@ function makeRHS!(dfn::Diffusion)
         rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshRef[])
     end
 
-    rhs  .= mask(rhs,fld.M)
-    rhs  .= gatherScatter(rhs,mshRef[])
+    rhs .= mask(rhs,fld.M)
+    rhs .= gatherScatter(rhs,mshRef[])
     return
 end
 
@@ -72,7 +72,7 @@ function solve!(dfn::Diffusion)
     opP(u) = opPrecond(u,dfn)
 
     pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=false)
-    u .= u + ub
+    u .+= ub
     return
 end
 #----------------------------------------------------------------------
@@ -87,11 +87,13 @@ function evolve!(dfn::Diffusion
     @unpack time, bdfA, bdfB, istep, dt = dfn.tstep
 
     updateHist!(fld)
-    updateHist!(time)
 
-    istep  .+= 1
-    time[1] += dt[1]
-    bdfExtK!(bdfA,bdfB,time)
+    Zygote.ignore() do
+        updateHist!(time)
+        istep  .+= 1
+        time[1] += dt[1]
+        bdfExtK!(bdfA,bdfB,time)
+    end
 
     setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
     setForcing!(f,mshRef[].x,mshRef[].y,time[1])
@@ -116,12 +118,16 @@ function simulate!(dfn::Diffusion,callback!::Function
 
     setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
 
-    callback!(dfn)
+    Zygote.ignore() do
+        callback!(dfn)
+    end
     while time[1] <= Tf[1]
 
         evolve!(dfn,setBC!,setForcing!,setVisc!)
 
-        callback!(dfn)
+        Zygote.ignore() do
+            callback!(dfn)
+        end
 
         if(time[1] < 1e-12) break end
 
