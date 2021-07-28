@@ -2,103 +2,119 @@
 
 using Revise
 using SEM
-using LinearAlgebra,Plots, UnPack
+using LinearAlgebra, Plots, UnPack, Setfield
 using Zygote, Flux
 using Statistics
 #----------------------------------#
-function caseSetup!(dfn::Diffusion)
 
-    function setIC!(u,x,y,t)
-        u = 0.0 .*u
-        return u
-    end
-
-    function setBC!(ub,x,y,t)
-        ub = @. 0+0*x
-        return ub
-    end
-
-    function setForcing!(f,x,y,t)
-        f = @. 1+0*x
-        return f
-    end
-
-    function setVisc!(ν,x,y,t)
-        ν = @. 1+0*x
-        return ν
-    end
-
-    function callback!(dfn::Diffusion)
-        Zygote.ignore() do
-        @unpack fld,mshRef = dfn
-        @unpack time, istep = dfn.tstep
-
-        u = fld.u
-        if istep[1] == 1
-            # plt = meshplt(u,mshRef[])
-            # display(plt)
-            # println(mean(dfn.ν))
-        end
-        end
-        return
-    end
-
-    return callback! ,setIC! ,setBC! ,setForcing! ,setVisc!
-end
-
-#----------------------------------#
-Ex = 8; nr1 = 2;
-Ey = 8; ns1 = 2;
+Ex = 10; nr1 = 2;
+Ey = 10; ns1 = 2;
 
 ifperiodic = [false,false]
 m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic)
 bc = ['D','D','D','D']
-diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
 
-simulate!(diffuseU,caseSetup!(diffuseU)...)
+setIC(u,x,y,t) = 0.0 .*u
+setBC(ub,x,y,t) = @. 0+0*x
+setForcing(f,x,y,t) = @. 1+0*x
+setVisc(ν,x,y,t) = @. 1+0*x
+
+sch = DiffusionScheme(setIC,setBC,setForcing,setVisc)
+dfn = Diffusion(bc,m1,sch,Tf=0.0,dt=0.00)
+
+sim!(dfn)
+utrue = dfn.fld.u
+
 #----------------------------------#
+# Learn ν #
 
-utrue = diffuseU.fld.u
+ν0 = [2.]
+varVisc(ν,x,y,t) = @. ν0+0*x
 
-callback! ,setIC! ,setBC! ,setForcing! ,setVisc! = caseSetup!(diffuseU)
+sch_ν = @set sch.setVisc = varVisc
+dfn_ν = Diffusion(bc,m1,sch_ν,Tf=0.0,dt=0.00)
 
-nu = [2.]
-oper = Conv((3,3),1=>1,pad=1,stride=1)
-# oper.weight[:,:,1,1].=-[0 1.1 0;1 -3.9 1;0 1 0]#./(.2)^2
-p,re = Flux.destructure(oper)
-ps = Params([p])
+#----------------------------------#
+l2g(u,msh) = ABu(msh.Qy',msh.Qx',msh.mult.*u)
+g2l(u,msh) = ABu(msh.Qy,msh.Qx,u)
+#----------------------------------#
+# Learn laplace #
 
-function model()
-    dU = Zygote.ignore() do
-        Diffusion(bc,m1,Tf=0.0,dt=0.00)
-    end
-    varVisc(ν,x,y,t) = @. nu+0*x
+oper = Conv((5,5),1=>1,pad=2,stride=1)
+oper.weight[:,:,1,1].=-[0 0 0 0 0;0 0 1 0 0;0 1 -4 1 0;0 0 1 0 0;0 0 0 0 0]./2
+p0_lap,re_lap = Flux.destructure(oper)
 
-    function opLHS(u::Array,ν,bdfB,mshRef,M,p)
-        # ν,bdfB,mshRef,M = args
-        
-        # lhs = p.*hlmz(u,ν,bdfB[1],mshRef[])
-        
-        lhs = ABu(mshRef[].Qy',mshRef[].Qx',mshRef[].mult.*u) # gather
-        lhs = re(p)(reshape(lhs,size(lhs)...,1,1))[:,:,1,1]
-        lhs = ABu(mshRef[].Qy,mshRef[].Qx,lhs) # scatter
-
+function lapLearn(dfn::Diffusion)
+    
+    function opL(u,p0_lap,ν,mshRef)
+        lhs = u.*ν
+        lhs = l2g(lhs,mshRef[])
+        lhs = re_lap(p0_lap)(reshape(lhs,size(lhs)...,1,1))[:,:,1,1]
+        lhs = g2l(lhs,mshRef[]).*mshRef[].mult
         return lhs
     end
-    LHSargs(dfn::Diffusion) = dfn.ν, dfn.tstep.bdfB, dfn.mshRef, dfn.fld.M, p
-    dU.opLHS, dU.LHSargs = opLHS, LHSargs
-
-    simulate!(dU,callback! ,setIC! ,setBC! ,setForcing! , setVisc!)
-    upred = dU.fld.u
+    
+    return opL, (p0_lap,dfn.ν,dfn.mshRef)
 end
+
+sch_lap = @set sch.opLHS = lapLearn
+dfn_lap = Diffusion(bc,m1,sch_lap,Tf=0.0,dt=0.00)
+
+#----------------------------------#
+# Learn solution op
+
+m = Chain(Conv((3,3),1=>16,pad=1,stride=1,swish),
+          Conv((3,3),16=>16,pad=1,stride=1,swish),
+          Conv((3,3),16=>1,pad=1,stride=1))
+p0_so,re_so = Flux.destructure(m)
+
+function opLearn!(dfn::Diffusion)
+    @unpack rhs,mshRef,fld = dfn
+    @unpack u,ub = fld
+
+
+    rhs = l2g(rhs,mshRef[])
+    u = re_so(p0_so)(reshape(rhs,size(rhs)...,1,1))[:,:,1,1]
+    u = g2l(u,mshRef[])
+    u = mask(u,fld.M)
+
+    u = u + ub
+    @pack! dfn.fld = u
+    return
+end
+
+sch_so = @set sch.solve! = opLearn!
+dfn_so = Diffusion(bc,m1,sch_so,Tf=0.0,dt=0.00)
+
+#----------------------------------#
+# Training
+#----------------------------------#
+
+# Model + Loss
+
+dfn_model = dfn_so
+ps = Params([p0_so])
+
+function model(dfn)
+    sim!(dfn)
+    upred = dfn.fld.u
+end
+
 function loss()
-    upred = model()
+    upred = model(dfn_model)
     mean(abs2,upred.-utrue)
 end
 
-opt = ADAM(5e-4)
-Flux.train!(loss,ps,Iterators.repeated((), 300),opt, cb = () -> println(loss()))
-grads = gradient(loss,ps)
-grads[[p for p in ps]...]
+# Training
 
-plt = meshplt(model(),m1); display(plt)
+function cb()
+    println(loss())
+end
+
+grads = gradient(loss,ps)
+g = grads[[p for p in ps]...]
+
+opt = ADAM(1e-3)
+Flux.train!(loss,ps,Iterators.repeated((), 200),opt, cb = cb)
+
+plt = meshplt(model(dfn_model),m1); plt = meshplt!(m1.x,m1.y,utrue,c=:blue); display(plt)

@@ -1,11 +1,27 @@
 #
 abstract type Equation end
 
+export DiffusionScheme, Diffusion, sim!
 #----------------------------------------------------------------------
-export Diffusion
+# Holds all (user-accessible) functions in the sim
+#----------------------------------------------------------------------
+struct DiffusionScheme
+    cb::Function
+    setIC::Function
+    setBC::Function
+    setForcing::Function
+    setVisc::Function
+    simulate!::Function
+    evolve!::Function
+    makeRHS!::Function
+    opLHS::Function
+    opPC::Function
+    solve!::Function
+end
+#----------------------------------------------------------------------
+# Diffusion object modified in the sim
 #----------------------------------------------------------------------
 mutable struct Diffusion{T,U} <: Equation # {T,U,D,K} # Type, dimension, k (bdfK order)
-
     fld ::Field{T}
 
     ν  ::Array{T} # viscosity
@@ -16,11 +32,26 @@ mutable struct Diffusion{T,U} <: Equation # {T,U,D,K} # Type, dimension, k (bdfK
 
     mshRef::Ref{Mesh{T}} # underlying mesh
 
-    opLHS::Function # LHS operator
-    LHSargs::Function # returns args to opLHS
+    sch::DiffusionScheme
 end
-#--------------------------------------#
-function Diffusion(bc::Array{Char,1},msh::Mesh
+#----------------------------------------------------------------------
+# Front-end
+#----------------------------------------------------------------------
+function DiffusionScheme(setIC=fixU!,setBC=fixU!,setForcing=fixU!,setVisc=fixU!;
+                        cb=(dfn)->nothing,
+                        simulate! =simulate!,
+                        evolve! =evolve!,
+                        makeRHS! =makeRHS!,
+                        opLHS=opLHS,
+                        opPC=opPrecond,
+                        solve! =solve!)
+
+    return DiffusionScheme(cb,setIC,setBC,setForcing,setVisc,
+            simulate!,evolve!,
+            makeRHS!,opLHS,opPC,solve!)
+end
+
+function Diffusion(bc::Array{Char,1},msh::Mesh,sch::DiffusionScheme
                   ;Ti=0.,Tf=0.,dt=0.,k=3)
 
     fld = Field(bc,msh)
@@ -30,24 +61,70 @@ function Diffusion(bc::Array{Char,1},msh::Mesh
 
     tstep = TimeStepper(Ti,Tf,dt,k)
 
-    function opLHS(u::Array,args...)
-        ν,bdfB,mshRef,M = args
-        lhs = hlmz(u,ν,bdfB[1],mshRef[])
-    
-        # lhs = gatherScatter(lhs,mshRef[])
-        # lhs = mask(lhs,M)
-        return lhs
-    end
-    LHSargs(dfn::Diffusion) = dfn.ν, dfn.tstep.bdfB, dfn.mshRef, dfn.fld.M
+    return Diffusion(fld,ν,f,rhs,tstep,Ref(msh),sch)
+end
 
-    return Diffusion(fld,
-                    ν,f,rhs,
-                    tstep,
-                    Ref(msh),
-                    opLHS,
-                    LHSargs)
+sim!(dfn::Diffusion) = dfn.sch.simulate!(dfn)
+#----------------------------------------------------------------------
+# Default solver functions
+#----------------------------------------------------------------------
+function simulate!(dfn::Diffusion)
+    @unpack fld, mshRef, sch = dfn
+    @unpack time, istep, dt, Tf = dfn.tstep
+
+    u = sch.setIC(fld.u,mshRef[].x,mshRef[].y,time[1])
+    @pack! dfn.fld = u
+
+    sch.cb(dfn)
+    while time[1] <= Tf[1]
+
+        sch.evolve!(dfn)
+
+        sch.cb(dfn)
+
+        if(time[1] < 1e-12) break end
+
+    end
+
+    return
 end
 #----------------------------------------------------------------------
+function evolve!(dfn::Diffusion)
+    @unpack fld, f, ν, mshRef, sch = dfn
+    @unpack time, bdfA, bdfB, istep, dt = dfn.tstep
+
+    updateHist!(fld)
+
+    Zygote.ignore() do 
+        updateHist!(time)
+        istep  .+= 1
+        time[1] += dt[1]
+        bdfExtK!(bdfA,bdfB,time) 
+    end
+
+    ub = sch.setBC(fld.ub,mshRef[].x,mshRef[].y,time[1])
+    f = sch.setForcing(f,mshRef[].x,mshRef[].y,time[1])
+    ν = sch.setVisc(ν   ,mshRef[].x,mshRef[].y,time[1])
+
+    @pack! dfn.fld = ub
+    @pack! dfn = f, ν
+
+    sch.makeRHS!(dfn)
+    sch.solve!(dfn)
+
+    return
+end
+#----------------------------------------------------------------------
+# Solver steps
+
+function opLHS(dfn::Diffusion)
+    @unpack ν, mshRef = dfn
+    @unpack bdfB = dfn.tstep
+
+    opL(u,ν,bdfB,mshRef) = hlmz(u,ν,bdfB[1],mshRef[])
+
+    return opL, (ν,bdfB,mshRef) # returns lhs operator and arguments to opL
+end
 
 function opPrecond(u::Array,dfn::Diffusion)
     return u
@@ -71,112 +148,51 @@ function makeRHS!(dfn::Diffusion)
 end
 
 function solve!(dfn::Diffusion)
-    @unpack rhs,mshRef,fld = dfn
+    @unpack rhs,mshRef,fld,sch = dfn
     @unpack u,ub = fld
 
     opP(u) = opPrecond(u,dfn)
 
-    largs = dfn.LHSargs(dfn)
-    u = pcgdiff(dfn,dfn.opLHS,rhs,largs...;opM=opP,mult=mshRef[].mult,ifv=false)
+    opL, largs = sch.opLHS(dfn)
+    u = pcgdiff(dfn,opL,rhs,largs...;opM=opP,mult=mshRef[].mult,ifv=false)
 
     u = u + ub
     @pack! dfn.fld = u
     return
 end
 
-function GSM(f,mshRef,M)
-    function opLHS(u,largs...)
-        lhs = f(u,largs...)
-        lhs = gatherScatter(lhs,mshRef[])
-        lhs = mask(lhs,M)
-    end
+#----------------------------------------------------------------------
+# Differentiable solver
+#----------------------------------------------------------------------
+
+function GSM(u,msh,M)
+    u = gatherScatter(u,msh)
+    u = mask(u,M)
 end
 
 function pcgdiff(dfn,oplhs,rhs,largs...;kwargs...)
-    opLHS = GSM(oplhs,dfn.mshRef,dfn.fld.M)
-    opL(u) = opLHS(u,largs...)
+    opLGSM(u,largs...) = begin u=oplhs(u,largs...); u=GSM(u,dfn.mshRef[],dfn.fld.M);end
+    opL(u) = opLGSM(u,largs...)
     pcg(rhs,opL;kwargs...)
 end
+
 Zygote.@adjoint function pcgdiff(dfn,oplhs,rhs,largs...;kwargs...)
-    opLHS = GSM(oplhs,dfn.mshRef,dfn.fld.M)
-    opL(u) = opLHS(u,largs...)
+    opLGSM(u,largs...) = begin u=oplhs(u,largs...); u=GSM(u,dfn.mshRef[],dfn.fld.M);end
+    opL(u) = opLGSM(u,largs...)
     u = pcg(rhs,opL;kwargs...)
     function fun(u̅)
         g1(u) = rhs .- oplhs(u,largs...)
         _,dgdu = pullback(g1,u)
         function opT(λ)
             out = -dgdu(λ)[1]
-            out = gatherScatter(out,dfn.mshRef[])
-            mask(out,dfn.fld.M)
+            out = GSM(out,dfn.mshRef[],dfn.fld.M)
         end
         λ = pcg(u̅,opT;kwargs...)
-        g2(rhs,largs...) = rhs .- opLHS(u,largs...)
+
+        g2(rhs,largs...) = rhs .- opLGSM(u,largs...)
         _,dgdp = pullback(g2,rhs,largs...)
-        # display(opL(λ).-opT(λ))
-        # display(opT(λ))
+
         return (nothing,nothing,dgdp(λ)...)
     end
     return u,fun
 end
-#----------------------------------------------------------------------
-export evolve
-#----------------------------------------------------------------------
-function evolve!(dfn::Diffusion
-                ,setBC! =fixU!
-                ,setForcing! =fixU!
-                ,setVisc! =fixU!)
-
-    @unpack fld, f, ν, mshRef = dfn
-    @unpack time, bdfA, bdfB, istep, dt = dfn.tstep
-
-    updateHist!(fld)
-
-    Zygote.ignore() do 
-        updateHist!(time)
-        istep  .+= 1
-        time[1] += dt[1]
-        bdfExtK!(bdfA,bdfB,time) 
-    end
-
-    ub = setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
-    f = setForcing!(f,mshRef[].x,mshRef[].y,time[1])
-    ν = setVisc!(ν   ,mshRef[].x,mshRef[].y,time[1])
-
-    @pack! dfn.fld = ub
-    @pack! dfn = f, ν
-
-    makeRHS!(dfn)
-    solve!(dfn)
-
-    return
-end
-#----------------------------------------------------------------------
-export simulate!
-#----------------------------------------------------------------------
-function simulate!(dfn::Diffusion,callback!::Function
-                  ,setIC! =fixU!
-                  ,setBC! =fixU!
-                  ,setForcing! =fixU!
-                  ,setVisc! =fixU!)
-
-    @unpack fld, mshRef = dfn
-    @unpack time, istep, dt, Tf = dfn.tstep
-
-    u = setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
-    @pack! dfn.fld = u
-
-    callback!(dfn)
-    while time[1] <= Tf[1]
-
-        evolve!(dfn,setBC!,setForcing!,setVisc!)
-
-        callback!(dfn)
-
-        if(time[1] < 1e-12) break end
-
-    end
-
-    return
-end
-#----------------------------------------------------------------------
-#
