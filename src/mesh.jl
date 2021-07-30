@@ -72,14 +72,14 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     zr,wr = FastGaussQuadrature.gausslobatto(nr)
     zs,ws = FastGaussQuadrature.gausslobatto(ns)
 
-    Dr  = derivMat(zr)
-    Ds  = derivMat(zs)
+    Dr  = Zygote.ignore() do; derivMat(zr); end
+    Ds  = Zygote.ignore() do; derivMat(zs); end
 
     # mappings
     # Q : glo -> loc (scatter)
     # Q': loc -> glo (gather)
-    Qx = semq(Ex,nr,ifperiodic[1])
-    Qy = semq(Ex,ns,ifperiodic[2])
+    Qx = Zygote.ignore() do; semq(Ex,nr,ifperiodic[1]); end
+    Qy = Zygote.ignore() do; semq(Ex,ns,ifperiodic[2]); end
     QQtx = Qx*Qx'
     QQty = Qy*Qy'
 
@@ -97,8 +97,8 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     mult = gatherScatter(mult,QQtx,QQty)
     mult = @. 1 / mult
     
-    xe,_ = semmesh(Ex,nr)
-    ye,_ = semmesh(Ey,ns)
+    xe,_ = Zygote.ignore() do; semmesh(Ex,nr); end
+    ye,_ = Zygote.ignore() do; semmesh(Ey,ns); end
     x,y  = ndgrid(xe,ye)
 
     # mult = semreshape(mult,nr,ns,Ex,Ey)
@@ -132,6 +132,15 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
                         ,rx,ry,sx,sy
                         ,B,Bi
                         ,G11,G12,G22)
+end
+Zygote.@adjoint function Mesh{T}(args...) where {T,K}
+    function fun(m̄)
+        @unpack nr,ns,Ex,Ey,deform,ifperiodic,zr,zs,wr,ws,Dr,Ds,x,y,Qx,Qy,QQtx,QQty,mult,l2g = m̄
+        @unpack Jac,Jaci,rx,ry,sx,sy,B,Bi,G11,G12,G22 = m̄
+        (nr,ns,Ex,Ey,deform,ifperiodic,zr,zs,wr,ws,Dr,Ds,x,y,
+         Qx,Qy,QQtx,QQty,mult,l2g,Jac,Jaci,rx,ry,sx,sy,B,Bi,G11,G12,G22)
+    end
+    return Mesh{T}(args...), fun
 end
 #----------------------------------------------------------------------
 export generateMask
@@ -183,17 +192,22 @@ mutable struct Field{T,K}
     uh::Array{Array} # histories
     ub::Array{T}     # boundary data
     M ::Array{T}     # BC mask
-
-    mshRef::Ref{Mesh{T}} # underlying mesh
 end
 #--------------------------------------#
 function Field(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
     u  = zero(msh.x)
-    uh = Array[ zero(msh.x) for i in 1:k]
+    uh = Zygote.ignore() do; Array[ zero(msh.x) for i in 1:k]; end
     ub = zero(msh.x)
-    M  = generateMask(bc,msh)
+    M  = Zygote.ignore() do; generateMask(bc,msh); end
 
-    return Field{T,k}(u,uh,ub,M,Ref(msh))
+    return Field{T,k}(u,uh,ub,M)
+end
+Zygote.@adjoint function Field{T,K}(args...) where {T,K}
+    function fun(f̄)
+        @unpack u,uh,ub,M = f̄
+        (u,uh,ub,M)
+    end
+    return Field{T,K}(args...), fun
 end
 #--------------------------------------#
 export updateHist!
