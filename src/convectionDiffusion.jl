@@ -3,6 +3,8 @@
 export ConvectionDiffusion
 #----------------------------------------------------------------------
 struct ConvectionDiffusion{T,U} <: Equation
+    name::String
+
     fld::Field{T}
     vx ::Array{T}
     vy ::Array{T}
@@ -21,7 +23,8 @@ struct ConvectionDiffusion{T,U} <: Equation
     mshDRef::Ref{Mesh{T}} # dealiasing mesh
 end
 #--------------------------------------#
-function ConvectionDiffusion(bc::Array{Char,1},mshV::Mesh,mshD::Mesh
+function ConvectionDiffusion(name::String,bc::Array{Char,1}
+                            ,mshV::Mesh,mshD::Mesh
                             ;Ti=0.,Tf=0.,dt=0.,k=3)
 
     fld = Field(bc,mshV)
@@ -38,12 +41,38 @@ function ConvectionDiffusion(bc::Array{Char,1},mshV::Mesh,mshD::Mesh
     JrVD = interpMat(mshD.zr,mshV.zr)
     JsVD = interpMat(mshD.zs,mshV.zs)
 
-    return ConvectionDiffusion(fld,vx,vy
-                    ,ν,f,rhs,exH
-                    ,tstep
-                    ,JrVD,JsVD
-                    ,Ref(mshV)
-                    ,Ref(mshD))
+    return ConvectionDiffusion(name
+                              ,fld,vx,vy
+                              ,ν,f,rhs,exH
+                              ,tstep
+                              ,JrVD,JsVD
+                              ,Ref(mshV),Ref(mshD))
+end
+#--------------------------------------#
+function ConvectionDiffusion(name::String,bc::Array{Char,1}
+                            ,mshV::Mesh,mshD::Mesh
+                            ;Ti=0.,Tf=0.,dt=0.,k=3)
+
+    fld = Field(bc,mshV)
+    vx  = zero(fld.u)
+    vy  = zero(fld.u)
+
+    ν   = zero(fld.u)
+    f   = zero(fld.u)
+    rhs = zero(fld.u)
+    exH = Array[ zero(fld.u) for i in 1:k]
+
+    tstep = TimeStepper(Ti,Tf,dt,k)
+
+    JrVD = interpMat(mshD.zr,mshV.zr)
+    JsVD = interpMat(mshD.zs,mshV.zs)
+
+    return ConvectionDiffusion(name
+                              ,fld,vx,vy
+                              ,ν,f,rhs,exH
+                              ,tstep
+                              ,JrVD,JsVD
+                              ,Ref(mshV),Ref(mshD))
 end
 #----------------------------------------------------------------------
 function opLHS(u::Array,cdn::ConvectionDiffusion)
