@@ -19,25 +19,30 @@ struct ConvectionDiffusion{T,U} <: Equation
     JrVD::Array{T,2}
     JsVD::Array{T,2}
 
-    mshVRef::Ref{Mesh{T}} # underlying mesh
-    mshDRef::Ref{Mesh{T}} # dealiasing mesh
+    mshV::Mesh{T} # velocity/scalar mesh
+    mshD::Mesh{T} # dealiasing mesh
+
+    set0!::Function # initial condition
+    set∂!::Function # dirichlet boundary condition
+    setF!::Function # forcing function
+    setν!::Function # viscosity
 end
 #--------------------------------------#
-function ConvectionDiffusion(name::String,bc::Array{Char,1}
-                            ,mshV::Mesh,mshD::Mesh
-                            ;Ti=0.,Tf=0.,dt=0.,k=3)
-
-    fld = Field(bc,mshV)
-    vx  = zero(fld.u)
-    vy  = zero(fld.u)
+function ConvectionDiffusion(name::String
+                            ,fld::Field,vx::Array,vy::Array
+                            ,tstep::TimeStepper
+                            ,mshD::Mesh
+                            ,set0! =fixU!,set∂! =fixU!
+                            ,setF! =fixU!,setν! =fixU!)
 
     ν   = zero(fld.u)
     f   = zero(fld.u)
     rhs = zero(fld.u)
-    exH = Array[ zero(fld.u) for i in 1:k]
 
-    tstep = TimeStepper(Ti,Tf,dt,k)
+    k = length(fld.uh)
+    exH = Array[zero(fld.u) for i in 1:k]
 
+    mshV = fld.msh
     JrVD = interpMat(mshD.zr,mshV.zr)
     JsVD = interpMat(mshD.zs,mshV.zs)
 
@@ -46,128 +51,124 @@ function ConvectionDiffusion(name::String,bc::Array{Char,1}
                               ,ν,f,rhs,exH
                               ,tstep
                               ,JrVD,JsVD
-                              ,Ref(mshV),Ref(mshD))
+                              ,mshV,mshD
+                              ,set0!,set∂!,setF!,setν!)
 end
 #--------------------------------------#
-function ConvectionDiffusion(name::String,bc::Array{Char,1}
-                            ,mshV::Mesh,mshD::Mesh
-                            ;Ti=0.,Tf=0.,dt=0.,k=3)
-
-    fld = Field(bc,mshV)
-    vx  = zero(fld.u)
-    vy  = zero(fld.u)
-
-    ν   = zero(fld.u)
-    f   = zero(fld.u)
-    rhs = zero(fld.u)
-    exH = Array[ zero(fld.u) for i in 1:k]
-
-    tstep = TimeStepper(Ti,Tf,dt,k)
-
-    JrVD = interpMat(mshD.zr,mshV.zr)
-    JsVD = interpMat(mshD.zs,mshV.zs)
-
-    return ConvectionDiffusion(name
-                              ,fld,vx,vy
-                              ,ν,f,rhs,exH
-                              ,tstep
-                              ,JrVD,JsVD
-                              ,Ref(mshV),Ref(mshD))
-end
+#function ConvectionDiffusion(name::String,bc::Array{Char,1}
+#                            ,mshV::Mesh,mshD::Mesh
+#                            ;Ti=0.,Tf=0.,dt=0.,k=3)
+#
+#    fld = Field(bc,mshV)
+#    vx  = zero(fld.u)
+#    vy  = zero(fld.u)
+#
+#    tstep = TimeStepper(Ti,Tf,dt,k)
+#
+#    return ConvectionDiffusion(name
+#                              ,fld,vx,vy
+#                              ,tstep
+#                              ,mshD)
+#end
+#----------------------------------------------------------------------
+# solve
 #----------------------------------------------------------------------
 function opLHS(u::Array,cdn::ConvectionDiffusion)
-    @unpack fld, mshVRef, ν = cdn
+    @unpack fld, mshV, ν = cdn
     @unpack bdfB = cdn.tstep
 
-    lhs = hlmz(u,ν,bdfB[1],mshVRef[])
+    lhs = hlmz(u,ν,bdfB[1],mshV)
 
-    lhs .= gatherScatter(lhs,mshVRef[])
+    lhs .= gatherScatter(lhs,mshV)
     lhs .= mask(lhs,fld.M)
     return lhs
 end
-
+#--------------------------------------#
 function opPrecond(u::Array,cdn::ConvectionDiffusion)
-    @unpack fld, tstep, mshVRef = cdn
-    Mu = u ./ mshVRef[].B ./ tstep.bdfB[1]
+    @unpack fld, tstep, mshV = cdn
+    Mu = u ./ mshV.B ./ tstep.bdfB[1]
     return Mu
 end
-
+#--------------------------------------#
 function makeRHS!(cdn::ConvectionDiffusion)
-    @unpack fld, rhs, ν, f, mshVRef, mshDRef = cdn
+    @unpack fld, rhs, ν, f, mshV, mshD = cdn
     @unpack vx,vy,exH,JrVD,JsVD = cdn
     @unpack bdfA, bdfB = cdn.tstep
 
-    rhs  .=      mass(f     ,mshVRef[]) # forcing
-    rhs .-= ν .* lapl(fld.ub,mshVRef[]) # boundary data
+    rhs  .=      mass(f     ,mshV) # forcing
+    rhs .-= ν .* lapl(fld.ub,mshV) # boundary data
 
     for i=1:length(fld.uh)
-        exH[i] .= -advect(fld.uh[i],vx,vy,mshVRef[],mshDRef[],JrVD,JsVD)
-        rhs   .-= bdfB[1+i] .* mass(fld.uh[i],mshVRef[])
+        exH[i] .= -advect(fld.uh[i],vx,vy,mshV,mshD,JrVD,JsVD)
+        rhs   .-= bdfB[1+i] .* mass(fld.uh[i],mshV)
         rhs   .+= bdfA[i]   .* exH[i]
     end
 
     rhs .= mask(rhs,fld.M)
-    rhs .= gatherScatter(rhs,mshVRef[])
+    rhs .= gatherScatter(rhs,mshV)
     return
 end
-
+#--------------------------------------#
 function solve!(cdn::ConvectionDiffusion)
-    @unpack rhs, mshVRef, fld = cdn
+    @unpack rhs, mshV, fld = cdn
     @unpack u,ub = fld
 
     opL(u) = opLHS(u,cdn)
     opM(u) = opPrecond(u,cdn)
 
-    pcg!(u,rhs,opL;opM=opM,mult=mshVRef[].mult,ifv=false)
+    pcg!(u,rhs,opL;opM=opM,mult=mshV.mult,ifv=false)
     u .+= ub
     return
 end
 #----------------------------------------------------------------------
-export evolve!
+# time evolution
 #----------------------------------------------------------------------
-function evolve!(cdn::ConvectionDiffusion
-                ,setBC! =fixU!
-                ,setForcing! =fixU!
-                ,setVisc! =fixU!)
+function updateHist!(cdn::ConvectionDiffusion)
 
-    @unpack fld, f, ν, mshVRef = cdn
-    @unpack time, bdfA, bdfB, istep, dt = cdn.tstep
+    updateHist!(cdn.fld)
 
-    updateHist!(fld)
-    updateHist!(time)
+    return
+end
+#--------------------------------------#
+function evolve!(cdn::ConvectionDiffusion)
 
-    istep  .+= 1
-    time[1] += dt[1]
-    bdfExtK!(bdfA,bdfB,time)
+    @unpack fld, f, ν, mshV, tstep = cdn
+    @unpack time = tstep
 
-    setBC!(fld.ub,mshVRef[].x,mshVRef[].y,time[1])
-    setForcing!(f,mshVRef[].x,mshVRef[].y,time[1])
-    setVisc!(ν   ,mshVRef[].x,mshVRef[].y,time[1])
+    cdn.set∂!(fld.ub,mshV.x,mshV.y,time[1])
+    cdn.setF!(f     ,mshV.x,mshV.y,time[1])
+    cdn.setν!(ν     ,mshV.x,mshV.y,time[1])
 
     makeRHS!(cdn)
     solve!(cdn)
 
     return
 end
-#----------------------------------------------------------------------
+#--------------------------------------#
+export step!
+#--------------------------------------#
+function step!(cdn::ConvectionDiffusion)
+
+    updateHist!(cdn)
+    updateHist!(cdn.tstep)
+    evolve!(cdn)
+
+    return
+end
+#--------------------------------------#
 export simulate!
-#----------------------------------------------------------------------
-function simulate!(cdn::ConvectionDiffusion,callback!::Function
-                  ,setIC! =fixU!
-                  ,setBC! =fixU!
-                  ,setForcing! =fixU!
-                  ,setVisc! =fixU!)
+#--------------------------------------#
+function simulate!(cdn::ConvectionDiffusion,callback!::Function)
 
-    @unpack fld, mshVRef = cdn
-    @unpack time, istep, dt, Tf = cdn.tstep
+    @unpack fld, mshV, tstep = cdn
+    @unpack time, istep, dt, Tf = tstep
 
-    setIC!(fld.u,mshVRef[].x,mshVRef[].y,time[1])
+    cdn.set0!(fld.u,mshV.x,mshV.y,time[1])
 
     callback!(cdn)
     while time[1] <= Tf[1]
 
-        evolve!(cdn,setBC!,setForcing!,setVisc!)
-
+        step!(cdn)
         callback!(cdn)
 
         if(time[1] < 1e-12) break end

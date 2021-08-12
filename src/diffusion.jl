@@ -6,7 +6,7 @@ export Diffusion
 #----------------------------------------------------------------------
 struct Diffusion{T,U} <: Equation # {T,U,D,K} # type, dimension, (bdfK order)
 
-    fld ::Field{T}
+    fld::Field{T}
 
     ν  ::Array{T} # viscosity
     f  ::Array{T} # forcing
@@ -14,7 +14,7 @@ struct Diffusion{T,U} <: Equation # {T,U,D,K} # type, dimension, (bdfK order)
 
     tstep::TimeStepper{T,U}
 
-    mshRef::Ref{Mesh{T}} # underlying mesh
+    msh::Mesh{T} # mesh
 end
 #--------------------------------------#
 function Diffusion(bc::Array{Char,1},msh::Mesh
@@ -30,16 +30,16 @@ function Diffusion(bc::Array{Char,1},msh::Mesh
     return Diffusion(fld
                     ,ν,f,rhs
                     ,tstep
-                    ,Ref(msh))
+                    ,msh)
 end
 #----------------------------------------------------------------------
 function opLHS(u::Array,dfn::Diffusion)
-    @unpack fld, mshRef, ν = dfn
+    @unpack fld, msh, ν = dfn
     @unpack bdfB = dfn.tstep
 
-    lhs = hlmz(u,ν,bdfB[1],mshRef[])
+    lhs = hlmz(u,ν,bdfB[1],msh)
 
-    lhs .= gatherScatter(lhs,mshRef[])
+    lhs .= gatherScatter(lhs,msh)
     lhs .= mask(lhs,fld.M)
     return lhs
 end
@@ -49,29 +49,29 @@ function opPrecond(u::Array,dfn::Diffusion)
 end
 
 function makeRHS!(dfn::Diffusion)
-    @unpack fld, rhs, ν, f, mshRef = dfn
+    @unpack fld, rhs, ν, f, msh = dfn
     @unpack bdfA, bdfB = dfn.tstep
 
-    rhs  .=      mass(f     ,mshRef[]) # forcing
-    rhs .-= ν .* lapl(fld.ub,mshRef[]) # boundary data
+    rhs  .=      mass(f     ,msh) # forcing
+    rhs .-= ν .* lapl(fld.ub,msh) # boundary data
 
-    for i=1:length(fld.uh)             # histories
-        rhs .-= bdfB[1+i] .* mass(fld.uh[i],mshRef[])
+    for i=1:length(fld.uh)        # histories
+        rhs .-= bdfB[1+i] .* mass(fld.uh[i],msh)
     end
 
     rhs .= mask(rhs,fld.M)
-    rhs .= gatherScatter(rhs,mshRef[])
+    rhs .= gatherScatter(rhs,msh)
     return
 end
 
 function solve!(dfn::Diffusion)
-    @unpack rhs, mshRef, fld = dfn
+    @unpack rhs, msh, fld = dfn
     @unpack u,ub = fld
 
     opL(u) = opLHS(u,dfn)
     opP(u) = opPrecond(u,dfn)
 
-    pcg!(u,rhs,opL;opM=opP,mult=mshRef[].mult,ifv=false)
+    pcg!(u,rhs,opL;opM=opP,mult=msh.mult,ifv=false)
     u .+= ub
     return
 end
@@ -83,7 +83,7 @@ function evolve!(dfn::Diffusion
                 ,setForcing! =fixU!
                 ,setVisc! =fixU!)
 
-    @unpack fld, f, ν, mshRef = dfn
+    @unpack fld, f, ν, msh = dfn
     @unpack time, bdfA, bdfB, istep, dt = dfn.tstep
 
     updateHist!(fld)
@@ -95,9 +95,9 @@ function evolve!(dfn::Diffusion
         bdfExtK!(bdfA,bdfB,time)
     end
 
-    setBC!(fld.ub,mshRef[].x,mshRef[].y,time[1])
-    setForcing!(f,mshRef[].x,mshRef[].y,time[1])
-    setVisc!(ν   ,mshRef[].x,mshRef[].y,time[1])
+    setBC!(fld.ub,msh.x,msh.y,time[1])
+    setForcing!(f,msh.x,msh.y,time[1])
+    setVisc!(ν   ,msh.x,msh.y,time[1])
 
     makeRHS!(dfn)
     solve!(dfn)
@@ -113,10 +113,10 @@ function simulate!(dfn::Diffusion,callback!::Function
                   ,setForcing! =fixU!
                   ,setVisc! =fixU!)
 
-    @unpack fld, mshRef = dfn
+    @unpack fld, msh = dfn
     @unpack time, istep, dt, Tf = dfn.tstep
 
-    setIC!(fld.u,mshRef[].x,mshRef[].y,time[1])
+    setIC!(fld.u,msh.x,msh.y,time[1])
 
     Zygote.ignore() do
         callback!(dfn)

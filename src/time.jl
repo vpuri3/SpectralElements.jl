@@ -81,7 +81,7 @@ struct TimeStepper{T,U}
 
 end
 #--------------------------------------#
-function TimeStepper(Ti,Tf,dt,k) # add flag for variable dt
+function TimeStepper(Ti,Tf,dt,k=3) # add flag for variable dt
 
     time = [Ti] .* ones(k+1)
     bdfA,bdfB = bdfExtK(time)
@@ -96,5 +96,18 @@ function TimeStepper(Ti,Tf,dt,k) # add flag for variable dt
     return TimeStepper{Float64,Int64}(time,bdfA,bdfB
                                      ,istep,fstep
                                      ,[dt],[Ti],[Tf])
+end
+#--------------------------------------#
+function updateHist!(tstep::TimeStepper)
+
+    @unpack time, istep, dt, bdfA, bdfB = tstep
+
+    updateHist!(time)
+
+    istep  .+= 1
+    time[1] += dt[1]
+    bdfExtK!(bdfA,bdfB,time)
+
+    return
 end
 #----------------------------------------------------------------------

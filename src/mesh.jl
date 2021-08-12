@@ -182,16 +182,16 @@ struct Field{T,K}
     ub::Array{T}     # boundary data
     M ::Array{T}     # BC mask
 
-    mshRef::Ref{Mesh{T}} # underlying mesh
+    msh::Mesh{T}     # mesh
 end
 #--------------------------------------#
 function Field(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
     u  = zero(msh.x)
-    uh = Array[ zero(msh.x) for i in 1:k]
+    uh = [ zero(msh.x) for i in 1:k]
     ub = zero(msh.x)
     M  = generateMask(bc,msh)
 
-    return Field{T,k}(u,uh,ub,M,Ref(msh))
+    return Field{T,k}(u,uh,ub,M,msh)
 end
 #----------------------------------------------------------------------
 export updateHist!
