@@ -77,11 +77,11 @@ function opLHS(u::Array,cdn::ConvectionDiffusion)
     @unpack fld, mshV, ν = cdn
     @unpack bdfB = cdn.tstep
 
-    lhs = hlmz(u,ν,bdfB[1],mshV)
+    Au = hlmz(u,ν,bdfB[1],mshV)
 
-    lhs .= gatherScatter(lhs,mshV)
-    lhs .= mask(lhs,fld.M)
-    return lhs
+    Au .= gatherScatter(Au,mshV)
+    Au .= mask(Au,fld.M)
+    return Au
 end
 #--------------------------------------#
 function opPrecond(u::Array,cdn::ConvectionDiffusion)

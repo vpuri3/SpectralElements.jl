@@ -18,14 +18,14 @@ export Stokes
  -----------------------------------
  pr  space|   p   |  q   | ∈ H¹₀(Ω)
 
- A(v⃗,u⃗) + (v⃗,∇p) = (v⃗,∇p)   ---(1)
+ H(v⃗,u⃗) + (v⃗,∇p) = (v⃗,∇p)   ---(1)
  (q,∇⋅u⃗)         = (q,0)    ---(2)
 
- [ AA -DD']*[u̲⃗] = [f̲⃗]
+ [ HH -DD']*[u̲⃗] = [f̲⃗]
  [-DD     ] [p̲̲̲]   [0̲]
 
- where AA * u̲⃗ = [A  ] * [ux],
-                [  A]   [uy]
+ where HH * u̲⃗ = [H  ] * [ux],
+                [  H]   [uy]
 
  is the Diffusion operator acting diagonally on X, Y velocity
  components.
@@ -38,14 +38,14 @@ export Stokes
  To sove the coupled system of equations, we diagonalize the linear system
  with Schur complements as follows.
 
- (2) -> (2) + DD AA^-1 *(1)
+ (2) -> (2) + DD HH^-1 *(1)
 
- [AA -DD']*[u̲⃗] = [f̲⃗]
+ [HH -DD']*[u̲⃗] = [f̲⃗]
  [    EE ] [p̲̲̲]   [g]
 
  where 
- EE = -DD AA^-1 * DD'
- g  = -DD AA^-1 * f̲⃗
+ EE = -DD HH^-1 * DD'
+ g  = -DD HH^-1 * f̲⃗
 
  is the pressure system
 """
@@ -55,25 +55,41 @@ struct Stokes{T,U} <: Equation
 
     pr::Field{T}
 
+    px ::Array{T} # pressure forcing (on mshV)
+    py ::Array{T} # 
+    rhs::Array{T} # Stokes rhs
+
     JrPV::Array{T,2}
     JsPV::Array{T,2}
 
-    mshVMesh{T} # velocity mesh
-    mshPMesh{T} # pressure mesh
-    mshDMesh{T} # dealias  mesh
+    mshV::Mesh{T} # velocity mesh
+    mshP::Mesh{T} # pressure mesh
+    mshD::Mesh{T} # dealias  mesh
+
+    set0!::Function # initial condition
+    set∂!::Function # dirichlet boundary condition
+    setF!::Function # forcing function
+    setν!::Function # viscosity
 end
 #--------------------------------------#
-function Stokes(bcVX::Array{Char,1},bcVY::Array{Char,1}
+function Stokes(
+                bcVX::Array{Char,1},bcVY::Array{Char,1}#,bcPS::Array{Char,1}
                ,mshV::Mesh,mshD::Mesh,mshP::Mesh
                ;Ti=0.,Tf=0.,dt=0.,k=3)
 
+    # create set functions for vx, vy
+
+
+    # create convection diffusion objects
     velX = Field(bcVX,mshV)
     velY = Field(bcVY,mshV)
 
     tstep = TimeStepper(Ti,Tf,dt,k)
 
-    vx = ConvectionDiffusion("vx",velX,velX.uh[1],velY.uh[1],tstep,mshD)
-    vy = ConvectionDiffusion("vy",velY,velX.uh[1],velY.uh[1],tstep,mshD)
+    vx = ConvectionDiffusion("vx",velX,velX.uh[1],velY.uh[1],tstep,mshD
+                            ,set0!,set∂!,setF!,setν!)
+    vy = ConvectionDiffusion("vy",velY,velX.uh[1],velY.uh[1],tstep,mshD,
+                            ,set0!,set∂!,setF!,setν!)
 
 #   ps = [
 #         ConvectionDiffusion("ps$i",Field(bcPS,mshV),velX.u,velY.u,mshD
@@ -82,54 +98,58 @@ function Stokes(bcVX::Array{Char,1},bcVY::Array{Char,1}
 
     pr = Field(['N','N','N','N'],mshP;k=k-1)
 
-    JrVD = interpMat(mshV.zr,mshP.zr)
-    JsVD = interpMat(mshV.zs,mshP.zs)
+    JrPV = interpMat(mshV.zr,mshP.zr)
+    JsPV = interpMat(mshV.zs,mshP.zs)
 
-    return Stokes(vx,vy
+    return Stokes(vx,vy,pr
                  ,tstep
                  ,JrPV,JsPV
                  ,mshV,mshP,mshD)
 end
 #----------------------------------------------------------------------
-function opLHS(u::Array,sks::Stokes)
-    @unpack fld, mshV, ν = sks
+function opStokesLHS(q::Array,sks::Stokes)
+    @unpack mshV, mshP, JrPV, JsPV = sks
     @unpack bdfB = sks.tstep
 
-    lhs = hlmz(u,ν,bdfB[1],mshV)
+    Mvx = vx.fld.M
+    Mvy = vy.fld.M
 
-    lhs .= gatherScatter(lhs,mshV)
-    lhs .= mask(lhs,fld.M)
-    return lhs
+    Eq = stokesOp(q,mshV,Mvx,Mvy,JrPV,JsPV)
+    Eq = gatherScatter(Eq,mshP)
+
+    return Eu
 end
 
 function opPrecond(u::Array,sks::Stokes)
-    @unpack fld, tstep, mshV = sks
-    Mu = u ./ mshV.B ./ tstep.bdfB[1]
+    Mu = u
     return Mu
 end
 
-function makeRHS!(sks::Stokes)
-    @unpack fld, rhs, ν, f, mshV, mshD = sks
-    @unpack vx,vy,exH,JrPV,JsPV = sks
-    @unpack bdfA, bdfB = sks.tstep
+function makeStokesRHS!(sks::Stokes)
+    @unpack rhs, mshV = sks
+    @unpack vx,vy,JrPV,JsPV = sks
+    @unpack bdfB = sks.tstep
 
-    rhs .= -diver(ux,uy,mshV,JrPV,JsPV)
+    fx = approxHlmzInv(vx.f,mshV,bdfB[1]) .+ vx.fld.ub
+    fy = approxHlmzInv(vy.f,mshV,bdfB[1]) .+ vy.fld.ub
 
-    rhs .= mask(rhs,fld.M)
+    rhs  .= diver(fx,fy,mshV,JrPV,JsPV)
+
+#   rhs .= mask(rhs,pr.M) # all Neumann BC
     rhs .= gatherScatter(rhs,mshV)
     return
 end
 
-function solve!(sks::Stokes)
+function solveStokes!(sks::Stokes)
     @unpack rhs, mshV, fld = sks
     @unpack u,ub = fld
 
     opL(u) = opLHS(u,sks)
     opM(u) = opPrecond(u,sks)
 
-    pcg!(u,rhs,opL;opM=opM,mult=mshV.mult,ifv=false)
-    u .+= ub
-    return
+    δp = pcg(rhs,opL;opM=opM,mult=mshV.mult,ifv=false)
+
+    return δp
 end
 #----------------------------------------------------------------------
 """
@@ -138,17 +158,17 @@ end
 """
 function pressureProject!(sts::Stokes)
 
-    makeRHS!(sks)
+    makeStokesRHS!(sks)
 
-    δp = solve!(sks)
+    δp = solveStokes!(sks)
 
     px,py = diverᵀ(δp,mshV,JrPV,JsPV)
 
     # Ainv approximate
-    px = px .* mshV.Bi
-    py = py .* mshV.Bi
+    px = approxHlmzInv(px,mshV)
+    py = approxHlmzInv(py,mshV)
 
-    # add correction
+    # correction
     vx .+= px
     vy .+= py
     pr .+= δp
@@ -183,12 +203,13 @@ function evolve!(sks::Stokes
 
     update!(sks)
 
-    # update pressure from history explicity
+    # explicit pressure update
     pr .= zero(pr)
     for i=1:pr.k
         pr .+= pr.tstep[i]*pr.uh[i]
     end
 
+    # pressure forcing
     px,py = diverᵀ(pr,mshV,JrPV,JsPV)
 
     evolve!(vx,setBC!,setForcing! .+ px,setVisc!)
@@ -226,5 +247,5 @@ function simulate!(sks::Stokes,callback!::Function
 
     return
 end
-#
 #----------------------------------------------------------------------
+#

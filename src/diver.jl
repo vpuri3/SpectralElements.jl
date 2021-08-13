@@ -62,7 +62,7 @@ function diverᵀ(pr  ::Array
     return qx,qy
 end
 #--------------------------------------#
-export pressureOp
+export stokesOp
 #--------------------------------------#
 """
  Schur complement + operator splitting
@@ -70,30 +70,36 @@ export pressureOp
 
  EE = -DD AA^-1 * DD'
 """
-function pressureOp(q   ::Array
-                   ,mshP::Mesh
-                   ,Jr,Js)
+function stokesOp(q   ::Array
+                 ,mshV::Mesh
+                 ,Mvx,Mvy,Jr,Js)
 
     # DD'
     qx,qy = diverᵀ(q,mshV,Jr,Js)
 
-    qx = gatherScatter(qx,mshV)
-    qy = gatherScatter(qy,mshV)
-
-    # Ainv approximation
-    qx = qx .* mshV.Bi
-    qy = qy .* mshV.Bi
+    # HHinv
+    qx = approxHlmzInv(qx,mshV)
+    qy = approxHlmzInv(qy,mshV)
     
-    qx = gatherScatter(qx,mshV)
-    qy = gatherScatter(qy,mshV)
-
-    qx = mask(qx,mshV)
-    qy = mask(qy,mshV)
-
     # DD
     Eq = diver(qx,qy,mshV,Jr,Js)
-    Eq = gatherScatter(Eq,mshV)
 
   return -Eq
+end
+#--------------------------------------#
+export approxHlmzInv
+#--------------------------------------#
+function approxHlmzInv(u::Array,b0::Number
+                      ,mshV::Mesh)
+
+    v = gatherScatter(u,mshV)
+    v = mask(v,Mvx)
+
+    v = v .* mshV.Bi ./ b0
+
+    v = gatherScatter(v,mshV)
+    v = mask(v,Mvx)
+
+    return v
 end
 #--------------------------------------#
