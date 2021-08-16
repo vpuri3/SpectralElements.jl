@@ -27,12 +27,12 @@ function setVisc!(ν,x,y,t)
 end
 
 function callback!(dfn::Diffusion)
-    @unpack fld,mshRef = dfn
+    @unpack fld,msh = dfn
     @unpack time, istep = dfn.tstep
 
     u = fld.u
     println("iter= $(istep[1]), time=$(time[1])")
-    plt = meshplt(u,mshRef[])
+    plt = meshplt(u,msh)
     display(plt)
     return
 end

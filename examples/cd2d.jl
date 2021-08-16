@@ -5,7 +5,7 @@ using LinearAlgebra,Plots, UnPack
 #----------------------------------#
 kx=1.0
 ky=1.0
-ux=0.25
+ux=1.00
 uy=0.0
 
 function utrue(x,y,t)
@@ -15,35 +15,35 @@ function utrue(x,y,t)
     return ut
 end
 
-function setIC!(u,x,y,t)
+function set0!(u,x,y,t)
     u .= utrue(x,y,t)
     return
 end
 
-function setBC!(ub,x,y,t)
+function set∂!(ub,x,y,t)
     ub .= 0.0
     return
 end
 
-function setForcing!(f,x,y,t)
+function setF!(f,x,y,t)
     f .= 0.0
     return
 end
 
-function setVisc!(ν,x,y,t)
+function setν!(ν,x,y,t)
     ν .= 0.0
     return
 end
 
 function callback!(cdn::ConvectionDiffusion)
-    @unpack fld,mshVRef = cdn
+    @unpack fld,mshV = cdn
     @unpack time, istep = cdn.tstep
 
-    ut = utrue(mshVRef[].x,mshVRef[].y,time[1])
+    ut = utrue(mshV.x,mshV.y,time[1])
     u  = fld.u
     er = norm(ut-u,Inf)
-    println("Step $(istep[1]), Time=$(time[1]), er=$er")
-    plt = meshplt(u,mshVRef[])
+    println("$(cdn.name), Step $(istep[1]), Time=$(time[1]), er=$er")
+    plt = meshplt(u,mshV)
     plt = plot!(zlims=(-1,1))
     display(plt)
     #frame(anim)
@@ -58,47 +58,16 @@ ifperiodic=[true,false]
 m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic)
 md = Mesh(nrd,nsd,Ex,Ey,ifperiodic)
 bc = ['N','N','D','D']
-dt = 0.01
-Temperature = ConvectionDiffusion(bc,m1,md,Tf=1.0,dt=dt)
 
-Temperature.vx .= ux
-Temperature.vy .= uy
-for i=1:length(Temperature.fld.uh)
-#   Temperature.fld.uh[i] .= utrue(m1.x,m1.y,-i*dt)
-#   Temperature.exH[i]    .= -advect(Temperature.fld.uh[i]
-#                                   ,Temperature.vx
-#                                   ,Temperature.vy
-#                                   ,m1,md
-#                                   ,Temperature.JrVD
-#                                   ,Temperature.JsVD)
-end
+fld = Field(bc,m1)
+vx = @. 0*m1.x + ux
+vy = @. 0*m1.x + uy
+tstep = TimeStepper(0.,1.,5e-3)
+ps = ConvectionDiffusion("ps",fld,vx,vy,tstep,md,set0!,set∂!,setF!,setν!)
 
 #anim = Animation()
-simulate!(Temperature,callback!,setIC!,setBC!,setForcing!,setVisc!)
+simulate!(ps,callback!)
 
 #gif(anim,"ConvectionDiffusion.gif",fps=30)
 #----------------------------------#
-
-# grad test
-if(false)
-# gradient ok
-
-x = m1.x
-y = m1.y
-u = utrue(x,y,0.0)
-
-ux_t = @. (kx*pi)*cos(kx*pi*x)*sin(ky*pi*y)
-uy_t = @. (ky*pi)*sin(kx*pi*x)*cos(ky*pi*y)
-ux,uy = grad(u,m1)
-
-ux = gatherScatter(ux,m1) .* m1.mult
-uy = gatherScatter(uy,m1) .* m1.mult
-meshplt(ux .- ux_t,m1)
-meshplt(uy .- uy_t,m1)
-
-
-# what else can go wrong? why is advection propogating
-# at a faster speed than the true solution?
-#
-end
-#----------------------------------#
+nothing

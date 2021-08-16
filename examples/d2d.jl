@@ -38,14 +38,14 @@ function caseSetup!(dfn::Diffusion)
     end
 
     function callback!(dfn::Diffusion)
-        @unpack fld,mshRef = dfn
+        @unpack fld,msh = dfn
         @unpack time, istep = dfn.tstep
 
-        ut = utrue(mshRef[].x,mshRef[].y,time[1])
+        ut = utrue(msh.x,msh.y,time[1])
         u  = fld.u
         er = norm(ut-u,Inf)
         println("Step $(istep[1]), Time=$(time[1]), er=$er")
-        plt = meshplt(u,mshRef[])
+        plt = meshplt(u,msh)
         plt = plot!(zlims=(-1,1))
         display(plt)
         #frame(anim)
@@ -56,8 +56,8 @@ function caseSetup!(dfn::Diffusion)
 end
 
 #----------------------------------#
-Ex = 10; nr1 = 8;
-Ey = 10; ns1 = 8;
+Ex = 5; nr1 = 8;
+Ey = 5; ns1 = 8;
 
 m1 = Mesh(nr1,ns1,Ex,Ey)
 bc = ['D','D','D','D']
