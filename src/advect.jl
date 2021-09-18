@@ -13,6 +13,7 @@ export advect
  R'R * QQ' * B * (ux*∂xT + uy*∂yT)
 
  (u⃗⋅∇)T = ux*∂xT + uy*∂yT
+
         = [ux uy] * [Dx] T
                     [Dx]
 

@@ -15,7 +15,7 @@ for i=1:n
     for j=1:(i-1) a[i]=a[i]*(x[i]-x[j]) end
     for j=(i+1):n a[i]=a[i]*(x[i]-x[j]) end
 end
-a = 1 ./ a
+a = 1 ./ a # Barycentric weights
 
 # diagonal elements
 D = x .- x'

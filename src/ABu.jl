@@ -3,6 +3,7 @@
 export ABu
 #--------------------------------------#
 """
+ Tensor product operator
  (As ⊗ Br) * u
 """
 function ABu(As::AbstractArray,Br::AbstractArray,u::AbstractArray)
