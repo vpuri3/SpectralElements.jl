@@ -24,7 +24,7 @@ if(length(As)!=0)
     ma,na = size(As);
     Ey    = n/na;
     n     = Int(Ey*ma);
-    tmp   = zeros(eltype(u),m,n);
+    tmp   = zeros(m,n);
     for i=1:Ey
         ii=Int((i-1)*ma+1):Int(i*ma);
         jj=Int((i-1)*na+1):Int(i*na);
@@ -75,9 +75,9 @@ export ABu1!
  focus on deformed([-1,1]²) for now. think about general geomtries later
 
 """
-function ABu1!(v,As,Br,u)
+function ABu1!(v,As,Br,u;E=5)
 
-    @views for ie=1:size(E)[end]
+    @views for ie=1:E
         v[:,:,ie] .= Br * u[:,:,ie] * As'
     end
 
