@@ -51,8 +51,8 @@ function callback!(cdn::ConvectionDiffusion)
 end
 
 #----------------------------------#
-Ex = 5; nr1 = 8; nrd = 8;
-Ey = 5; ns1 = 8; nsd = 8;
+Ex = 5; nr1 = 8; nrd = 12;
+Ey = 5; ns1 = 8; nsd = 12;
 
 ifperiodic=[true,false]
 m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic)

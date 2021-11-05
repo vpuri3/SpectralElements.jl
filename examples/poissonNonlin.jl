@@ -1,6 +1,5 @@
 #!/usr/bin/env julia
 
-using Revise
 using SEM
 using LinearAlgebra,Plots,UnPack
 

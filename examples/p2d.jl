@@ -1,9 +1,6 @@
 #!/usr/bin/env julia
 
-using Revise
-using SEM
-using LinearAlgebra,Plots, UnPack
-using Flux
+using SEM, Flux, LinearAlgebra, Plots, UnPack
 import Zygote
 #----------------------------------#
 function setIC!(u,x,y,t)
@@ -51,29 +48,29 @@ ps = 0
 simulate!(diffuseU,callback!,setIC!,setBC!,setForcing!,setVisc!)
 
 #----------------------------------#
-utrue = diffuseU.fld.u
-
-nu = [0.8]
-ps = Flux.params(nu)
-
-function model()
-    dU = Zygote.ignore() do
-        Diffusion(bc,m1,Tf=0.0,dt=0.0)
-    end
-    function varVisc!(ν,x,y,t)
-        ν .= @. nu + 0*x
-        return ν
-    end
-    simulate!(dU,callback!,setIC!,setBC!,setForcing!,varVisc!)
-    return dU.fld.u
-end
-function loss()
-    upred = model()
-    return Flux.Losses.mse(upred,utrue)
-end
-
-opt = Flux.Optimise.ADAM(1e-2)
-gs = Flux.gradient(()->loss(),ps)
+#utrue = diffuseU.fld.u
+#
+#nu = [0.8]
+#ps = Flux.params(nu)
+#
+#function model()
+#    dU = Zygote.ignore() do
+#        Diffusion(bc,m1,Tf=0.0,dt=0.0)
+#    end
+#    function varVisc!(ν,x,y,t)
+#        ν .= @. nu + 0*x
+#        return ν
+#    end
+#    simulate!(dU,callback!,setIC!,setBC!,setForcing!,varVisc!)
+#    return dU.fld.u
+#end
+#function loss()
+#    upred = model()
+#    return Flux.Losses.mse(upred,utrue)
+#end
+#
+#opt = Flux.Optimise.ADAM(1e-2)
+#gs = Flux.gradient(()->loss(),ps)
 
 #Flux.train!(loss,ps,Iterators.repeated((),100),opt)
 #----------------------------------#

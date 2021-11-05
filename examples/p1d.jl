@@ -1,15 +1,14 @@
 #!/usr/bin/env julia
 
-using Revise,SEM
-using FastGaussQuadrature
+using SEM
 using Plots,LinearAlgebra
 
-n = 16
-x,w = gausslobatto(n)
-xo  = linspace(-1,1,20*n)
+n = 8
+x,w = SEM.FastGaussQuadrature.gausslobatto(n)
+xo  = SEM.linspace(-1,1,10*n)
 
-J = interpMat(xo,x)
-D = derivMat(x)
+J = SEM.interpMat(xo,x)
+D = SEM.derivMat(x)
 
 # neumann operators
 B = diagm(w)
@@ -18,14 +17,15 @@ C(v) = B * diagm(v) * D
 
 ## CASE SETUP
 function utrue(x,v,t)
-    xx = @. x - v*t
-    return @. sin(2pi*xx)
+    xx = x - v*t
+    return cos(2pi*xx)
+#   return exp(-5*x*x)
 end
 f = @. 0+0*x
 vl= 1.0
 v = @. vl+0*x
 ν = 0e-0
-u = utrue(x,vl,0.0)
+u = utrue.(x,vl,0.0)
 id= Matrix(I,n,n)
 
 #R = id[2:end-1,:] # double dirichlet
@@ -34,7 +34,7 @@ Q = semq(1,n,true)
 
 CFL = 0.1
 dx = minimum(diff(x))
-dt = dx * CFL / vl
+dt = CFL * dx / vl
 println("CFL=$CFL, dt=$dt")
 
 ## global system (full rank)
@@ -81,13 +81,13 @@ for istep=1:nstep
         rhs  +=  bdfA[i]   .* gh[i]       # explicit term
     end
 
-    Hl = Al + bdfB[1]*Bl
+    Hl = Al + bdfB[1]*Bl # Helmholtz op
 
     Hl  = Q*Q'*Hl
     rhs = Q*Q'*rhs
     u = pcg(rhs,Hl)
 
-    ut = utrue(x,vl,t[1])
+    ut = utrue.(x,vl,t[1])
     er = norm(u .- ut,Inf)
     println("Pointwise error: $er")
 
@@ -96,5 +96,10 @@ for istep=1:nstep
     plt = plot!(ylims=(-1.5,1.5))
     display(plt)
 end
+println("CFL=$CFL, dt=$dt")
 #----------------------------------------------------------------------#
-nothing
+
+#prob = ODEProblem(dudt,u0,tspn)
+#sol  = solve(prob,SSPRK33(),dt=0.01,saveat=0.1,cb=callback)
+#----------------------------------------------------------------------#
+return
