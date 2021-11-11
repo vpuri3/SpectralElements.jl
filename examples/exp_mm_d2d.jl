@@ -197,27 +197,35 @@ sol  = solve(prob,
 #            Rodas5();
 #            Rodas5(linsolve=LinSolveGMRES(Pl=precondB));
              Rodas5(linsolve=LinSolveGMRES());
-#            Rodas5(linsolve=LinSolveCG());
              saveat=0.1,
              callback=cb,
             )
-#----------------------------------------------------------------------#
-#function dudt!(du,u,p,t)
-#    f = setForcing.(xl,yl,t)
-#    rhs = -AA*u + Bb*f
-#    pcg!(du,rhs,BB;opM=x->x.*Big,ifv=false)
-#    return du
-#end
-#
-#u0   = setIC.(xx,yy)
-#dt   = 0.01
-#tspn = (0.0,1.0)
-#
-#func = ODEFunction(dudt!)
-#prob = ODEProblem(func,u0,tspn)
-#sol  = solve(prob, Rodas5(); saveat=0.1, callback=cb)
-#----------------------------------------------------------------------#
+
 @show sol.retcode
 err = sol.u - [utrue.(xx,yy,sol.t[i]) for i=axes(sol.t,1)]
 ee  = maximum.(abs.(err[i]) for i=axes(sol.t,1))
+#----------------------------------------------------------------------#
+"""
+ standard form - mass-matrix inversion inside ODEFunciton
+"""
+
+function dudt!(du,u,p,t)
+    f = setForcing.(xl,yl,t)
+    rhs = -AA*u + Bb*f
+    pcg!(du,rhs,BB;opM=x->x.*Big,ifv=false)
+    return du
+end
+
+u0   = setIC.(xx,yy)
+dt   = 0.01
+tspn = (0.0,1.0)
+
+func = ODEFunction(dudt!)
+prob = ODEProblem(func,u0,tspn)
+sol  = solve(prob, Rodas5(); saveat=0.1, callback=cb)
+
+@show sol.retcode
+err = sol.u - [utrue.(xx,yy,sol.t[i]) for i=axes(sol.t,1)]
+ee  = maximum.(abs.(err[i]) for i=axes(sol.t,1))
+#----------------------------------------------------------------------#
 return ee
