@@ -1,6 +1,9 @@
 #
 module SEM
 
+using Reexport
+@reexport using DiffEqBase
+
 using LinearAlgebra,SparseArrays
 using Zygote,Plots
 using UnPack
@@ -9,7 +12,7 @@ using StaticArrays
 import FastGaussQuadrature
 import Zygote,NNlib
 #--------------------------------------#
-Base.:*(op::Function,x::Array) = op(x)
+Base.:*(op::Function, x::AbstractArray) = op(x)
 #--------------------------------------#
 export linspace
 linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
@@ -22,6 +25,26 @@ sum(A) = Base.sum(A)
 #cumprod(A::Array) = Base.cumprod(A, dims=1)
 #cumprod(A::Array, d::Int) = Base.cumprod(A, dims=d)
 #flipdim(A, d) = reverse(A, dims=d)
+#--------------------------------------#
+"""
+ DiffEq ecosystem bindings
+"""
+#abstract type SEMPDEAlgorithm <: AbstractPDEAlgorithm end
+#
+#struct EllipticPDEAlgorithm <: SEMPDEAlgorithm end
+#
+#function DiffEqBase.__solve{}(
+#                              prob::AbstractSEMPDEProblem
+#                             )
+#
+#    build_solution(prob,alg,ts,timeseries,
+#                   du = dures,
+#                   dense = dense,
+#                   timeseries_errors = timeseries_errors,
+#                   retcode = :Success)
+#end
+
+
 #--------------------------------------#
 
 # SEM building blocks

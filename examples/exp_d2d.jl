@@ -28,16 +28,14 @@ function setForcing(x,y,t)
 end
 
 #----------------------------------#
-it = 0
 function cond(u,t,integrator)
-    global it
-    cond = (it % 100) == 0
-    it += 1
+    istep = integrator.iter
+    cond = (istep % 1) == 0
     return cond
 end
 
 function affect!(integrator)
-    global it
+    istep = integrator.iter
     u = integrator.u
     p = integrator.p
     t = integrator.t
@@ -45,7 +43,7 @@ function affect!(integrator)
 
     ut = utrue(m1.x,m1.y,t)
     er = norm(ut-u,Inf)
-    println("Step=$it, Time=$t, dt=$dt, er=$er")
+    println("Step=$istep, Time=$t, dt=$dt, er=$er")
     plt = meshplt(u,m1)
     plt = plot!(zlims=(-1,1))
     display(plt)
@@ -55,23 +53,24 @@ end
 cb = DiscreteCallback(cond,affect!,save_positions=(false,false))
 
 #----------------------------------#
-function dudt(u,p,t)
+function dudt!(du,u,p,t)
     f = setForcing.(m1.x,m1.y,t)
 
     rhs = -lapl(u,m1) + mass(f,m1)
     rhs = gatherScatter(rhs,m1)
 
-    dudt = pcg(rhs,opB;opM=opM,mult=m1.mult,ifv=false)
+    pcg!(du,rhs,opB;opM=opM,mult=m1.mult,ifv=false)
 
-    return dudt
+    return du
 end
 
 u0   = setIC(m1.x,m1.y)
 dt   = 0.01
 tspn = (0.0,1.0)
 
-prob = ODEProblem(dudt,u0,tspn)
-sol  = solve(prob,RK4();saveat=0.1,callback=cb)
+func = ODEFunction(dudt!)
+prob = ODEProblem(func,u0,tspn)
+sol  = solve(prob, Rodas5(); saveat=0.1, callback=cb)
 
 err = sol.u - [utrue.(m1.x,m1.y,sol.t[i]) for i=axes(sol.t,1)]
 ee = maximum.(abs.(err[i]) for i=axes(sol.t,1))

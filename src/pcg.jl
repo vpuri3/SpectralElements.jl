@@ -3,7 +3,7 @@
 export pcg
 #--------------------------------------#
 """
- Preconditioned conjugate gradient
+ Left-Preconditioned conjugate gradient
 
  We can't just use any packaged iterative solver for the PCG because
  we need to overwrite not just A*x, A'*x ops for Ax=b which is
@@ -14,7 +14,7 @@ export pcg
 
 """
 function pcg(b,opA
-            ;opM=x->x           # preconditioner
+            ;opM=x->x           # left-preconditioner
             ,mult=ones(size(b)) # SEM mult
             ,ifv=false          # verbose flag
             ,tol=1e-8           # tolerance
@@ -62,7 +62,7 @@ end
 export pcg!
 #--------------------------------------#
 function pcg!(x,b,opA
-             ;opM=x->x           # preconditioner
+             ;opM=x->x           # left-preconditioner
              ,mult=ones(size(b)) # SEM mult
              ,ifv=false          # verbose flag
              ,tol=1e-8           # tolerance

@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-using SEM
+using SEM, OrdinaryDiffEq, Flux
 
 using Plots, LinearAlgebra, SparseArrays
 
@@ -71,28 +71,58 @@ mult1 = reshape(mult,:)
 # geometry
 #----------------------------------------------------------------------#
 x1e,_ = semmesh(Ex,nx1); y1e,_ = semmesh(Ey,ny1);
-
 x1,y1 = ndgrid(x1e,y1e);
 
 # deform grid with gordonhall
-x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
+#x1 = @. 0.5 * (x1 + 1); y1 = @. 0.5 * (y1 + 1);
 
 Jac1,Jaci1,rx1,ry1,sx1,sy1 = jac(x1,y1,Dx1,Dy1);
 
 #----------------------------------------------------------------------#
 # case setup
 #----------------------------------------------------------------------#
-# prescribe forcing, true solution, boundary data
-kx=1.
-ky=1.
-ut = @. sin(kx*pi*x1)*sin(ky*pi*y1) # true solution
-f  = @. ut*((kx^2+ky^2)*pi^2);      # forcing/RHS
-ub = copy(ut);                      # boundary data
+kx=1.0
+ky=1.0
+kt=1.0
+ν =1.0
 
-visc = @. 1+0*x1;
+utrue(x,y,t) = sin(kx*pi*x)*sin.(ky*pi*y)*cos(kt*pi*t)
+setIC(x,y)   = utrue(x,y,0.0)
 
-#f = @. 1+0*x1;
-ub= @. 0+0*x1;
+function setForcing(x,y,t)
+    ut = utrue(x,y,t)
+    f  = ut*((kx^2+ky^2)*pi^2*ν)
+    f -= sin(kx*pi*x)*sin(ky*pi*y)*sin(kt*pi*t)*(kt*pi)
+end
+
+# callback
+function cond(u,t,integrator)
+    istep = integrator.iter
+    cond = (istep % 1) == 0
+    return cond
+end
+
+function affect!(integrator)
+    istep = integrator.iter
+    u = integrator.u
+    p = integrator.p
+    t = integrator.t
+    dt = integrator.dt
+
+    ut = utrue.(xx,yy,t)
+    er = norm(ut-u,Inf)
+    println("Step=$istep, Time=$t, dt=$dt, er=$er")
+
+    ul  = reshape(Q*Rg'*u ,nx1*Ex,ny1*Ey)
+#   dul = reshape(Q*Rg'*du,nx1*Ex,ny1*Ey)
+    plt = meshplt(x1,y1,ul)
+    plt = plot!(zlims=(-1,1))
+    display(plt)
+    return
+end
+
+cb = DiscreteCallback(cond,affect!,save_positions=(false,false))
+
 #----------------------------------------------------------------------#
 # setup
 #----------------------------------------------------------------------#
@@ -102,55 +132,22 @@ B1  = Jac1 .* (wx1*wy1');
 Bi1 = 1 ./ B1;
 
 # set up matrices for Laplace op.
-G11 = @. visc * B1 * (rx1 * rx1 + ry1 * ry1);
-G12 = @. visc * B1 * (rx1 * sx1 + ry1 * sy1);
-G22 = @. visc * B1 * (sx1 * sx1 + sy1 * sy1);
+G11 = @. ν * B1 * (rx1 * rx1 + ry1 * ry1);
+G12 = @. ν * B1 * (rx1 * sx1 + ry1 * sy1);
+G22 = @. ν * B1 * (sx1 * sx1 + sy1 * sy1);
 #----------------------------------------------------------------------#
-# Laplace Fast Diagonalization Preconditioner
+# Linear System
 #----------------------------------------------------------------------#
-#rx = rx1[1]
-#sy = sy1[1]
-#Ja = Jac1[1]
-#Bx = diagm(wr1 ./ rx)
-#By = diagm(ws1 ./ rx)
-#Dx = rx*Dr1
-#Dy = sy*Ds1
-#Ax = Dx'*Bx*Dx
-#Ay = Dy'*By*Dy
-##
-##Br = Rx*Br*Rx'
-##Bs = Ry*Bs*Ry'
-##Ar = Rx*Ar*Rx'
-##As = Ry*As*Ry'
-#
-#Lx,Sx = eigen(Ax,Bx); Sxi = inv(Sx);
-#Ly,Sy = eigen(Ay,By); Syi = inv(Sy);
-#ox=ones(size(Lx));
-#oy=ones(size(Ly));
-#Lfdm  = Lx*oy' + ox*Ly';
-#Lfdmi = 1 ./ Lfdm;
-#for j=1:ny1 for i=1:nx1
-#    if(abs(Lfdmi[i,j])>1e8) Lfdmi[i,j] = 0; end
-#end end
-#Sx  = kron(Iex,Sx ); Sy  = kron(Iey,Sy );
-#Sxi = kron(Iex,Sxi); Syi = kron(Iey,Syi);
-#Lfdmi = kron(ones(Ex,Ey),Lfdmi);
-#
-#Li = Diagonal(reshape(Lfdmi,:));
-#Bi = Diagonal(reshape(Bi1  ,:));
-#FD = kron(Sy,Sx) * Li * kron(Syi,Sxi) * Bi;
-#----------------------------------------------------------------------#
-# Explicit system
-#----------------------------------------------------------------------#
-# operators
+
 Ixl = Matrix(I,Ex*nx1,Ex*nx1);              # Identity on local vectors
 Iyl = Matrix(I,Ey*ny1,Ey*ny1);
 Ixg = Matrix(I,Ex*(nx1-1)+1,Ex*(nx1-1)+1);  # Identity on global vectors
 Iyg = Matrix(I,Ey*(ny1-1)+1,Ey*(ny1-1)+1);
 Rxl = Ixl[2:end-1,:]; Rxg = Ixg[2:end-1,:]; # restriction on loc/gl vectors
 Ryl = Iyl[2:end-1,:]; Ryg = Iyg[2:end-1,:];
-Rl  = kron(Ryl,Rxl);  Rg  = kron(Ryg,Rxg);
-Q   = kron(Qy1,Qx1);
+Rl  = kron(Ryl,Rxl)
+Rg  = kron(Ryg,Rxg)
+Q   = kron(Qy1,Qx1)
 Dr  = kron(Iyl,Dx1);
 Ds  = kron(Dy1,Ixl);
 Drs = [Dr;Ds];
@@ -160,40 +157,67 @@ g12 = Diagonal(reshape(G12,:))
 g22 = Diagonal(reshape(G22,:))
 G   = [g11 g12; g12 g22]
 A   = Drs' * G * Drs
-fl  = reshape(f,:) # forcing
 
-# rank deficient system acting on local, unrestricted operators
-M    = Rl'*Rl
-QQt  = Q*Q'
-Aloc = QQt * M * A # equivale to (Q * Rg' * Rg * Q') * A
-Bloc = QQt * M * B
-bloc = Bloc * fl
-@time uloc = pcg(bloc,Aloc;mult=mult1)
-uloc = reshape(uloc,Ex*nx1,Ey*ny1)
+# local vectors
+xl  = reshape(x1,:)
+yl  = reshape(y1,:)
 
-# full rank system acting on global, restricted vectors
+# global
+xx = Rg * Q' * xl
+yy = Rg * Q' * yl
+
+#----------------------------------------------------------------------#
+# full rank global system
 AA = Rg * Q' * A * Q * Rg'
 BB = Rg * Q' * B * Q * Rg'
-bb = Rg * Q' * B * fl;
-@time uu = pcg(bb,AA)
-uu = Q * Rg' * uu
-uu = reshape(uu,Ex*nx1,Ey*ny1)
+Bb = Rg * Q' * B
+
+Big = Rg * Q' * reshape(Bi1,:)
+BBi = Diagonal(Big)
+precondB = BBi \ LinearAlgebra.I
 
 #----------------------------------------------------------------------#
-laplOp(v) = lapl(v,M1,[],[],QQtx1,QQty1,Dx1,Dy1,G11,G12,G22,mult);
-#laplFdmOp(v) = lapl_fdm(v,Bi1,Sx,Sy,Sxi,Syi,Lfdmi);
+"""
+ mass matrix form
+"""
 
-b   = mass(f,[],B1,[],[],[],[],mult)
-b .-= lapl(ub,[],[],[],[],[],Dx1,Dy1,G11,G12,G22,mult)
-b   = mass(b,M1,[],[],[],QQtx1,QQty1,mult)
+function Mdudt!(Mdu,u,p,t)
+    f = setForcing.(xl,yl,t)
+    Mdu = -AA*u + Bb*f
+    return Mdu
+end
 
-@time u = pcg(b,laplOp;mult=mult)
-u = u + ub
+u0   = setIC.(xx,yy)
+dt   = 0.01
+tspn = (0.0,1.0)
+
+func = ODEFunction(Mdudt!;mass_matrix=BB)
+prob = ODEProblem(func,u0,tspn)
+sol  = solve(prob,
+#            Rodas5();
+#            Rodas5(linsolve=LinSolveGMRES(Pl=precondB));
+             Rodas5(linsolve=LinSolveGMRES());
+#            Rodas5(linsolve=LinSolveCG());
+             saveat=0.1,
+             callback=cb,
+            )
 #----------------------------------------------------------------------#
-print("Rank deficient system, er: ",norm(ut-uloc,Inf),"\n")
-print("Full rank system, er: ",norm(ut-uu,Inf),"\n")
-print("Functions as operators, er: ",norm(ut-u,Inf),"\n")
-p = meshplt(x1,y1,uu)
-display(p)
+#function dudt!(du,u,p,t)
+#    f = setForcing.(xl,yl,t)
+#    rhs = -AA*u + Bb*f
+#    pcg!(du,rhs,BB;opM=x->x.*Big,ifv=false)
+#    return du
+#end
+#
+#u0   = setIC.(xx,yy)
+#dt   = 0.01
+#tspn = (0.0,1.0)
+#
+#func = ODEFunction(dudt!)
+#prob = ODEProblem(func,u0,tspn)
+#sol  = solve(prob, Rodas5(); saveat=0.1, callback=cb)
 #----------------------------------------------------------------------#
-nothing
+@show sol.retcode
+err = sol.u - [utrue.(xx,yy,sol.t[i]) for i=axes(sol.t,1)]
+ee  = maximum.(abs.(err[i]) for i=axes(sol.t,1))
+return ee
