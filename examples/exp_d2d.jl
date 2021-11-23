@@ -71,6 +71,8 @@ tspn = (0.0,1.0)
 func = ODEFunction(dudt!)
 prob = ODEProblem(func,u0,tspn)
 sol  = solve(prob, Rodas5(); saveat=0.1, callback=cb)
+using LinearSolve
+sol  = solve(prob, Rodas5(linsolve=LUFactorization()); saveat=0.1, callback=cb)
 
 err = sol.u - [utrue.(m1.x,m1.y,sol.t[i]) for i=axes(sol.t,1)]
 ee = maximum.(abs.(err[i]) for i=axes(sol.t,1))

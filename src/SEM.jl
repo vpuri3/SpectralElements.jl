@@ -26,24 +26,57 @@ sum(A) = Base.sum(A)
 #cumprod(A::Array, d::Int) = Base.cumprod(A, dims=d)
 #flipdim(A, d) = reverse(A, dims=d)
 #--------------------------------------#
+
+include("Spectral/Spectral.jl")
+
+#=
+abstract type AbstractSpectralElementMesh end
+abstract type AbstractSpectralElementOperator{T} <: AbstractMatrix{T} end
+abstract type AbstractSpectralElementField{T}    <: AbstractVector{T} end
+
+abstract type AbstractGatherScatter end
+
+mutable struct GatherScatter{T,N}
+    QQtx::AbstractArray{T,}
+    QQty::AbstractArray{T,}
+    mult::AbstractArray{T,N}
+end
+
+mutable struct SpectralElementMesh{T,Ti,N}
+    E::Vector{Ti}
+    n::Vector{Ti}
+
+    space::Discretization{T}
+    gs::GatherScatte{T,N}
+
+    geom::Geometry
+    #x::AbstractArray{T,N}
+    #y::AbstractArray{T,N}
+    # J, Ji, rx,ry,sx,sy, B, Bi,
+end
+
+mutable struct LaplaceOperator{T,N} <: SpectralElementOperator
+    G::AbstractVector{AbstractArray{T}}
+    msh::Tmsh{T,Ti,N}
+end
+
+mutable struct SpectralElementField{Tu <: AbstractArray{T,N},
+#                           Tbc, Tm,
+                            Tmsh{T,N}} <: AbstractSpectralElementField{T,N}
+    u::Tu
+#   ub::Tu
+#   bc::Tbc
+#   M::Tm
+    msh::Tmsh
+end
+
+#Base.:*
+
 """
  DiffEq ecosystem bindings
 """
-#abstract type SEMPDEAlgorithm <: AbstractPDEAlgorithm end
-#
-#struct EllipticPDEAlgorithm <: SEMPDEAlgorithm end
-#
-#function DiffEqBase.__solve{}(
-#                              prob::AbstractSEMPDEProblem
-#                             )
-#
-#    build_solution(prob,alg,ts,timeseries,
-#                   du = dures,
-#                   dense = dense,
-#                   timeseries_errors = timeseries_errors,
-#                   retcode = :Success)
-#end
 
+=#
 
 #--------------------------------------#
 
@@ -78,6 +111,6 @@ include("convectionDiffusion.jl")
 #include("stokes.jl")
 
 include("plt.jl")
+#--------------------------------------#
 
 end # module
-#--------------------------------------#
