@@ -13,7 +13,7 @@ z0,w0 = FastGaussQuadrature.gausslobatto(n); # [-1,1]
 z0 = 0.5 .* (z0.+1); # [0,1]
 w0 = 0.5 .*  w0;
 
-ze = linspace(-1,1,E+1); # element mesh
+ze = range(start=-1,stop=1,length=E+1) |> Array # element mesh
 dz = diff(ze);
 
 z = kron(dz,z0) + kron(ze[1:end-1],ones(n,1));

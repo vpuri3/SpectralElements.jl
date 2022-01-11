@@ -1,30 +1,15 @@
 #
 module SEM
 
-using Reexport
-@reexport using DiffEqBase
-
-using LinearAlgebra,SparseArrays
-using Zygote,Plots
+using LinearAlgebra, SparseArrays
+using Zygote
+using Plots
 using UnPack
-using StaticArrays
 
 import FastGaussQuadrature
-import Zygote,NNlib
+import Zygote, NNlib
 #--------------------------------------#
 Base.:*(op::Function, x::AbstractArray) = op(x)
-#--------------------------------------#
-export linspace
-linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
-#--------------------------------------#
-export iscallable
-iscallable(op) = !isempty(methods(op))
-#--------------------------------------#
-sum(A::Array, n::Int) = Base.sum(A, dims=n)
-sum(A) = Base.sum(A)
-#cumprod(A::Array) = Base.cumprod(A, dims=1)
-#cumprod(A::Array, d::Int) = Base.cumprod(A, dims=d)
-#flipdim(A, d) = reverse(A, dims=d)
 #--------------------------------------#
 
 include("Spectral/Spectral.jl")
@@ -111,6 +96,21 @@ include("convectionDiffusion.jl")
 #include("stokes.jl")
 
 include("plt.jl")
+#--------------------------------------#
+#function dolinsolve(integrator, linsolve; A = nothing, u = nothing, b = nothing,
+#                             Pl = nothing, Pr = nothing,
+#                             reltol = integrator === nothing ? nothing : integrator.opts.reltol)
+#  A !== nothing && (linsolve = LinearSolve.set_A(linsolve,A))
+#  b !== nothing && (linsolve = LinearSolve.set_b(linsolve,b))
+#  u !== nothing && (linsolve = LinearSolve.set_u(linsolve,u))
+#  (Pl !== nothing || Pr !== nothing) && (linsolve = LinearSolve.set_prec(Pl,Pr))
+#
+#  linres = if reltol === nothing
+#    solve(linsolve;reltol)
+#  else
+#    solve(linsolve;reltol)
+#  end
+#end
 #--------------------------------------#
 
 end # module
