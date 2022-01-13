@@ -1,3 +1,22 @@
+"""
+ the TPPField struct is pretty useless since you can just do
+ linsolve(;u=vec(u), b=vec(b))
+ vec(u) DOESN'T ALLOCATE!!
+ ```julia
+ u = ones(3,3);
+ v = vec(u);
+ v[1] = 0
+ u
+ 3×3 Matrix{Float64}:
+  0.0  1.0  1.0
+  1.0  1.0  1.0
+  1.0  1.0  1.0
+ ```
+
+ check out function OrdinaryDiffEq.dolinsolve
+ check out https://diffeq.sciml.ai/stable/tutorials/advanced_ode_example/
+
+"""
 #
 import Base: summary, show                                  # printing
 import Base: similar, copy, copy!                           # allocation
