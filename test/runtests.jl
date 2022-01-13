@@ -8,6 +8,8 @@ using Test
    v = u'
    D = Spectral.TPPDiagOp(u)
    v = u .+ u
-   @test size(v.u) == (10,10)
+   @test size(v.u) == (10,10) # broadcasting works ok
+
+   space = GLL2D(8)
 end
 

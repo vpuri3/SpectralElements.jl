@@ -342,6 +342,12 @@ version = "1.0.0"
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
+[[deps.Debugger]]
+deps = ["CodeTracking", "Crayons", "Highlights", "InteractiveUtils", "JuliaInterpreter", "Markdown", "REPL"]
+git-tree-sha1 = "8fcb5e5af494025950b6c2771801e5d71860e5b2"
+uuid = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
+version = "0.7.0"
+
 [[deps.DefineSingletons]]
 git-tree-sha1 = "0fba8b706d0178b4dc7fd44a96a92382c9065c2c"
 uuid = "244e2a9f-e319-4986-a169-4d1fe445cd52"
@@ -487,9 +493,9 @@ version = "0.8.0"
 
 [[deps.Enzyme_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "0bd36cb0243fec3b864c3ea5d8c99aa1da2307f0"
+git-tree-sha1 = "c15f7c12a894b5bc85d5a37866f9d0ab46a692ae"
 uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
-version = "0.0.26+0"
+version = "0.0.26+1"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -750,6 +756,12 @@ deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll",
 git-tree-sha1 = "129acf094d168394e80ee1dc4bc06ec835e510a3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+1"
+
+[[deps.Highlights]]
+deps = ["DocStringExtensions", "InteractiveUtils", "REPL"]
+git-tree-sha1 = "f823a2d04fb233d52812c8024a6d46d9581904a4"
+uuid = "eafb193a-b7ab-5a9e-9068-77385905fa72"
+version = "0.4.5"
 
 [[deps.HostCPUFeatures]]
 deps = ["BitTwiddlingConvenienceFunctions", "IfElse", "Libdl", "Static"]
@@ -1693,7 +1705,7 @@ uuid = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 version = "0.5.3"
 
 [[deps.SEM]]
-deps = ["FastGaussQuadrature", "Flux", "LinearSolve", "NNlib", "Plots", "Reexport", "Setfield", "TestEnv", "UnPack", "Zygote"]
+deps = ["FastGaussQuadrature", "Flux", "LinearAlgebra", "LinearSolve", "NNlib", "Plots", "Reexport", "Setfield", "SparseArrays", "TestEnv", "UnPack", "Zygote"]
 path = ".."
 uuid = "0e8ceff7-dec4-4c6b-b4a8-fe063cb3693d"
 version = "0.1.0"

@@ -5,7 +5,7 @@ using LinearAlgebra
 import FastGaussQuadrature
 
 #--------------------------------------#
-include("common.jl")
+include("TensorProductPoly.jl")
 #--------------------------------------#
 
 end #module
