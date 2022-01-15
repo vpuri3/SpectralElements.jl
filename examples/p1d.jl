@@ -1,14 +1,14 @@
 #!/usr/bin/env julia
 
-using SEM
+using SpectralElements
 using Plots,LinearAlgebra
 
 n = 8
-x,w = SEM.FastGaussQuadrature.gausslobatto(n)
-xo  = SEM.linspace(-1,1,10*n)
+x,w = SpectralElements.FastGaussQuadrature.gausslobatto(n)
+xo  = SpectralElements.linspace(-1,1,10*n)
 
-J = SEM.interpMat(xo,x)
-D = SEM.derivMat(x)
+J = SpectralElements.interpMat(xo,x)
+D = SpectralElements.derivMat(x)
 
 # neumann operators
 B = diagm(w)

@@ -1,5 +1,5 @@
 #
-using SEM, Plots
+using SpectralElemenets, Plots
 import FastGaussQuadrature
 
 nr = 8

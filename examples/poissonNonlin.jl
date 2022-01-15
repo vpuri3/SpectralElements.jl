@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-using SEM
+using SpectralElements
 using LinearAlgebra,Plots,UnPack
 
 #----------------------------------#

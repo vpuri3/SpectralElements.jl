@@ -1,5 +1,5 @@
 #
-module SEM
+module SpectralElements
 
 using LinearAlgebra, SparseArrays
 using Zygote

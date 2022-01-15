@@ -1,9 +1,9 @@
-using SEM
+using SpectralElements
 using Test
 
-@testset "SEM.jl" begin
+@testset "SpectralElements.jl" begin
 
-   using SEM.Spectral
+   using SpectralElements.Spectral
    u = Spectral.TPPField(rand(10,10))
    v = u'
    D = Spectral.TPPDiagOp(u)

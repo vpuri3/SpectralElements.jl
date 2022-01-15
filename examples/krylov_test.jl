@@ -12,6 +12,7 @@ GOALS
     https://github.com/SciML/DiffEqBase.jl/issues/366
 
 3. Make SEM.jl operators AbstractDiffEqOperators
+4. Make SEM fields subsets of AbstractVector
 
 """
 

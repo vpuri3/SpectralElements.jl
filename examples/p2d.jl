@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-using SEM, Flux, LinearAlgebra, Plots, UnPack
+using SpectralElements, Flux, LinearAlgebra, Plots, UnPack
 import Zygote
 #----------------------------------#
 function setIC!(u,x,y,t)
@@ -39,7 +39,7 @@ Ex = 5; nr1 = 8;
 Ey = 5; ns1 = 8;
 
 ifperiodic = [false,true]
-m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic,SEM.annulus)
+m1 = Mesh(nr1,ns1,Ex,Ey,ifperiodic,SpectralElements.annulus)
 bc = ['D','D','N','N']
 diffuseU = Diffusion(bc,m1,Tf=0.0,dt=0.00)
 
