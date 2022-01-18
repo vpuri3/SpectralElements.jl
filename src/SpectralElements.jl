@@ -9,10 +9,17 @@ using UnPack
 import FastGaussQuadrature
 import Zygote, NNlib
 #--------------------------------------#
+# conveniences
 Base.:*(op::Function, x::AbstractArray) = op(x)
+linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
 #--------------------------------------#
 
 include("Spectral/Spectral.jl")
+
+struct SpectralElementOperator
+    element_info
+    spectral_op
+end
 
 #=
 abstract type AbstractSpectralElementMesh end
