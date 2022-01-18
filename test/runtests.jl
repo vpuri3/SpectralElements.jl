@@ -1,15 +1,22 @@
 using SpectralElements
 using Test
+using Pkg, SafeTestsets
+
+function activate_examples_env()
+    Pkg.activate("../examples")
+    Pkg.develop(PackageSpec(path=dirname(@__DIR__)))
+    Pkg.instantiate()
+end
 
 @testset "SpectralElements.jl" begin
 
-   using SpectralElements.Spectral
-   u = Spectral.TPPField(rand(10,10))
-   v = u'
-   D = Spectral.TPPDiagOp(u)
-   v = u .+ u
-   @test size(v.u) == (10,10) # broadcasting works ok
+    using SpectralElements.Spectral
+    u = Spectral.Field(rand(10,10))
+    v = u'
+    D = Spectral.DiagonalOp(u)
+    v = u .+ u
+    @test size(v.u) == (10,10) # broadcasting works ok
 
-   space = GLL2D(8)
+    activate_examples_env()
+#   @time @safetestset "Examples" begin include("examples.jl") end
 end
-

@@ -10,7 +10,7 @@
 #    ny1::Int
 #end
 
-using SEM
+using SpectralElements
 
 using FastGaussQuadrature
 using Plots,LinearAlgebra,SparseArrays
