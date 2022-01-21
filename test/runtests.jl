@@ -1,10 +1,10 @@
 using SpectralElements
-using Test
-using Pkg, SafeTestsets
+using Test, SafeTestsets
+import Pkg
 
-function activate_examples_env()
-    Pkg.activate("../examples")
-    Pkg.develop(PackageSpec(path=dirname(@__DIR__)))
+function activate_env(dir)
+    Pkg.activate(dir)
+    Pkg.develop(Pkg.PackageSpec(path=dirname(@__DIR__)))
     Pkg.instantiate()
 end
 
@@ -15,8 +15,6 @@ end
     v = u'
     D = Spectral.DiagonalOp(u)
     v = u .+ u
-    @test size(v.u) == (10,10) # broadcasting works ok
 
-    activate_examples_env()
-#   @time @safetestset "Examples" begin include("examples.jl") end
+    @time @safetestset "Examples" begin include("examples.jl") end
 end

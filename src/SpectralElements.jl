@@ -14,6 +14,10 @@ Base.:*(op::Function, x::AbstractArray) = op(x)
 linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
 #--------------------------------------#
 
+abstract type AbstractField{T,N} <: AbstractVector{T} end
+abstract type AbstractOperator{T,N} end
+abstract type AbstractFunctionSpace{T,N} end
+
 include("Spectral/Spectral.jl")
 
 struct SpectralElementOperator

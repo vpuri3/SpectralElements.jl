@@ -1,5 +1,7 @@
 #
+import ..activate_env
 dir = "../examples"
+activate_env(dir)
 files = [
          "p2d.jl",
         ]
