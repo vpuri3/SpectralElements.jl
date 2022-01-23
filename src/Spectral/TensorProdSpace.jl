@@ -1,7 +1,151 @@
 #
+include("derivMat.jl")
+include("interp.jl")
+#include("mask.jl")
+#include("mass.jl") # boundary operators, etc
+
+#include("lapl.jl")
+#incldue("advect")
+#incldue("hlmz")
+
+"""
+ Computes Jacobian and its inverse of transformation
+
+ x = x(r,s), y = y(r,s)
+
+ J = [xr xs],  Jinv = [rx ry]
+     [yr ys]          [sx sy]
+
+ [Dx] * u = [rx sx] * [Dr] * u
+ [Dy]     = [ry sy]   [Ds]
+
+ ⟹
+ [1 0] = [rx sx] *  [Dr] [x y]
+ [0 1]   [ry sy]    [Ds]
+
+ ⟹
+                  -1
+ [rx sx] = [xr yr]
+ [ry sy]   [xs ys]
+
+"""
+struct Jac2D{T,N,jacT,fldT}
+    J ::jacT
+    Ji::jacT
+    dXdR
+    dRdX
+    #
+    function Jac2D(x,y,Dr,Ds)
+
+        xr = DrOp(x) |> DiagonalOp
+        xs = DsOp(x) |> DiagonalOp
+        yr = DrOp(y) |> DiagonalOp
+        ys = DsOp(y) |> DiagonalOp
+        
+        dXdR = DiagonalOp.([xr xs
+                            yr ys])
+
+        J  = @. xr * ys - xs * yr |> DiagonalOp
+        Ji = inv(J)
+
+        rx =  Ji * ys
+        ry = -Ji * xs
+        sx = -Ji * yr
+        sy =  Ji * xr
+
+        dRdX = [rx sx
+                ry sy]
+
+        new{T}()
+    end
+end
+
+""" mass """
+struct Mass2D{T}
+  B
+  #
+  function Mass2D(B,Bd)
+    mass  = DiagonalOp(B)
+    massd = DiagonalOp(Bd)
+
+    interp = TensorProductOp(Jr,Js)
+    mass_dealias = interp' ∘ massd ∘ interp
+
+    new{T}()
+  end
+end
+
+"""
+ Gradient Operator
+ Compute gradient of u∈H¹(Ω).
+
+ Continuity isn't enforced across
+ element boundaries for gradients
+
+ [Dx] * u = [rx sx] * [Dr] * u
+ [Dy]     = [ry sy]   [Ds]
+
+"""
+struct Gradient2D{T} <: AbstractSpectralOperator{T,2}
+
+  #
+  function Gradient2D(space::AbstractSpectralSpace{T,2})
+
+    dRdX .∘ [DrOp
+             DsOp]
+
+    new{T}()
+  end
+end
+
+"""
+ Laplace Operator
+ for v,u in H¹₀(Ω)
+
+ (v,-∇² u) = (vx,ux) + (vy,uy)\n
+          := a(v,u)\n
+           = v' * A * u\n
+           = (Q*R'*v)'*A_l*(Q*R'*u)\n
+           = v'*R*Q'*A_l*Q*R'*u\n
+
+ implemented as
+
+ R'R * QQ' * A_l * u_loc
+ where A_l is
+
+ [Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
+ [Ds]  [ry sy]  [0 B] [ry sy] [Ds]
+
+ = [Dr]' * [G11 G12]' * [Dr]
+   [Ds]    [G12 G22]    [Ds]
+
+"""
+struct LaplaceOp2D{T,N,fldT}
+    G::Matrix{fldT}
+
+    function LaplaceOp2D
+        G11 = B * (rx * rx + ry * ry)
+        G12 = B * (rx * sx + ry * sy)
+        G22 = B * (sx * sx + sy * sy)
+
+        G = [G11 G12
+             G12 G22]
+
+        LaplaceOp = GradOp' .∘ G .∘ GradOp
+        new{T}()
+    end
+end
+
+""" Convection Operator """
+struct Convection{T,N,fldT}
+    v::fldT
+end
 export SpectralSpace
 """ Tensor Product Polynomial Spectral Space """
-struct SpectralSpace{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,2}
+struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,2}
+    nr::Int
+    ns::Int
+
     zr::vecT
     wr::vecT
 
@@ -19,78 +163,62 @@ struct SpectralSpace{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectral
     interp::interpT
 
     deform::funcT
+    #
+    function SpectralSpace2D(nr::Int = 8, ns::Int = 8, T=Float64;
+                             quadrature = FastGaussQuadrature.gausslobatto,
+                             deform::Function = (r,s) -> (copy(r), copy(s)),
+                            )
+        zr,wr = quadrature(nr)
+        zs,ws = quadrature(ns)
+    
+        zr,wr = T.(zr), T.(wr)
+        zs,ws = T.(zs), T.(ws)
+    
+        o = T.(ones(T,n))
+        r = z * o' |> Field
+        s = o * z' |> Field
+    
+        x,y = deform(r,s)
+    
+        B  = w * w'
+        Dr = derivMat(zr)
+        Ds = derivMat(zs)
+
+        DrOp = TensorProduct2D(Dr,I)
+        DsOp = TensorProduct2D(I,Ds)
+
+        DrDsOp = [DrOp
+                  DsOp]
+
+#       jac  = 
+#       grad =
+#       mass = B * jac
+#       dealias2 = 
+    
+        ifperiodic = [false,false]
+    
+        return new{T}(nr,nsz,w,r,s,x,y,B,D, deform)
+    end
 end
-
-function SpectralSpace2D(nr::Int = 8, ns::Int = 8, T=Float64;
-                         quadrature::Function = FastGaussQuadrature.gausslobatto,
-                         deform::Function = (r,s) -> (copy(r), copy(s)),
-                        )
-    zr,wr = quadrature(nr)
-    zs,ws = quadrature(ns)
-
-    zr,wr = T.(zr), T.(wr)
-    zs,ws = T.(zs), T.(ws)
-
-    o = T.(ones(T,n))
-    r = z * o' |> Field
-    s = o * z' |> Field
-
-    x,y = deform(r,s)
-
-    B = w * w'      |> DiagonalOp
-    D = derivMat(z) |> TensorProdOp
-
-    ifperiodic = [false,false]
-
-    return SpectralSpace(z,w,r,s,x,y,B,D, deform)
-end
+size(space::SpectralSpace2D) = (space.nr * space.ns,)
 
 GaussLobattoLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
-
 GaussLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
-
 GaussChebychev2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
 
-""" Jacobian """
-struct Jac{T,N,jacT,fldT}
-    J ::jacT
-    Ji::jacT
-    rx::Matrix{fldT} # [rx sx; ry sy]
-end
+"""
+Boundary Condition - i.e. masking operator
 
-""" Boundary Condition - i.e. masking operator """
+where to keep boundary data/flux??
+"""
 struct BC{T,N,Tm,Tb}
     mask::Tm
     bc::Tb
 end
 
 """ Copying Operator """
-struct GatherScatter{T,N}
+struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
     l2g
     g2l
-end
-
-#include("derivMat.jl")
-#include("interp.jl")
-
-#include("mask.jl")
-#include("mass.jl") # boundary operators, etc
-
-#include("lapl.jl")
-#incldue("advect")
-#incldue("hlmz")
-
-""" Gradient Operator """
-struct Gradient{T,N}
-end
-
-""" Laplace Operator """
-struct Laplace{T,N,fldT}
-    G::Matrix{fldT}
-end
-
-""" Convection Operator """
-struct Convection{T,N,fldT}
-    v::fldT
 end
 #

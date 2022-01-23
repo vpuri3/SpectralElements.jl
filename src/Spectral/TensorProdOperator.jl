@@ -71,47 +71,64 @@ end
       (Bs ⊗ Ar) * u
  (Ct ⊗ Bs ⊗ Ar) * u
 """
-function tensor_product2D!(V,U,Ar,Bs,C)
+function tensor_product!(V,U,Ar,Bs,C) # 2D
+    """ V .= Ar * U Bs' """
     mul!(C, Ar, U)
     mul!(V, C, Bs')
 end
 
-#function tensor_product3D!(V,U,Ar,Bs,Ct,C1,C2)
-#    for k=1:size(U,3)
-#        @views tensor_product2D(C1[:,:,k],U[:,:,k],Ar,Bs,C1)
-#    end
-#    mul!(C2,C1,)
-#    mul!(V)
-#end
+function tensor_product!(V,U,Ar,Bs,Ct,C1,C2)
+#   for k=1:size(U,3)
+#       @views tensor_product2D(C1[:,:,k],U[:,:,k],Ar,Bs,C1)
+#   end
+#   mul!(C2,C1,)
+#   mul!(V)
+    V
+end
 
 struct TensorProductOp{T,N,Tm<:Tuple,Tc<:Tuple} <: AbstractSpectralOperator{T,N}
     mats::Tm
     cache::Tc
     #
-    function TensorProductOp(mats,cache)
+    function TensorProductOp(mats::Tuple,cache::Tuple)
         T = promote_type(eltype.(mats)...)
         N = length(mats)
 
         new{T,N,typeof(mats),typeof(cache)}(mats, cache)
     end
-    function TensorProductOp(As, Br, u)
-        U = u isa AbstractSpectralField ? u.u : u
+    function TensorProductOp(As, Br,u)
+        U = u isa AbstractSpectralField ? u.array : u
         mats = As, Br
-        cache = Ar * U |> Tuple
+        cache = begin
+            ma, na = size(Ar)
+            mb, nb = size(Bs)
+            (Ar*U,)
+        end
+        TensorProductOp(mats,cache)
+    end
+    function TensorProductOp(As, Br, Ct, u)
+        U = u isa AbstractSpectralField ? u.array : u
+        mats = As, Br, Ct
+        cache = begin
+            ma, na = size(Ar)
+            mb, nb = size(Bs)
+            mc, nc = size(Ct)
+            (nothing,)
+        end
         TensorProductOp(mats,cache)
     end
 end
 adjoint(A::TensorProductOp) = TensorProductOp(adjoint.(A.mats),adjoint.(A.cache))
 size(A::TensorProductOp) = @. *(size(A.mats)...)
 
-function LinearAlgebra.mul!(v, A::TensorProductOp{T,N,Tm,Tc}, u) where{T,Tm,Tc}
+function LinearAlgebra.mul!(v, A::TensorProductOp{T,N,Tm,Tc}, u) where{T,N,Tm,Tc}
     Ar, Bs = A.mats[1:2]
     C = A.cache[1]
 
-    U = u isa AbstractSpectralField ? u.u : u
-    V = v isa AbstractSpectralField ? v.u : v
+    U = u isa AbstractSpectralField ? u.array : u
+    V = v isa AbstractSpectralField ? v.array : v
 
-    tensor_product2D(V,U,Ar,Bs,C)
+    tensor_product!(V,U,Ar,Bs,C)
     return v
 end
 

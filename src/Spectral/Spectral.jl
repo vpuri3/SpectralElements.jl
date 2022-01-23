@@ -10,7 +10,7 @@ import Base: similar, copy, copy!                           # allocation
 import Base: length, size, getindex, setindex!, IndexStyle  # indexing
 import Base.Broadcast: BroadcastStyle                       # broadcast
 import Base: +, -, *, /, \, adjoint                         # math
-import LinearAlgebra: mul!, ldiv!, dot, norm, Adjoint#, Diagonal
+import LinearAlgebra: mul!, ldiv!, dot, norm, #Adjoint#, Diagonal
 
 abstract type AbstractSpectralField{T,N} <: AbstractVector{T} end
 abstract type AbstractSpectralOperator{T,N} end
@@ -36,7 +36,7 @@ _reshape(a::Array, dims::NTuple{N,Int}) where{N} = Base.ReshapedArray(a, dims, (
 _vec(a::AbstractVector) = a
 _vec(a::AbstractArray) = _reshape(a,(length(a),))
 
-issquare(::Union{UniformScaling, DiagonalOp}) = true
+issquare(::UniformScaling) = true
 issquare(A::AbstractMatrix) = size(A,1) === size(A,2)
 issquare(A...) = @. (&)(issquare(A)...)
 
@@ -58,6 +58,7 @@ function Base.:∘(outer::AbstractSpectralOperator,
     ComposeOperator(inner,outer)
 end
 size(A::ComposeOperator) = (size(A.outer, 1), size(A.inner, 2))
+adjoint(A::ComposeOperator) = A.inner' ∘ A.outer
 
 function LinearAlgebra.ldiv!(A::ComposeOperator, x)
     @unpack inner, outer = A
@@ -85,6 +86,7 @@ end
 
 inv(A::AbstractSpectralOperator) = InverseOperator(A)
 size(A::InverseOperator) = size(A.A)
+adjoint(A::InverseOperator) = inv(A.A')
 # https://github.com/SciML/LinearSolve.jl/issues/97
 LinearAlgebra.ldiv!(A::InverseOperator, x) = mul!(x, A.A, x)
 LinearAlgebra.ldiv!(y, A::InverseOperator, x) = mul!(y, A.A, x)
