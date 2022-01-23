@@ -2,7 +2,7 @@
 export SpectralSpace
 """ Tensor Product Polynomial Spectral Space """
 struct SpectralSpace{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,2}
-    zr::vecT;
+    zr::vecT
     wr::vecT
 
     zs::vecT
@@ -70,4 +70,27 @@ struct GatherScatter{T,N}
     g2l
 end
 
+#include("derivMat.jl")
+#include("interp.jl")
+
+#include("mask.jl")
+#include("mass.jl") # boundary operators, etc
+
+#include("lapl.jl")
+#incldue("advect")
+#incldue("hlmz")
+
+""" Gradient Operator """
+struct Gradient{T,N}
+end
+
+""" Laplace Operator """
+struct Laplace{T,N,fldT}
+    G::Matrix{fldT}
+end
+
+""" Convection Operator """
+struct Convection{T,N,fldT}
+    v::fldT
+end
 #
