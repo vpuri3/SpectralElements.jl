@@ -1,4 +1,6 @@
 #
+#TODO implement view, @views, reshape, @inline, @propagate_inbounds, @boundscheck
+
 """ Tensor Product Polynomial Field """
 struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractSpectralField{T,N}
     u::Tarr
@@ -18,6 +20,8 @@ end
 
 # allocation
 Base.similar(u::Field) = Field(similar(u.u))
+Base.zero(u::Field) = Field(zero(u.u))
+#Base.one(u::Field{T,N}) where{T,N} = u.u .* zero(T) .+ one(T) |> Field
 Base.copy(u::Field) = Field(copy(u.u))
 function Base.copy!(u::Field, v::Field)
     copy!(u.u,v.u)
@@ -60,4 +64,7 @@ Base.:-(u::Field) = Field(-u.u)
 Base.:*(u::Adjoint{T,<:Field}, v::Field) where{T} =  dot(u.parent, v)
 LinearAlgebra.dot(u::Field, v::Field) = u' * v
 LinearAlgebra.norm(u::Field, p::Real=2) = norm(u.u, p)
+""" not necessary since Field <: AbstractArray """
+#LinearAlgebra.rmul!(A::Field,b::Number) = rmul!(A.u,b)
+#LinearAlgebra.lmul!(a::Number,B::Field) = lmul!(a,B.u)
 #
