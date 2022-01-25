@@ -29,35 +29,37 @@ include("interp.jl")
  [ry sy]   [xs ys]
 
 """
-struct Jac2D{T,N,jacT,fldT}
-    J ::jacT
-    Ji::jacT
-    dXdR
-    dRdX
-    #
-    function Jac2D(x,y,Dr,Ds)
+struct Jacobian2D{T,N,Tjac,fldT}
+  deform
+  J ::Tjac
+  Ji::Tjac
+  dXdR
+  dRdX
+  #
+  function Jacobian2D(deform,r,s,DrOp,DsOp)
+    x,y = deform(r,s)
 
-        xr = DrOp(x) |> DiagonalOp
-        xs = DsOp(x) |> DiagonalOp
-        yr = DrOp(y) |> DiagonalOp
-        ys = DsOp(y) |> DiagonalOp
+    xr = DrOp(x)
+    xs = DsOp(x)
+    yr = DrOp(y)
+    ys = DsOp(y)
         
-        dXdR = DiagonalOp.([xr xs
-                            yr ys])
+    dXdR = DiagonalOp.([xr xs
+                        yr ys])
 
-        J  = @. xr * ys - xs * yr |> DiagonalOp
-        Ji = inv(J)
+    J  = @. xr * ys - xs * yr
+    Ji = @. 1 / J
 
-        rx =  Ji * ys
-        ry = -Ji * xs
-        sx = -Ji * yr
-        sy =  Ji * xr
+    rx = @.  Ji * ys
+    ry = @. -Ji * xs
+    sx = @. -Ji * yr
+    sy = @.  Ji * xr
 
-        dRdX = [rx sx
-                ry sy]
+    dRdX = DiagonalOp.[rx sx
+                       ry sy]
 
-        new{T}()
-    end
+    new{T}()
+  end
 end
 
 """ mass """
@@ -68,8 +70,8 @@ struct Mass2D{T}
     mass  = DiagonalOp(B)
     massd = DiagonalOp(Bd)
 
-    interp = TensorProductOp(Jr,Js)
-    mass_dealias = interp' ∘ massd ∘ interp
+    InterpVD = TensorProductOp(JrVD,JsVD)
+    mass_dealias = InterpVD' ∘ massd ∘ InterpVD
 
     new{T}()
   end
@@ -87,12 +89,12 @@ end
 
 """
 struct Gradient2D{T} <: AbstractSpectralOperator{T,2}
-
+  op
   #
   function Gradient2D(space::AbstractSpectralSpace{T,2})
 
-    dRdX .∘ [DrOp
-             DsOp]
+    op = dRdX .∘ [DrOp
+                 DsOp]
 
     new{T}()
   end
@@ -140,7 +142,28 @@ end
 struct Convection{T,N,fldT}
     v::fldT
 end
-export SpectralSpace
+
+"""
+ Boundary Condition
+ mask, dirichlet/neumann data
+"""
+struct BC{T,N,Tb,Tm,Td}
+    bc::Tb
+    mask::Tm # <-- DiagonalOp
+    data::Td
+end
+function apply_bc(u::Field, bc::BC)
+  # apply mask
+  # add dirichlet data (?)
+end
+
+""" Gather-Scatter Operator """
+struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
+    l2g
+    g2l
+end
+
+export SpectralSpace2D
 """ Tensor Product Polynomial Spectral Space """
 struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,2}
     nr::Int
@@ -174,7 +197,7 @@ struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectr
         zr,wr = T.(zr), T.(wr)
         zs,ws = T.(zs), T.(ws)
     
-        o = T.(ones(T,n))
+        o = ones(T,n)
         r = z * o' |> Field
         s = o * z' |> Field
     
@@ -184,8 +207,11 @@ struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectr
         Dr = derivMat(zr)
         Ds = derivMat(zs)
 
-        DrOp = TensorProduct2D(Dr,I)
-        DsOp = TensorProduct2D(I,Ds)
+        Ir = Identity(nr)
+        Is = Identity(ns)
+
+        DrOp = TensorProduct2D(Dr,Is)
+        DsOp = TensorProduct2D(Ir,Ds)
 
         DrDsOp = [DrOp
                   DsOp]
@@ -205,20 +231,4 @@ size(space::SpectralSpace2D) = (space.nr * space.ns,)
 GaussLobattoLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
 GaussLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
 GaussChebychev2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
-
-"""
-Boundary Condition - i.e. masking operator
-
-where to keep boundary data/flux??
-"""
-struct BC{T,N,Tm,Tb}
-    mask::Tm
-    bc::Tb
-end
-
-""" Copying Operator """
-struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
-    l2g
-    g2l
-end
 #

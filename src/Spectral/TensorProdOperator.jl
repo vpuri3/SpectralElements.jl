@@ -1,50 +1,78 @@
 #
+"""
+Copying Operator
+
+u -> [u, u] where u is AbstractSpectralField
+it's adjoint should be summation
+"""
+struct CopyingOp{Tdims}
+  dims::Tdims
+end
+Base.size(C::CopyingOp) = (Id.n,Id.n)
+Base.eltype(::CopyingOp) = Bool
+Base.adjoint(C::CopyingOp) = CopyingOp(reverse(C.dims))
+
+(C::CopyingOp)(u) = fill(u,dims)
+#mul!(v, ::CopyingOp, u) = mul!(v, I, u)
+#ldiv!(v, ::CopyingOp, u) = ldiv!(v, I, u)
+#ldiv!(::CopyingOp, u) = ldiv!(I, u)
+
 """ Diagonal Operator on Tensor Product Polynomial field """
 struct DiagonalOp{T,N,Tdiag} <: AbstractSpectralOperator{T,N}
-    diag::Tdiag
+  diag::Tdiag
 end
 
+# constructors
 function DiagonalOp(u::AbstractSpectralField{T,N}) where{T,N}
-    D = u |> _vec |> Diagonal
-    DiagonalOp{T,N,typeof(D)}(D)
+  D = u |> _vec |> Diagonal
+  DiagonalOp{T,N,typeof(D)}(D)
 end
 
 function DiagonalOp(u::AbstractArray{T,N}) where{T,N}
-    D = u |> _vec |> Diagonal
-    DiagonalOp{T,N,typeof(D)}(D)
+  D = u |> _vec |> Diagonal
+  DiagonalOp{T,N,typeof(D)}(D)
 end
 
-size(D::DiagonalOp) = size(D.diag)
-adjoint(D::DiagonalOp) = D
+# essentials
+Base.size(D::DiagonalOp) = size(D.diag)
+Base.adjoint(D::DiagonalOp) = D
 
-function *(A::DiagonalOp{Ta,N,Tadiag},
-           B::DiagonalOp{Tb,N,Tbdiag},
-          ) where{Ta,N,Tadiag,Tb,Tbdiag}
-    diag = A.diag .* B.diag
+for op in (
+           :+ , :- , :* , :/ , :\ ,
+          )
+  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
+                     B::DiagonalOp{Tb,N,Tbdiag},
+                    ) where{Ta,N,Tadiag,Tb,Tbdiag}
+    diag = $op(A.diag, B.diag)
     T = promote_type(Ta,Tb)
     DiagonalOp{T,N,typeof(diag)}(diag)
+  end
 end
 
+# math
+LinearAlgebra.rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
+LinearAlgebra.lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
+
 function LinearAlgebra.mul!(v, D::DiagonalOp, u)
-    mul!(_vec(v),D.diag,_vec(u))
-    return v
+  mul!(_vec(v),D.diag,_vec(u))
+  return v
 end
 
 function LinearAlgebra.ldiv!(v, D::DiagonalOp, u)
-    ldiv!(_vec(v),D.diag,_vec(u))
-    return v
+  ldiv!(_vec(v),D.diag,_vec(u))
+  return v
 end
 
 function LinearAlgebra.ldiv!(D::DiagonalOp, u)
-    ldiv!(D.diag,_vec(u))
-    return u
+  ldiv!(D.diag,_vec(u))
+  return u
 end
 
 # printing
 function Base.summary(io::IO, D::DiagonalOp{T,N,Tdiag}) where{T,N,Tdiag}
-    println(io, "Diagonal operator on $(N)D Tensor Product Polynomial ",
-                "spectral field of type $T")
-    Base.show(io, typeof(D))
+  println(io, "Diagonal operator on $(N)D Tensor Product Polynomial ",
+              "spectral field of type $T")
+  Base.show(io, typeof(D))
 end
 
 function Base.show(io::IO, ::MIME"text/plain", D::DiagonalOp{T,N,Tdiag}) where{T,N,Tdiag}
@@ -72,18 +100,18 @@ end
  (Ct ⊗ Bs ⊗ Ar) * u
 """
 function tensor_product!(V,U,Ar,Bs,C) # 2D
-    """ V .= Ar * U Bs' """
-    mul!(C, Ar, U)
-    mul!(V, C, Bs')
+  """ V .= Ar * U Bs' """
+  mul!(C, Ar, U)
+  mul!(V, C, Bs')
 end
 
 function tensor_product!(V,U,Ar,Bs,Ct,C1,C2)
-#   for k=1:size(U,3)
-#       @views tensor_product2D(C1[:,:,k],U[:,:,k],Ar,Bs,C1)
-#   end
-#   mul!(C2,C1,)
-#   mul!(V)
-    V
+# for k=1:size(U,3)
+#     @views tensor_product2D(C1[:,:,k],U[:,:,k],Ar,Bs,C1)
+# end
+# mul!(C2,C1,)
+# mul!(V)
+  V
 end
 
 struct TensorProductOp{T,N,Tm<:Tuple,Tc<:Tuple} <: AbstractSpectralOperator{T,N}
@@ -96,7 +124,7 @@ struct TensorProductOp{T,N,Tm<:Tuple,Tc<:Tuple} <: AbstractSpectralOperator{T,N}
 
         new{T,N,typeof(mats),typeof(cache)}(mats, cache)
     end
-    function TensorProductOp(As, Br,u)
+    function TensorProductOp(As, Br, u)
         U = u isa AbstractSpectralField ? u.array : u
         mats = As, Br
         cache = begin
@@ -122,20 +150,20 @@ adjoint(A::TensorProductOp) = TensorProductOp(adjoint.(A.mats),adjoint.(A.cache)
 size(A::TensorProductOp) = @. *(size(A.mats)...)
 
 function LinearAlgebra.mul!(v, A::TensorProductOp{T,N,Tm,Tc}, u) where{T,N,Tm,Tc}
-    Ar, Bs = A.mats[1:2]
-    C = A.cache[1]
+  Ar, Bs = A.mats[1:2]
+  C = A.cache[1]
 
-    U = u isa AbstractSpectralField ? u.array : u
-    V = v isa AbstractSpectralField ? v.array : v
+  U = u isa AbstractSpectralField ? u.array : u
+  V = v isa AbstractSpectralField ? v.array : v
 
-    tensor_product!(V,U,Ar,Bs,C)
-    return v
+  tensor_product!(V,U,Ar,Bs,C)
+  return v
 end
 
 function *(A::TensorProductOp{Ta,N,Tam,Tac},
            B::TensorProductOp{Tb,N,Tbm,Tbc}
           ) where{Ta,N,Tam,Tac,Tb,Tbm,Tbc}
-    mats = ( A.mats[i] * B.mats[i] for i=1:N)
-    TensorProductOp(mats)
+  mats = (A.mats[i] * B.mats[i] for i=1:N)
+  TensorProductOp(mats)
 end
 #

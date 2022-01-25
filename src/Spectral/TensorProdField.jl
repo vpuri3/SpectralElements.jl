@@ -1,5 +1,7 @@
 #
 #TODO make sure these are fine: @inline, @propagate_inbounds, @boundscheck
+#
+# ref - https://docs.julialang.org/en/v1/manual/interfaces/#man-interface-array
 
 """ Tensor Product Polynomial Field """
 struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractSpectralField{T,N}
@@ -20,13 +22,14 @@ end
 
 # allocation
 Base.similar(u::Field) = Field(similar(u.array))
-Base.zero(u::Field) = Field(zero(u.array))
-#Base.one(u::Field{T,N}) where{T,N} = u.array .* zero(T) .+ one(T) |> Field
-Base.copy(u::Field) = Field(copy(u.array))
-function Base.copy!(u::Field, v::Field)
-    copy!(u.array,v.array)
-    return u
-end
+Base.similar(u::Field, ::Type{T}, dims::Dims) where{T} = Field(similar(u.array, T, dims))
+#Base.zero(u::Field) = Field(zero(u.array))
+##Base.one(u::Field{T,N}) where{T,N} = u.array .* zero(T) .+ one(T) |> Field
+#Base.copy(u::Field) = Field(copy(u.array))
+#function Base.copy!(u::Field, v::Field)
+#    copy!(u.array,v.array)
+#    return u
+#end
 
 # vector indexing
 Base.IndexStyle(::Field) = IndexLinear()
@@ -61,10 +64,8 @@ for op in (
     end
 end
 Base.:-(u::Field) = Field(-u.array)
-Base.:*(u::Adjoint{T,<:Field}, v::Field) where{T} =  dot(u.parent, v)
 LinearAlgebra.dot(u::Field, v::Field) = u' * v
 LinearAlgebra.norm(u::Field, p::Real=2) = norm(u.array, p)
 """ not necessary since Field <: AbstractArray """
-#LinearAlgebra.rmul!(A::Field,b::Number) = rmul!(A.array,b)
-#LinearAlgebra.lmul!(a::Number,B::Field) = lmul!(a,B.array)
+#Base.:*(u::Adjoint{T,<:Field}, v::Field) where{T} =  dot(u.parent, v)
 #
