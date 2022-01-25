@@ -1,7 +1,4 @@
 #
-#--------------------------------------#
-export derivMat
-#--------------------------------------#
 """
  Compute derivative matrix for lagrange
  interpolants on points [x]
@@ -33,4 +30,3 @@ end end
 
 return D
 end
-#--------------------------------------#

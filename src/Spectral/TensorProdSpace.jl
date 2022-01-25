@@ -1,13 +1,4 @@
 #
-include("derivMat.jl")
-include("interp.jl")
-#include("mask.jl")
-#include("mass.jl") # boundary operators, etc
-
-#include("lapl.jl")
-#incldue("advect")
-#incldue("hlmz")
-
 """
  Computes Jacobian and its inverse of transformation
 

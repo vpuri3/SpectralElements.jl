@@ -35,8 +35,11 @@ issquare(A::AbstractMatrix) = size(A,1) === size(A,2)
 issquare(A...) = @. (&)(issquare(A)...)
 
 include("TensorProdField.jl")
+include("OperatorBasics.jl")
 include("TensorProdOperator.jl")
-#include("TensorProdSpace.jl")
+include("DerivMat.jl")
+include("InterpMat.jl")
+include("TensorProdSpace.jl")
 
 export Field,
        DiagonalOp, CopyingOp, TensorProductOp,

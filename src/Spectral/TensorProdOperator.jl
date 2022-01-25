@@ -1,23 +1,5 @@
 #
-"""
-Copying Operator
-
-u -> [u, u] where u is AbstractSpectralField
-it's adjoint should be summation
-"""
-struct CopyingOp{Tdims}
-  dims::Tdims
-end
-Base.size(C::CopyingOp) = (Id.n,Id.n)
-Base.eltype(::CopyingOp) = Bool
-Base.adjoint(C::CopyingOp) = CopyingOp(reverse(C.dims))
-
-(C::CopyingOp)(u) = fill(u,dims)
-#mul!(v, ::CopyingOp, u) = mul!(v, I, u)
-#ldiv!(v, ::CopyingOp, u) = ldiv!(v, I, u)
-#ldiv!(::CopyingOp, u) = ldiv!(I, u)
-
-""" Diagonal Operator on Tensor Product Polynomial field """
+""" Diagonal Operator """
 struct DiagonalOp{T,N,Tdiag} <: AbstractSpectralOperator{T,N}
   diag::Tdiag
 end
@@ -33,7 +15,6 @@ function DiagonalOp(u::AbstractArray{T,N}) where{T,N}
   DiagonalOp{T,N,typeof(D)}(D)
 end
 
-# essentials
 Base.size(D::DiagonalOp) = size(D.diag)
 Base.adjoint(D::DiagonalOp) = D
 

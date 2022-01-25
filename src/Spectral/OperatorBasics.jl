@@ -17,13 +17,14 @@ function set_cache(A::AbstractSpectralOperator, cache)
   return A
 end
 
+# TODO - +, - operations on operators
+
 """
 Identity Operator
 
-basically LinearAlgebra.I with size()
+with the notion of size
 """
-struct Identity{Ti,Tn}
-  Id::Ti
+struct Identity{Tn}
   n ::Tn
 end
 Base.size(Id::Identity) = (Id.n,Id.n)
@@ -36,6 +37,24 @@ adjoint(Id::Identity) = Id
 mul!(v, ::Identity, u) = mul!(v, I, u)
 ldiv!(v, ::Identity, u) = ldiv!(v, I, u)
 ldiv!(::Identity, u) = ldiv!(I, u)
+
+"""
+Copying Operator
+
+u -> [u, u] where u is AbstractSpectralField
+it's adjoint should be summation
+"""
+struct CopyingOp{Tdims}
+  dims::Tdims
+end
+Base.size(C::CopyingOp) = (Id.n,Id.n)
+Base.eltype(::CopyingOp) = Bool
+Base.adjoint(C::CopyingOp) = CopyingOp(reverse(C.dims))
+
+(C::CopyingOp)(u) = fill(u,dims)
+#mul!(v, ::CopyingOp, u) = mul!(v, I, u)
+#ldiv!(v, ::CopyingOp, u) = ldiv!(v, I, u)
+#ldiv!(::CopyingOp, u) = ldiv!(I, u)
 
 """ ComposeOperator """
 struct ComposeOperator{T,N,Ti,To,Tc} <: AbstractSpectralOperator{T,N}
