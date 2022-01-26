@@ -2,37 +2,24 @@
 """ Diagonal Operator """
 struct DiagonalOp{T,N,Tdiag} <: AbstractSpectralOperator{T,N}
   diag::Tdiag
-end
-
-# constructors
-function DiagonalOp(u::AbstractSpectralField{T,N}) where{T,N}
-  D = u |> _vec |> Diagonal
-  DiagonalOp{T,N,typeof(D)}(D)
-end
-
-function DiagonalOp(u::AbstractArray{T,N}) where{T,N}
-  D = u |> _vec |> Diagonal
-  DiagonalOp{T,N,typeof(D)}(D)
+  #
+  function DiagonalOp(u::AbstractSpectralField{T,N}) where{T,N}
+    diag = u |> _vec |> Diagonal
+    DiagonalOp(diag, N)
+  end
+  
+  function DiagonalOp(u::AbstractArray{T,N}) where{T,N}
+    diag = u |> _vec |> Diagonal
+    DiagonalOp(diag, N)
+  end
+  
+  function DiagonalOp(diag::Diagonal{T}, N::Integer) where{T}
+    new{T,N,typeof(diag)}(diag)
+  end
 end
 
 Base.size(D::DiagonalOp) = size(D.diag)
 Base.adjoint(D::DiagonalOp) = D
-
-for op in (
-           :+ , :- , :* , :/ , :\ ,
-          )
-  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
-                     B::DiagonalOp{Tb,N,Tbdiag},
-                    ) where{Ta,N,Tadiag,Tb,Tbdiag}
-    diag = $op(A.diag, B.diag)
-    T = promote_type(Ta,Tb)
-    DiagonalOp{T,N,typeof(diag)}(diag)
-  end
-end
-
-# math
-LinearAlgebra.rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
-LinearAlgebra.lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
 
 function LinearAlgebra.mul!(v, D::DiagonalOp, u)
   mul!(_vec(v),D.diag,_vec(u))
@@ -49,102 +36,102 @@ function LinearAlgebra.ldiv!(D::DiagonalOp, u)
   return u
 end
 
-# printing
-function Base.summary(io::IO, D::DiagonalOp{T,N,Tdiag}) where{T,N,Tdiag}
-  println(io, "Diagonal operator on $(N)D Tensor Product Polynomial ",
-              "spectral field of type $T")
-  Base.show(io, typeof(D))
+for op in (
+           :+ , :- , :* , :/ , :\ ,
+          )
+  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
+                     B::DiagonalOp{Tb,N,Tbdiag},
+                    ) where{Ta,Tb,N,Tadiag,Tbdiag}
+    diag = $op(A.diag, B.diag)
+    DiagonalOp(diag,N)
+  end
 end
-
-function Base.show(io::IO, ::MIME"text/plain", D::DiagonalOp{T,N,Tdiag}) where{T,N,Tdiag}
-    iocontext = IOContext(io, :compact => true, :limit => true)
-    Base.summary(iocontext, D)
-    Base.show(iocontext, MIME"text/plain"(), D.diag)
-    println()
-end
-
-"""
- figure out caching
-
- this functionality can work
-    applychain(::Tuple{}, x) = x
-    applychain(fs::Tuple, x) = applychain(tail(fs), first(fs)(x))
-    (c::Chain)(x) = applychain(c.layers, x)
-
-  or use NamedTuple, or NTuple.
-  Kronecker.jl
-"""
 
 """
  Tensor product operator
       (Bs ⊗ Ar) * u
  (Ct ⊗ Bs ⊗ Ar) * u
 """
-function tensor_product!(V,U,Ar,Bs,C) # 2D
+function tensor_product!(V,U,Ar,Bs,cache) # 2D
   """ V .= Ar * U Bs' """
-  mul!(C, Ar, U)
-  mul!(V, C, Bs')
+  mul!(cache, Ar, U)
+  mul!(V, cache, Bs')
 end
 
-function tensor_product!(V,U,Ar,Bs,Ct,C1,C2)
-# for k=1:size(U,3)
-#     @views tensor_product2D(C1[:,:,k],U[:,:,k],Ar,Bs,C1)
-# end
-# mul!(C2,C1,)
-# mul!(V)
+function tensor_product!(V,U,Ar,Bs,Ct,cache1,cache2) # 3D
+  szU = size(U)
+  U_re = _reshape(U, (szU[1], szU[2]*szU[3]))
+  mul!(cache1, Ar, U_re)
+
+  # Bs op - write to cache2. use views
+
+  szC = size(cache2)
+  C_re = _reshape(cache2, (szC[1]*szC[2], szC[3]))
+  mul!(V, C_re, Ct')
+
   V
 end
 
-struct TensorProductOp{T,N,Tm<:Tuple,Tc<:Tuple} <: AbstractSpectralOperator{T,N}
-    mats::Tm
-    cache::Tc
-    #
-    function TensorProductOp(mats::Tuple,cache::Tuple)
-        T = promote_type(eltype.(mats)...)
-        N = length(mats)
-
-        new{T,N,typeof(mats),typeof(cache)}(mats, cache)
-    end
-    function TensorProductOp(As, Br, u)
-        U = u isa AbstractSpectralField ? u.array : u
-        mats = As, Br
-        cache = begin
-            ma, na = size(Ar)
-            mb, nb = size(Bs)
-            (Ar*U,)
-        end
-        TensorProductOp(mats,cache)
-    end
-    function TensorProductOp(As, Br, Ct, u)
-        U = u isa AbstractSpectralField ? u.array : u
-        mats = As, Br, Ct
-        cache = begin
-            ma, na = size(Ar)
-            mb, nb = size(Bs)
-            mc, nc = size(Ct)
-            (nothing,)
-        end
-        TensorProductOp(mats,cache)
-    end
+""" 2D Tensor Product Operator """
+struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractSpectralOperator{T,2}
+  Ar::Ta
+  Bs::Tb
+  #
+  cache::Tc
+  isfresh::Bool
+  #
+  function TensorProd2DOp(Ar,Bs, cache = nothing)
+    T = promote_type(eltype(Ar), eltype(Bs))
+    isfresh = cache === nothing
+    new{T,typeof(Ar),typeof(Bs),typeof(cache)}(Ar,Bs,cache,isfresh)
+  end
 end
-adjoint(A::TensorProductOp) = TensorProductOp(adjoint.(A.mats),adjoint.(A.cache))
-size(A::TensorProductOp) = @. *(size(A.mats)...)
 
-function LinearAlgebra.mul!(v, A::TensorProductOp{T,N,Tm,Tc}, u) where{T,N,Tm,Tc}
-  Ar, Bs = A.mats[1:2]
-  C = A.cache[1]
+Base.size(A::TensorProd2DOp) = size(A.Ar) .* size(A.Bs)
+function Base.adjoint(A::TensorProd2DOp)
+  if issquare(A)
+    TensorProdOp(A.Ar', A.Bs', A.cache)
+  else
+    TensorProdOp(A.Ar', A.Bs')
+  end
+end
 
+for op in (
+           :+ , :- , :* , :/, :\,
+          )
+  @eval function $(op)(A::TensorProd2DOp{Ta,Taa,Tba,Tca},
+                       B::TensorProd2DOp{Tb,Tab,Tbb,Tcb}
+                      ) where{Ta,Taa,Tba,Tca,Tb,Tab,Tbb,Tcb}
+    Ar = $op(A.Ar, B.Ar)
+    Bs = $op(A.Bs, B.Bs)
+    TensorProd2DOp(Ar, Bs)
+  end
+end
+
+function init_cache(A::TensorProd2DOp, U)
+  cache = A.Ar * U
+end
+
+function (A::TensorProd2DOp)(u)
+  U = u isa AbstractSpectralField ? u.array : u
+  if A.isfresh
+    cache = init_cache(A, U)
+    A = set_cache(A, cache)
+  end
+end
+
+function LinearAlgebra.mul!(v, A::TensorProd2DOp, u)
   U = u isa AbstractSpectralField ? u.array : u
   V = v isa AbstractSpectralField ? v.array : v
 
-  tensor_product!(V,U,Ar,Bs,C)
-  return v
-end
+  if A.isfresh
+    cache = init_cache(A, U)
+    A = set_cache(A, cache)
+    mul!(V, cache, A.Bs')
+    return v
+  end
 
-function *(A::TensorProductOp{Ta,N,Tam,Tac},
-           B::TensorProductOp{Tb,N,Tbm,Tbc}
-          ) where{Ta,N,Tam,Tac,Tb,Tbm,Tbc}
-  mats = (A.mats[i] * B.mats[i] for i=1:N)
-  TensorProductOp(mats)
+  tensor_product!(V,U,A.Ar,A.Bs,A.cache)
+  return v
 end
 #

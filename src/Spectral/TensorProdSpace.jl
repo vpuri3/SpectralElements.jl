@@ -20,7 +20,7 @@
  [ry sy]   [xs ys]
 
 """
-struct Jacobian2D{T,N,Tjac,fldT}
+struct Deformation2D{T,N,Tjac,fldT}
   deform
   J ::Tjac
   Ji::Tjac
