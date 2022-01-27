@@ -9,12 +9,30 @@ function activate_env(dir)
 end
 
 @testset "SpectralElements.jl" begin
-
     using SpectralElements.Spectral
-    u = Spectral.Field(rand(10,10))
-    v = u'
-    D = Spectral.DiagonalOp(u)
+    using LinearAlgebra
+
+    nr = 10
+    ns = 12
+
+    # Field
+    u = rand(nr,ns) |> Field
     v = u .+ u
 
-    @time @safetestset "Examples" begin include("examples.jl") end
+    # DiagonalOp
+    d = rand(nr,ns) |> Field
+    D = DiagonalOp(d)
+
+    mul!(v,D,u)
+    @test v ≈ d .* u
+
+    # TensorProd2DOp
+    Ar = rand(nr,nr)
+    Bs = rand(ns,ns)
+    T = TensorProd2DOp(Ar,Bs)
+
+    mul!(v,T,u)
+    @test v ≈ Field(Ar * u.array * Bs')
+
+#   @time @safetestset "Examples" begin include("examples.jl") end
 end

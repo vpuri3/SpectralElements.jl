@@ -174,7 +174,7 @@ function generateMask(bc::Array{Char,1},msh::Mesh)
     return M
 end
 #----------------------------------------------------------------------
-export Field
+#export Field
 #----------------------------------------------------------------------
 struct Field{T,K}
     u ::Array{T}     # value

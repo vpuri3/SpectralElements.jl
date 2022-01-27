@@ -27,7 +27,7 @@ struct Deformation2D{T,N,Tjac,fldT}
   dXdR
   dRdX
   #
-  function Jacobian2D(deform,r,s,DrOp,DsOp)
+  function Deformation2D(deform,r,s,DrOp,DsOp)
     x,y = deform(r,s)
 
     xr = DrOp(x)
@@ -80,14 +80,16 @@ end
 
 """
 struct Gradient2D{T} <: AbstractSpectralOperator{T,2}
-  op
+  grad
   #
   function Gradient2D(space::AbstractSpectralSpace{T,2})
 
-    op = dRdX .∘ [DrOp
-                 DsOp]
+    ddr = [DrOp
+           DsOp] |> hcat
 
-    new{T}()
+    grad = @. dRdX ∘ ddr
+
+    new{T,}()
   end
 end
 
@@ -124,7 +126,7 @@ struct LaplaceOp2D{T,N,fldT}
         G = [G11 G12
              G12 G22]
 
-        LaplaceOp = GradOp' .∘ G .∘ GradOp
+        LaplaceOp = @. GradOp' ∘ G ∘ GradOp
         new{T}()
     end
 end
@@ -205,7 +207,7 @@ struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectr
         DsOp = TensorProduct2D(Ir,Ds)
 
         DrDsOp = [DrOp
-                  DsOp]
+                  DsOp] |> hcat
 
 #       jac  = 
 #       grad =

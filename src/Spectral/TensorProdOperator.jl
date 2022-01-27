@@ -80,9 +80,9 @@ struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractSpectralOperator{T,2}
   cache::Tc
   isfresh::Bool
   #
-  function TensorProd2DOp(Ar,Bs, cache = nothing)
+  function TensorProd2DOp(Ar, Bs, cache = nothing,
+                          isfresh::Bool = cache === nothing)
     T = promote_type(eltype(Ar), eltype(Bs))
-    isfresh = cache === nothing
     new{T,typeof(Ar),typeof(Bs),typeof(cache)}(Ar,Bs,cache,isfresh)
   end
 end
@@ -99,9 +99,9 @@ end
 for op in (
            :+ , :- , :* , :/, :\,
           )
-  @eval function $(op)(A::TensorProd2DOp{Ta,Taa,Tba,Tca},
-                       B::TensorProd2DOp{Tb,Tab,Tbb,Tcb}
-                      ) where{Ta,Taa,Tba,Tca,Tb,Tab,Tbb,Tcb}
+  @eval function Base.$op(A::TensorProd2DOp{Ta,Taa,Tba,Tca},
+                          B::TensorProd2DOp{Tb,Tab,Tbb,Tcb}
+                         ) where{Ta,Taa,Tba,Tca,Tb,Tab,Tbb,Tcb}
     Ar = $op(A.Ar, B.Ar)
     Bs = $op(A.Bs, B.Bs)
     TensorProd2DOp(Ar, Bs)
@@ -127,7 +127,7 @@ function LinearAlgebra.mul!(v, A::TensorProd2DOp, u)
   if A.isfresh
     cache = init_cache(A, U)
     A = set_cache(A, cache)
-    mul!(V, cache, A.Bs')
+    mul!(V, cache, A.Bs') # 2nd half of tensor product computation
     return v
   end
 

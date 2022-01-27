@@ -20,30 +20,21 @@ function Base.show(io::IO, ::MIME"text/plain", u::Field{T,N,Tarr}) where{T,N,Tar
     println()
 end
 
-# allocation
-Base.similar(u::Field) = Field(similar(u.array))
-Base.similar(u::Field, ::Type{T}, dims::Dims) where{T} = Field(similar(u.array, T, dims))
-#Base.zero(u::Field) = Field(zero(u.array))
-##Base.one(u::Field{T,N}) where{T,N} = u.array .* zero(T) .+ one(T) |> Field
-#Base.copy(u::Field) = Field(copy(u.array))
-#function Base.copy!(u::Field, v::Field)
-#    copy!(u.array,v.array)
-#    return u
-#end
-
 # vector indexing
 Base.IndexStyle(::Field) = IndexLinear()
 Base.getindex(u::Field, i::Int) = getindex(u.array, i)
 Base.setindex!(u::Field, v, i::Int) = setindex!(u.array, v, i)
-Base.length(u::Field) = length(u.array)
-Base.size(u::Field) = (length(u),)
+Base.size(u::Field) = (length(u.array),)
+
+# allocation
+Base.similar(u::Field, ::Type{T} = eltype(u), dims::Dims = size(u.array)) where{T} = Field(similar(u.array, T, dims))
 
 # broadcast
-Base.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()
+Base.Broadcast.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()
 function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{Field}},
                       ::Type{ElType}) where ElType
-    u = find_fld(bc)
-    Field(similar(Array{ElType}, axes(u.array)))
+  u = find_fld(bc)
+  Field(similar(Array{ElType}, axes(u.array)))
 end
 
 find_fld(bc::Base.Broadcast.Broadcasted) = find_fld(bc.args)
@@ -53,19 +44,6 @@ find_fld(::Tuple{}) = nothing
 find_fld(a::Field, rest) = a
 find_fld(::Any, rest) = find_fld(rest)
 
-# math
-for op in (
-           :+ , :- , :* , :/ , :\ ,
-          )
-    @eval Base.$op(u::Field , v::Number) = $op(u.array, v) |> Field
-    @eval Base.$op(u::Number, v::Field ) = $op(u, v.array) |> Field
-    if op ∈ (:+, :-,)
-        @eval Base.$op(u::Field, v::Field) = $op(u.array, v.array) |> Field
-    end
-end
-Base.:-(u::Field) = Field(-u.array)
-LinearAlgebra.dot(u::Field, v::Field) = u' * v
-LinearAlgebra.norm(u::Field, p::Real=2) = norm(u.array, p)
-""" not necessary since Field <: AbstractArray """
-#Base.:*(u::Adjoint{T,<:Field}, v::Field) where{T} =  dot(u.parent, v)
+# math overloads predefined since Field <: AbstractArray
+
 #

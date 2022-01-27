@@ -14,13 +14,12 @@ Base.:*(A::AbstractSpectralOperator, u::AbstractArray) = A(u)
 
 # fusing
 function Base.:*(A::AbstractSpectralOperator, B::AbstractSpectralOperator)
-  @error "fusing operation not defined for $A * $B. Try lazy composition with ∘"
+  @error "Fusing operation not defined for $A * $B. Try lazy composition with ∘"
 end
 
 # caching
 function init_cache(A::AbstractSpectralOperator,u)
-  @warn "caching behaviour not defined for $A"
-  cache = nothing
+  @error "Caching behaviour not defined for $A"
 end
 
 function set_cache(A::AbstractSpectralOperator, cache)
@@ -33,8 +32,25 @@ end
 #LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
 #LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
 
+#for op in (
+#           :+ , :- , :* , :/ , :\ ,
+#          )
+#  @eval Base.$op(u::Field , v::Number) = $op(u.array, v) |> Field
+#  @eval Base.$op(u::Number, v::Field ) = $op(u, v.array) |> Field
+#  if op ∈ (:+, :-,)
+#    @eval Base.$op(u::Field, v::Field) = $op(u.array, v.array) |> Field
+#  end
+#end
+
 """
 Copying Operator
+
+julia> fill(I,(1,2)) * fill(a, (2,))
+julia> [op op] * fill(u,(2,))
+julia> [op, op] * fill(u,(1,1))
+julia> [op, op] * [u]
+
+we just need fill(u, (1,)) and then array math takes care of everything else!
 
 u -> [u, u] where u is AbstractSpectralField
 it's adjoint should be summation
@@ -58,6 +74,7 @@ Base.eltype(::CopyingOp) = Bool
 #ldiv!(::CopyingOp, u) = ldiv!(I, u)
 
 """
+ figure out caching for composition type problems
  this functionality can work
     applychain(::Tuple{}, x) = x
     applychain(fs::Tuple, x) = applychain(tail(fs), first(fs)(x))
@@ -76,7 +93,8 @@ struct ComposeOperator{T,N,Ti,To,Tc} <: AbstractSpectralOperator{T,N}
   #
   function ComposeOperator(inner::AbstractSpectralOperator{Ti,N},
                            outer::AbstractSpectralOperator{To,N},
-                           cache = nothing
+                           cache = nothing,
+                           isfresh::Bool = cache === nothing
                           ) where{Ti,To,N}
     T = promote_type(Ti, To)
     isfresh = cache === nothing
