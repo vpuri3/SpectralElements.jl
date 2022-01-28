@@ -79,7 +79,7 @@ end
  [Dy]     = [ry sy]   [Ds]
 
 """
-struct Gradient2D{T} <: AbstractSpectralOperator{T,2}
+struct Gradient2D{T}
   grad
   #
   function Gradient2D(space::AbstractSpectralSpace{T,2})
@@ -158,7 +158,7 @@ end
 
 export SpectralSpace2D
 """ Tensor Product Polynomial Spectral Space """
-struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,2}
+struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,Val{2}}
     nr::Int
     ns::Int
 
@@ -180,7 +180,7 @@ struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectr
 
     deform::funcT
     #
-    function SpectralSpace2D(nr::Int = 8, ns::Int = 8, T=Float64;
+    function SpectralSpace2D(nr::Int = 8, ns::Int = 8, T=Type{Float64};
                              quadrature = FastGaussQuadrature.gausslobatto,
                              deform::Function = (r,s) -> (copy(r), copy(s)),
                             )

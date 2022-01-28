@@ -28,7 +28,9 @@ function set_cache(A::AbstractSpectralOperator, cache)
   return A
 end
 
-# TODO +, - operations on AbstractOperators
+# lazy
+#  figure out what they do in DiffEqOperators
+## TODO +, - operations on AbstractOperators
 #LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
 #LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
 
@@ -42,46 +44,40 @@ end
 #  end
 #end
 
-"""
-Copying Operator
-
-julia> fill(I,(1,2)) * fill(a, (2,))
-julia> [op op] * fill(u,(2,))
-julia> [op, op] * fill(u,(1,1))
-julia> [op, op] * [u]
-
-we just need fill(u, (1,)) and then array math takes care of everything else!
-
-u -> [u, u] where u is AbstractSpectralField
-it's adjoint should be summation
-"""
-struct CopyingOp{T,N,Tdims} <: AbstractSpectralOperator{T,N}
-  dims::Tdims
+""" Identity Operator with the notion of size """
+struct Identity{N,Ti,Tn} <: AbstractSpectralOperator{Val{Bool}, N}
+  id::Ti
+  n::Tn # size
   #
-  function CopyingOp(dims, N = length(dims))
-    T = Bool
-    new{T,N,typeof(dims)}(dims)
+  function Identity(n::Int, N::Int = 2)
+    id = I
+    new{N,typeof(id),typeof(n)}(id,n)
   end
 end
-
-Base.size(C::CopyingOp) = (Id.n,Id.n)
-Base.adjoint(C::CopyingOp) = CopyingOp(reverse(C.dims))
-Base.eltype(::CopyingOp) = Bool
-
-(C::CopyingOp)(u) = fill(u,dims)
-#mul!(v, ::CopyingOp, u) = mul!(v, I, u)
-#ldiv!(v, ::CopyingOp, u) = ldiv!(v, I, u)
-#ldiv!(::CopyingOp, u) = ldiv!(I, u)
+Base.size(Id::Identity) = (Id.n, Id.n)
+Base.adjoint(Id::Identity) = Id
+#
+(*)(::Identity, u) = copy(u)
+LinearAlgebra.mul!(v, ::Identity, u) = copy!(v, u)
+LinearAlgebra.ldiv!(v, ::Identity, u) = copy!(v, u)
+LinearAlgebra.ldiv!(id::Identity, u) = u
 
 """
- figure out caching for composition type problems
- this functionality can work
-    applychain(::Tuple{}, x) = x
-    applychain(fs::Tuple, x) = applychain(tail(fs), first(fs)(x))
-    (c::Chain)(x) = applychain(c.layers, x)
-
-  or use NamedTuple, or NTuple.
+ToArrayOp - just use RecursiveArrayTools: vecarr_to_arr, ArrayPartition
 """
+struct ToArrayOp{N,Tn} <: AbstractSpectralOperator{Val{Bool},N}
+  n::Tn # size
+  #
+  function ToArrayOp(n::Int, N::Int = 2) # make it work for all N
+    new{N,typeof(n)}(n)
+  end
+end
+Base.size(C::ToArrayOp) = (C.n,C.n)
+
+(C::ToArrayOp)(u) = fill(u, (1,))
+(C::Adjoint{Bool, ToArrayOp})(u) = first(u)
+LinearAlgebra.mul!(v, C::ToArrayOp, u) = copy!(first(v),u)
+LinearAlgebra.ldiv!(v, C::ToArrayOp, u) = first(u)
 
 """ Lazy Composition """
 struct ComposeOperator{T,N,Ti,To,Tc} <: AbstractSpectralOperator{T,N}
@@ -163,8 +159,6 @@ end
 Base.inv(A::AbstractSpectralOperator) = InverseOperator(A)
 Base.size(A::InverseOperator) = size(A.A)
 Base.adjoint(A::InverseOperator) = inv(A.A')
-# https://github.com/SciML/LinearSolve.jl/issues/97
-LinearAlgebra.ldiv!(A::InverseOperator, x) = mul!(x, A.A, x)
 LinearAlgebra.ldiv!(y, A::InverseOperator, x) = mul!(y, A.A, x)
 LinearAlgebra.mul!(y, A::InverseOperator, x) = ldiv!(y, A.A, x)
 #

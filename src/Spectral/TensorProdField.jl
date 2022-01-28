@@ -1,8 +1,4 @@
 #
-#TODO make sure these are fine: @inline, @propagate_inbounds, @boundscheck
-#
-# ref - https://docs.julialang.org/en/v1/manual/interfaces/#man-interface-array
-
 """ Tensor Product Polynomial Field """
 struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractSpectralField{T,N}
     array::Tarr
@@ -43,7 +39,4 @@ find_fld(x) = x
 find_fld(::Tuple{}) = nothing
 find_fld(a::Field, rest) = a
 find_fld(::Any, rest) = find_fld(rest)
-
-# math overloads predefined since Field <: AbstractArray
-
 #

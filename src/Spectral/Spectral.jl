@@ -25,15 +25,16 @@ Base.eltype(u::Union{AbstractSpectralField{T,N},
            ) where{T,N} = T
 
 include("misc_utils.jl")
-include("TensorProdField.jl")
 include("OperatorBasics.jl")
+include("TensorProdField.jl")
 include("TensorProdOperator.jl")
 include("DerivMat.jl")
 include("InterpMat.jl")
 #include("TensorProdSpace.jl")
 
-export Field,
-       Identity, CopyingOp, ComposeOperator, InverseOperator,
+export Identity,
+       Field,
+       CopyingOp, ComposeOperator, InverseOperator,
        DiagonalOp, TensorProd2DOp,
        SpectralSpace2D, GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 

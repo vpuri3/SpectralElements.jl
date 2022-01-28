@@ -1,6 +1,6 @@
 #
 """ Diagonal Operator """
-struct DiagonalOp{T,N,Tdiag} <: AbstractSpectralOperator{T,N}
+struct DiagonalOp{T,N,Tdiag<:Diagonal} <: AbstractSpectralOperator{T,N}
   diag::Tdiag
   #
   function DiagonalOp(u::AbstractSpectralField{T,N}) where{T,N}
@@ -36,16 +36,17 @@ function LinearAlgebra.ldiv!(D::DiagonalOp, u)
   return u
 end
 
-for op in (
-           :+ , :- , :* , :/ , :\ ,
-          )
-  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
-                     B::DiagonalOp{Tb,N,Tbdiag},
-                    ) where{Ta,Tb,N,Tadiag,Tbdiag}
-    diag = $op(A.diag, B.diag)
-    DiagonalOp(diag,N)
-  end
-end
+#for op in (
+#           :+ , :- , :* , :/ , :\ ,
+#          )
+#  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
+#                     B::DiagonalOp{Tb,N,Tbdiag},
+#                    ) where{Ta,Tb,N,Tadiag,Tbdiag}
+#    diag = $op(A.diag, B.diag)
+#    DiagonalOp(diag)
+#  end
+#end
+#Base.inv(D::DiagonalOp) =DiagonalOp(inv(D.diag))
 
 """
  Tensor product operator
@@ -73,7 +74,7 @@ function tensor_product!(V,U,Ar,Bs,Ct,cache1,cache2) # 3D
 end
 
 """ 2D Tensor Product Operator """
-struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractSpectralOperator{T,2}
+struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractSpectralOperator{T,Val{2}}
   Ar::Ta
   Bs::Tb
   #

@@ -12,7 +12,7 @@ end
     using SpectralElements.Spectral
     using LinearAlgebra
 
-    nr = 10
+    nr = 8
     ns = 12
 
     # Field
