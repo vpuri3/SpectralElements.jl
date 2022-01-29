@@ -15,27 +15,35 @@ import Base.Broadcast: BroadcastStyle               # broadcast
 import Base: +, -, *, /, \, adjoint, ∘              # math
 import LinearAlgebra: mul!, ldiv!
 
-abstract type AbstractSpectralField{T,N} <: AbstractVector{T} end
-abstract type AbstractSpectralOperator{T,N} end
-abstract type AbstractSpectralSpace{T,N} end
+""" Abstract Function Field representing a scalar function in N dimensions with type T"""
+abstract type AbstractField{T,N} <: AbstractVector{T} end
+abstract type AbstractOperator{T,N} end
+abstract type AbstractSpace{T,N} end
 
-Base.eltype(u::Union{AbstractSpectralField{T,N},
-                     AbstractSpectralOperator{T,N},
-                     AbstractSpectralSpace{T,N}}
+#""" Abstract Tensor Product Polynomial Field in 2D """
+#abstract type AbstractTensorProdPoly2DField{T} <: AbstractField{T,Val{2}}
+#abstract type AbstractTensorProdPoly2DOperator{T} <: AbstractOperator{T,Val{2}}
+#abstract type AbstractTensorProdPoly2DSpace{T} <: AbstractOperator{T,Val{2}}
+
+Base.eltype(u::Union{AbstractField{T,N},
+                     AbstractOperator{T,N},
+                     AbstractSpace{T,N}}
            ) where{T,N} = T
 
+dims(u::Union{AbstractField{T,N},
+              AbstractOperator{T,N},
+              AbstractSpace{T,N}}
+    ) where{T,N} = N
+
 include("misc_utils.jl")
+include("Field.jl")
 include("OperatorBasics.jl")
-include("TensorProdField.jl")
-include("TensorProdOperator.jl")
-include("DerivMat.jl")
-include("InterpMat.jl")
+include("Operators.jl")
 #include("TensorProdSpace.jl")
 
-export Identity,
-       Field,
-       CopyingOp, ComposeOperator, InverseOperator,
+export Field,
+       Identity, ToArrayOp, ComposeOperator, InverseOperator,
        DiagonalOp, TensorProd2DOp,
-       SpectralSpace2D, GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
+       TensorProductSpace2D, GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 
 end # module

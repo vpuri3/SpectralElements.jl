@@ -1,4 +1,7 @@
 #
+include("DerivMat.jl")
+include("InterpMat.jl")
+
 """
  Computes Jacobian and its inverse of transformation
 

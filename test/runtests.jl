@@ -33,6 +33,8 @@ end
 
     mul!(v,T,u)
     @test v ≈ Field(Ar * u.array * Bs')
+    mul!(v,T,u)
+    @test v ≈ Field(Ar * u.array * Bs')
 
 #   @time @safetestset "Examples" begin include("examples.jl") end
 end

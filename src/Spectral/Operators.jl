@@ -1,15 +1,15 @@
 #
-""" Diagonal Operator """
-struct DiagonalOp{T,N,Tdiag<:Diagonal} <: AbstractSpectralOperator{T,N}
+""" Diagonal Scaling Operator """
+struct DiagonalOp{T,N,Tdiag<:Diagonal} <: AbstractOperator{T,N}
   diag::Tdiag
   #
-  function DiagonalOp(u::AbstractSpectralField{T,N}) where{T,N}
+  function DiagonalOp(u::AbstractField{T,N}) where{T,N}
     diag = u |> _vec |> Diagonal
     DiagonalOp(diag, N)
   end
   
-  function DiagonalOp(u::AbstractArray{T,N}) where{T,N}
-    diag = u |> _vec |> Diagonal
+  function DiagonalOp(u::AbstractArray{T,N}) where{T,N} # remote later
+    diag = u |> _vec |> Diagonal            # should only support AbstractFields
     DiagonalOp(diag, N)
   end
   
@@ -36,17 +36,18 @@ function LinearAlgebra.ldiv!(D::DiagonalOp, u)
   return u
 end
 
-#for op in (
-#           :+ , :- , :* , :/ , :\ ,
-#          )
-#  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
-#                     B::DiagonalOp{Tb,N,Tbdiag},
-#                    ) where{Ta,Tb,N,Tadiag,Tbdiag}
-#    diag = $op(A.diag, B.diag)
-#    DiagonalOp(diag)
-#  end
-#end
-#Base.inv(D::DiagonalOp) =DiagonalOp(inv(D.diag))
+for op in (
+           :+ , :- , :* , :/ , :\ ,
+          )
+  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
+                     B::DiagonalOp{Tb,N,Tbdiag},
+                    ) where{Ta,Tb,N,Tadiag,Tbdiag}
+    @assert size(A) == size(B)
+    diag = $op(A.diag, B.diag)
+    DiagonalOp(diag)
+  end
+end
+Base.inv(D::DiagonalOp) =DiagonalOp(inv(D.diag))
 
 """
  Tensor product operator
@@ -74,7 +75,7 @@ function tensor_product!(V,U,Ar,Bs,Ct,cache1,cache2) # 3D
 end
 
 """ 2D Tensor Product Operator """
-struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractSpectralOperator{T,Val{2}}
+struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractOperator{T,Val{2}}
   Ar::Ta
   Bs::Tb
   #
@@ -114,7 +115,7 @@ function init_cache(A::TensorProd2DOp, U)
 end
 
 function (A::TensorProd2DOp)(u)
-  U = u isa AbstractSpectralField ? u.array : u
+  U = u isa AbstractField ? u.array : u
   if A.isfresh
     cache = init_cache(A, U)
     A = set_cache(A, cache)
@@ -122,8 +123,8 @@ function (A::TensorProd2DOp)(u)
 end
 
 function LinearAlgebra.mul!(v, A::TensorProd2DOp, u)
-  U = u isa AbstractSpectralField ? u.array : u
-  V = v isa AbstractSpectralField ? v.array : v
+  U = u isa AbstractField ? u.array : u
+  V = v isa AbstractField ? v.array : v
 
   if A.isfresh
     cache = init_cache(A, U)

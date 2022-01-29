@@ -1,12 +1,12 @@
 #
-""" Tensor Product Polynomial Field """
-struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractSpectralField{T,N}
+""" Scalar Function Field in N-Dimensional Space"""
+struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractField{T,N}
     array::Tarr
 end
 
 # printing
 function Base.summary(io::IO, u::Field{T,N,Tarr}) where{T,N,Tarr}
-    println(io, "$(N)D Tensor Product Polynomial spectral field of type $T")
+    println(io, "$(N)D scalar field of type $T")
     Base.show(io, typeof(u))
 end
 function Base.show(io::IO, ::MIME"text/plain", u::Field{T,N,Tarr}) where{T,N,Tarr}
