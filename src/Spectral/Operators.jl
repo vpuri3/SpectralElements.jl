@@ -8,8 +8,9 @@ struct DiagonalOp{T,N,Tdiag<:Diagonal} <: AbstractOperator{T,N}
     DiagonalOp(diag, N)
   end
   
-  function DiagonalOp(u::AbstractArray{T,N}) where{T,N} # remote later
-    diag = u |> _vec |> Diagonal            # should only support AbstractFields
+ # TODO remove later - DiagonalOp should only support AbstractFields
+  function DiagonalOp(u::AbstractArray{T,N}) where{T,N}
+    diag = u |> _vec |> Diagonal
     DiagonalOp(diag, N)
   end
   
@@ -39,16 +40,25 @@ end
 for op in (
            :+ , :- , :* , :/ , :\ ,
           )
-  @eval function $op(A::DiagonalOp{Ta,N,Tadiag},
-                     B::DiagonalOp{Tb,N,Tbdiag},
-                    ) where{Ta,Tb,N,Tadiag,Tbdiag}
+  @eval function Base.$op(A::DiagonalOp{Ta,N,Tadiag},
+                          B::DiagonalOp{Tb,N,Tbdiag},
+                         ) where{Ta,Tb,N,Tadiag,Tbdiag}
     @assert size(A) == size(B)
     diag = $op(A.diag, B.diag)
-    DiagonalOp(diag)
+    DiagonalOp(diag, N)
   end
 end
-Base.inv(D::DiagonalOp) =DiagonalOp(inv(D.diag))
 
+LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
+LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
+Base.inv(D::DiagonalOp{T,N,Tdiag}) where{T,N,Tdiag} = DiagonalOp(inv(D.diag), N)
+
+""" identity operator make it fully lazy like LinearOperators.opEye """
+opEye(n::Integer) = opEye(Float64, n)
+opEye(T::DataType, n::Integer) = ones(T, n) |> Diagonal
+
+# overload Base.kron, Base.⊗
+# do it in 2D, 3D
 """
  Tensor product operator
       (Bs ⊗ Ar) * u
@@ -75,7 +85,7 @@ function tensor_product!(V,U,Ar,Bs,Ct,cache1,cache2) # 3D
 end
 
 """ 2D Tensor Product Operator """
-struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractOperator{T,Val{2}}
+struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractOperator{T,2}
   Ar::Ta
   Bs::Tb
   #

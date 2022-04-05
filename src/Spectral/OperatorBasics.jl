@@ -1,8 +1,12 @@
 #
 """ Common Operator Interface """
 
+#TODO - get rank of operator
+#function LinearAlgebra.rank()
+
 # operator application
-function (A::AbstractOperator)(u) 
+function (A::AbstractOperator{Ta,N})(u::AbstractArray) where{Ta,N}
+  # replace arg with u::AbstractField{Tb,N}
   if issquare(A)
     mul!(similar(u),A,u)
   else
@@ -10,9 +14,9 @@ function (A::AbstractOperator)(u)
   end
 end
 
-Base.:*(A::AbstractOperator, u::AbstractArray) = A(u)
+Base.:*(A::AbstractOperator{Ta,N}, u::AbstractField{Tu,N}) where{Ta,Tu,N} = A(u)
 
-# fusing
+# fusing operators
 function Base.:*(A::AbstractOperator, B::AbstractOperator)
   @error "Fusing operation not defined for $A * $B. Try lazy composition with ∘"
 end
@@ -28,9 +32,24 @@ function set_cache(A::AbstractOperator, cache)
   return A
 end
 
-""" check out LazyArrays.jl for lazy operator composition"""
+Base.size(t::AbstractOperator, d) where {T,N} = d::Integer <= 2 ? size(t)[d] : 1
+
+"""
+check LazyArrays.jl, LinearOperators/CompositeLinearOperators
+
+for lazy/eager misc operations
+"""
+
+""" lazy misc operations """
+struct CompositeLinearOperator{T,N} <: AbstractOperator{T,N}
+end
+
+""" eager fusing misc operations with AbstractOperators"""
+struct CompositeLinearOperator{T,N} <: AbstractOperator{T,N}
+end
+
 # lazy
-#  figure out what they do in DiffEqOperators
+
 ## TODO +, - operations on AbstractOperators
 #LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
 #LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
@@ -38,11 +57,8 @@ end
 #for op in (
 #           :+ , :- , :* , :/ , :\ ,
 #          )
-#  @eval Base.$op(u::Field , v::Number) = $op(u.array, v) |> Field
-#  @eval Base.$op(u::Number, v::Field ) = $op(u, v.array) |> Field
-#  if op ∈ (:+, :-,)
-#    @eval Base.$op(u::Field, v::Field) = $op(u.array, v.array) |> Field
-#  end
+#  @eval Base.$op(u::AbstractOperator , v::Number) = $op(u.array, v)
+#  @eval Base.$op(u::Number, v::AbstractOperator ) = $op(u, v.array)
 #end
 
 """ Identity Operator with the notion of size """
@@ -60,13 +76,17 @@ function Base.size(Id::Identity)
 end
 Base.adjoint(Id::Identity) = Id
 #
-(*)(::Identity, u) = copy(u)
 LinearAlgebra.mul!(v, ::Identity, u) = copy!(v, u)
 LinearAlgebra.ldiv!(v, ::Identity, u) = copy!(v, u)
 LinearAlgebra.ldiv!(id::Identity, u) = u
 
+# fusing
+Base.:*(::Identity{N,Tn}, A::AbstractOperator{T,N}) where{N,Tn,T} = A
+Base.:*(A::AbstractOperator{T,N}, ::Identity{N,Tn}) where{N,Tn,T} = A
+
 """
-ToArrayOp - just use RecursiveArrayTools: vecarr_to_arr, ArrayPartition
+ToArrayOp
+use RecursiveArrayTools.jl: ArrayPartition, ComponentArrays.jl instead
 """
 struct ToArrayOp{N,Tn} <: AbstractOperator{Bool,N}
   n::Tn # tuple of sizes

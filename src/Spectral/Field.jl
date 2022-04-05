@@ -4,7 +4,7 @@ struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractField{T,N}
     array::Tarr
 end
 
-# printing
+# display
 function Base.summary(io::IO, u::Field{T,N,Tarr}) where{T,N,Tarr}
     println(io, "$(N)D scalar field of type $T")
     Base.show(io, typeof(u))
@@ -24,6 +24,7 @@ Base.size(u::Field) = (length(u.array),)
 
 # allocation
 Base.similar(u::Field, ::Type{T} = eltype(u), dims::Dims = size(u.array)) where{T} = Field(similar(u.array, T, dims))
+Base.zero(u::Field, dims::Dims) = zero(u) # ignore dims since <: AbstractVector
 
 # broadcast
 Base.Broadcast.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()

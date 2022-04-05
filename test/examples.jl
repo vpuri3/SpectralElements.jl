@@ -1,10 +1,12 @@
 #
-import ..activate_env
+using Test
+using SpectralElements
+
 dir = "../examples"
-activate_env(dir)
-files = (
+files = [
          "p2d.jl",
-        )
+        ]
 for file in files
-    @testset "$file" begin include("$dir/$file") end
+    @time @testset "$file" begin include("$dir/$file") end # @safetestset ?
 end
+#

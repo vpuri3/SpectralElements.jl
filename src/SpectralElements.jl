@@ -1,13 +1,24 @@
 #
 module SpectralElements
 
-using LinearAlgebra, SparseArrays
-using Zygote
-using Plots
-using UnPack
+using Reexport
+
+@reexport using LinearAlgebra
+@reexport using LinearSolve
+@reexport using UnPack: @unpack
+@reexport using Setfield: @set!
+#@reexport using OrdinaryDiffEq
+#using DiffEqFlux
+#using GalacticOptim
+#@reexport using ComponentArrays
+#@reexport using RecursiveArrayTools
+@reexport using Plots
+
+using SparseArrays
+using NNlib
 
 import FastGaussQuadrature
-import Zygote, NNlib
+import Zygote
 #--------------------------------------#
 # conveniences
 Base.:*(op::Function, x::AbstractArray) = op(x)

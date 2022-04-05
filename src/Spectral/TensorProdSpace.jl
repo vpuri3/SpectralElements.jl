@@ -1,6 +1,37 @@
 #
+include("NDgrid.jl")
 include("DerivMat.jl")
 include("InterpMat.jl")
+
+"""
+ Quadilateral Domain
+"""
+struct QuadDomain2D{T,Tx} <: AbstractDomain{T,2}
+  x::Tx
+  y::Tx
+  xperiodic::Bool
+  yperiodic::Bool
+  function QuadDomain2D(x::AbstractField{Tx,2},
+                        y::AbstractField{Ty,2},
+                        xperiodic::Bool = false,
+                        yperiodic::Bool = false) where{Tx,Ty}
+    T = promote_type(Tx,Ty)
+    new{T,typeof(x)}(Tx,Ty,xperiodic,yperiodic)
+  end
+end
+
+"""
+ Interpolating Operator
+"""
+struct Interp2D{T,Tx} <: AbstractDomain{T,2}
+  domain1
+  domain2
+  function Interp2D(x::AbstractField{Tx,2},
+                    y::AbstractField{Ty,2}) where{Tx,Ty}
+    T = promote_type(Tx,Ty)
+    new{T,typeof(x)}(Tx,Ty)
+  end
+end
 
 """
  Computes Jacobian and its inverse of transformation
@@ -33,7 +64,7 @@ struct Deformation2D{T,N,Tjac,fldT}
   function Deformation2D(deform,r,s,DrOp,DsOp)
     x,y = deform(r,s)
 
-    xr = DrOp(x)
+    xr = DrOp(x) # fields
     xs = DsOp(x)
     yr = DrOp(y)
     ys = DsOp(y)
@@ -85,12 +116,12 @@ end
 struct Gradient2D{T}
   grad
   #
-  function Gradient2D(space::AbstractSpectralSpace{T,2})
+  function Gradient2D(space::AbstractSpace{T,2})
 
-    ddr = [DrOp
-           DsOp] |> hcat
+    ddR = [DrOp
+          DsOp] |> hcat
 
-    grad = @. dRdX ∘ ddr
+    grad = @. dRdX ∘ ddR # == ddX
 
     new{T,}()
   end
@@ -119,24 +150,52 @@ end
 
 """
 struct LaplaceOp2D{T,N,fldT}
-    G::Matrix{fldT}
+  G::Matrix{fldT}
 
-    function LaplaceOp2D
-        G11 = B * (rx * rx + ry * ry)
-        G12 = B * (rx * sx + ry * sy)
-        G22 = B * (sx * sx + sy * sy)
+  function LaplaceOp2D
+    G11 = B * (rx * rx + ry * ry)
+    G12 = B * (rx * sx + ry * sy)
+    G22 = B * (sx * sx + sy * sy)
 
-        G = [G11 G12
-             G12 G22]
+    G = [G11 G12
+         G12 G22]
 
-        LaplaceOp = @. GradOp' ∘ G ∘ GradOp
-        new{T}()
-    end
+    LaplaceOp = @. GradOp' ∘ G ∘ GradOp
+    new{T}()
+  end
 end
 
-""" Convection Operator """
-struct Convection{T,N,fldT}
-    v::fldT
+"""
+ for v,u,T in H¹₀(Ω)
+
+ (v,(u⃗⋅∇)T) = (v,ux*∂xT + uy*∂yT)\n
+            = v' *B*(ux*∂xT + uy*∂yT)\n
+
+ implemented as
+
+ R'R * QQ' * B * (ux*∂xT + uy*∂yT)
+
+ (u⃗⋅∇)T = ux*∂xT + uy*∂yT
+
+        = [ux uy] * [Dx] T
+                    [Dx]
+
+ ux,uy, ∇T are interpolated to
+ a grid with higher polynomial order
+ for dealiasing (over-integration)
+ so we don't commit any
+ "variational crimes"
+
+"""
+struct ConvectionOp{T,fldT} <: AbstractOperator{T,2}
+  v::fldT
+  C::
+
+  function ConvectionOp(space::TensorProduct2DSpace, v::Field{T,N})
+    ∘GradOp
+
+    new{}()
+  end
 end
 
 """
@@ -144,87 +203,69 @@ end
  mask, dirichlet/neumann data
 """
 struct BC{T,N,Tb,Tm,Td}
-    bc::Tb
-    mask::Tm # <-- DiagonalOp
-    data::Td
-end
-function apply_bc(u::Field, bc::BC)
-  # apply mask
-  # add dirichlet data (?)
+  bc::Tb
+  mask::Tm # <-- DiagonalOp
+  data::Td
 end
 
 """ Gather-Scatter Operator """
 struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
-    l2g
-    g2l
+  l2g
+  g2l
 end
 
-export SpectralSpace2D
-""" Tensor Product Polynomial Spectral Space """
-struct SpectralSpace2D{T,vecT,fldT,massT,derivT,interpT,funcT} <: AbstractSpectralSpace{T,Val{2}}
-    nr::Int
-    ns::Int
+export TensorProduct2DSpace
+""" Tensor Product Polynomial Space """
+struct TensorProduct2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
+  domain_ref
+  domain_phys
+  domain_dealais
 
-    zr::vecT
-    wr::vecT
+  mass::Tmass
+  grad::Tgrad
+  interp::Tinterp
 
-    zs::vecT
-    ws::vecT
+  #
+  function TensorProduct2DSpace(nr::Int = 8, ns::Int = 8, T=Float64;
+                                quadrature = FastGaussQuadrature.gausslobatto,
+                                deform::Function = (r,s) -> (copy(r), copy(s)),
+                                dealias::Bool = true
+                               )
+    zr,wr = quadrature(nr)
+    zs,ws = quadrature(ns)
+  
+    zr,wr = T.(zr), T.(wr)
+    zs,ws = T.(zs), T.(ws)
+  
+    r,s = ndgrid(zr,zs)
+    x,y = deform(r,s)
+  
+    B  = w * w' |> Field |> DiagonalOp
+    Dr = derivMat(zr)
+    Ds = derivMat(zs)
 
-    r::fldT  # reference coordinates
-    s::fldT
+    Ir = Identity(nr)
+    Is = Identity(ns)
 
-    x::fldT  # spatial coordinates
-    y::fldT
+    DrOp = TensorProduct2D(Dr,Is)
+    DsOp = TensorProduct2D(Ir,Ds)
 
-    mass  ::massT 
-    deriv ::derivT
-    interp::interpT
+    DrDsOp = [DrOp
+              DsOp] |> hcat
 
-    deform::funcT
-    #
-    function SpectralSpace2D(nr::Int = 8, ns::Int = 8, T=Type{Float64};
-                             quadrature = FastGaussQuadrature.gausslobatto,
-                             deform::Function = (r,s) -> (copy(r), copy(s)),
-                            )
-        zr,wr = quadrature(nr)
-        zs,ws = quadrature(ns)
-    
-        zr,wr = T.(zr), T.(wr)
-        zs,ws = T.(zs), T.(ws)
-    
-        o = ones(T,n)
-        r = z * o' |> Field
-        s = o * z' |> Field
-    
-        x,y = deform(r,s)
-    
-        B  = w * w'
-        Dr = derivMat(zr)
-        Ds = derivMat(zs)
-
-        Ir = Identity(nr)
-        Is = Identity(ns)
-
-        DrOp = TensorProduct2D(Dr,Is)
-        DsOp = TensorProduct2D(Ir,Ds)
-
-        DrDsOp = [DrOp
-                  DsOp] |> hcat
-
-#       jac  = 
-#       grad =
-#       mass = B * jac
-#       dealias2 = 
-    
-        ifperiodic = [false,false]
-    
-        return new{T}(nr,nsz,w,r,s,x,y,B,D, deform)
-    end
+#   jac  = 
+#   grad =
+#   mass = B * jac
+#   dealias2 = 
+  
+    ifperiodic = [false,false]
+  
+    return new{T}(coords_ref,coords_def,coords_dealias,interp,mass,grad,)
+  end
 end
-size(space::SpectralSpace2D) = (space.nr * space.ns,)
+Base.size(space::TensorProduct2DSpace) = (space.nr * space.ns,)
 
-GaussLobattoLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
-GaussLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
-GaussChebychev2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
+GaussLobattoLegendre2D(args...;kwargs...) = TensorProduct2DSpace(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
+GaussLegendre2D(args...;kwargs...) = TensorProduct2DSpace(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
+GaussChebychev2D(args...;kwargs...) = TensorProduct2DSpace(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
 #
