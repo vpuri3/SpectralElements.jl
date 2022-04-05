@@ -1,15 +1,15 @@
 #
-""" Scalar Function Field in N-Dimensional Space"""
-struct Field{T,N,Tarr <: AbstractArray{T,N}} <: AbstractField{T,N}
+""" Scalar Function Field in D-Dimensional Space"""
+struct Field{T,D,Tarr <: AbstractArray{T,D}} <: AbstractField{T,D}
     array::Tarr
 end
 
 # display
-function Base.summary(io::IO, u::Field{T,N,Tarr}) where{T,N,Tarr}
-    println(io, "$(N)D scalar field of type $T")
+function Base.summary(io::IO, u::Field{T,D,Tarr}) where{T,D,Tarr}
+    println(io, "$(D)D scalar field of type $T")
     Base.show(io, typeof(u))
 end
-function Base.show(io::IO, ::MIME"text/plain", u::Field{T,N,Tarr}) where{T,N,Tarr}
+function Base.show(io::IO, ::MIME"text/plain", u::Field{T,D,Tarr}) where{T,D,Tarr}
     iocontext = IOContext(io, :compact => true, :limit => true)
     Base.summary(iocontext, u)
     Base.show(iocontext, MIME"text/plain"(), u.array)

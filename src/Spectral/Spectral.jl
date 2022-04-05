@@ -12,7 +12,9 @@ using Reexport
 import FastGaussQuadrature
 import Base.ReshapedArray
 
-using RecursiveArrayTools
+import SciMLBase: AbstractDiffEqLinearOperator
+
+#using RecursiveArrayTools
 
 # overload
 import Base: summary, show                          # printing
@@ -21,26 +23,30 @@ import Base: size, getindex, setindex!, IndexStyle  # indexing
 import Base.Broadcast: BroadcastStyle               # broadcast
 import Base: +, -, *, /, \, adjoint, ∘              # math
 import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
+import Base: kron
 
-""" Abstract Scalar Function Field  in N-Dimensinoal Space"""
-abstract type AbstractField{T,N} <: AbstractVector{T} end
-abstract type AbstractOperator{T,N} <: AbstractDiffEqLinearOperator{T} end
-abstract type AbstractSpace{T,N} end
+""" Abstract Scalar Function Field  in D-Dimensinoal Space"""
+abstract type AbstractSciMLField{T,D} <: AbstractVector{T} end
+
+abstract type AbstractField{T,D} <: AbstractSciMLField{T,D} end
+#abstract type AbstractOperator{T,D} end
+abstract type AbstractOperator{T,D} <: AbstractDiffEqLinearOperator{T} end
+abstract type AbstractSpace{T,D} end
 
 #""" Abstract Tensor Product Polynomial Field in 2D """
 #abstract type AbstractTensorProdPoly2DField{T} <: AbstractField{T,2}
 #abstract type AbstractTensorProdPoly2DOperator{T} <: AbstractOperator{T,2}
 #abstract type AbstractTensorProdPoly2DSpace{T} <: AbstractOperator{T,2}
 
-Base.eltype(u::Union{AbstractField{T,N},
-                     AbstractOperator{T,N},
-                     AbstractSpace{T,N}}
-           ) where{T,N} = T
+Base.eltype(u::Union{AbstractField{T,D},
+                     AbstractOperator{T,D},
+                     AbstractSpace{T,D}}
+           ) where{T,D} = T
 
-dims(u::Union{AbstractField{T,N},
-              AbstractOperator{T,N},
-              AbstractSpace{T,N}}
-    ) where{T,N} = N
+dims(u::Union{AbstractField{T,D},
+              AbstractOperator{T,D},
+              AbstractSpace{T,D}}
+    ) where{T,D} = D
 
 include("utils.jl")
 include("Field.jl")
