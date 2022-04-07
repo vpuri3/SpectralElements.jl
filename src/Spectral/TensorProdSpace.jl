@@ -4,36 +4,6 @@ include("DerivMat.jl")
 include("InterpMat.jl")
 
 """
- Quadilateral Domain
-"""
-struct QuadDomain2D{T,Tx} <: AbstractDomain{T,2}
-  x::Tx
-  y::Tx
-  xperiodic::Bool
-  yperiodic::Bool
-  function QuadDomain2D(x::AbstractField{Tx,2},
-                        y::AbstractField{Ty,2},
-                        xperiodic::Bool = false,
-                        yperiodic::Bool = false) where{Tx,Ty}
-    T = promote_type(Tx,Ty)
-    new{T,typeof(x)}(Tx,Ty,xperiodic,yperiodic)
-  end
-end
-
-"""
- Interpolating Operator
-"""
-struct Interp2D{T,Tx} <: AbstractDomain{T,2}
-  domain1
-  domain2
-  function Interp2D(x::AbstractField{Tx,2},
-                    y::AbstractField{Ty,2}) where{Tx,Ty}
-    T = promote_type(Tx,Ty)
-    new{T,typeof(x)}(Tx,Ty)
-  end
-end
-
-"""
  Computes Jacobian and its inverse of transformation
 
  x = x(r,s), y = y(r,s)

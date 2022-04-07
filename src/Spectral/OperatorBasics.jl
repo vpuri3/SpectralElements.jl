@@ -3,7 +3,6 @@
 
 # operator application
 function (A::AbstractOperator{Ta,D})(u::AbstractArray) where{Ta,D}
-    # replace arg with u::AbstractField{Tb,D}
     if issquare(A)
         mul!(similar(u),A,u)
     else
@@ -31,60 +30,35 @@ end
 
 Base.size(t::AbstractOperator, d) where {T,D} = d::Integer <= 2 ? size(t)[d] : 1
 
-"""
-check LazyArrays.jl, LinearOperators/CompositeLinearOperators
-
-for lazy/eager misc operations
-"""
-
-""" lazy misc operations """
-struct CompositeLinearOperator{T,D} <: AbstractOperator{T,D}
-end
-
-""" eager fusing misc operations with AbstractOperators"""
-
-#struct CompositeLinearOperator{T,D} <: AbstractOperator{T,D}
-#end
-
-# lazy
-
-## TODO +, - operations on AbstractOperators
-#LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
-#LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
-
-#for op in (
-#           :+ , :- , :* , :/ , :\ ,
-#          )
-#  @eval Base.$op(u::AbstractOperator , v::Number) = $op(u.array, v)
-#  @eval Base.$op(u::Number, v::AbstractOperator ) = $op(u, v.array)
-#end
-
-#""" identity operator make it fully lazy like LinearOperators.opEye """
-#opEye(n::Integer) = opEye(Float64, n)
-#opEye(T::DataType, n::Integer) = SciMLBase.DiffEqIdentity{T,N}
-
-""" Identity Operator with the notion of size """
-struct Identity{D,Tn} <: AbstractOperator{Bool, D}
+""" Identity Operator """
+struct IdentityOp{D,Tn} <: AbstractOperator{Bool, D}
     n::Tn # tuple of sizes
     #
-    function Identity(n...)
+    function IdentityOp(n...)
         D = length(n)
         new{D,typeof(n)}(n)
     end
 end
-function Base.size(Id::Identity)
+function Base.size(Id::IdentityOp)
     n = prod(Id.n)
     (n,n)
 end
-Base.adjoint(Id::Identity) = Id
+Base.adjoint(Id::IdentityOp) = Id
 
-LinearAlgebra.mul!(v,  ::Identity, u) = copy!(v, u)
-LinearAlgebra.ldiv!(v, ::Identity, u) = copy!(v, u)
-LinearAlgebra.ldiv!(id ::Identity, u) = u
+function LinearAlgebra.mul!(v::AbstractField{Tv,D}, Id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+    copy!(v, u)
+end
 
-# fusing
-Base.:*(::Identity{D,Tn}, A::AbstractOperator{T,D}) where{D,Tn,T} = A
-Base.:*(A::AbstractOperator{T,D}, ::Identity{D,Tn}) where{D,Tn,T} = A
+function LinearAlgebra.ldiv!(v::AbstractField{Tv,D}, Id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+    copy!(v, u)
+end
+
+function LinearAlgebra.ldiv!(id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tu,D}
+    u
+end
+
+Base.:*(::IdentityOp{D}, A::AbstractOperator{T,D}) where{D,T} = A
+Base.:*(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
 
 """
 ToArrayOp
@@ -104,6 +78,26 @@ Base.size(C::ToArrayOp) = (C.n,C.n)
 (C::Adjoint{Bool, ToArrayOp})(u) = first(u)
 LinearAlgebra.mul!(v, C::ToArrayOp, u) = copy!(first(v),u)
 LinearAlgebra.ldiv!(v, C::ToArrayOp, u) = first(u)
+
+""" Lazy Composite (affine) Operator """
+struct AffineOperator{T,D,Ta,Tb} <: AbstractOperator{T,D}
+    A::Ta
+    B::Tb
+    α::T
+    β::T
+
+    function AffineOperator(A::AbstractOperator{Ta,D},
+                            B::AbstractOperator{Tb,D},
+                            α::Number, β::Number
+                           )
+
+        T = promote_type(Ta,Tb)
+        new{T,D,typeof(A),typeof(B)}(A, B, α, β)
+    end
+end
+
+#Base.*
+#LinearAlgebra.mul!()
 
 """ Lazy Composition """
 struct ComposeOperator{T,D,Ti,To,Tc} <: AbstractOperator{T,D}

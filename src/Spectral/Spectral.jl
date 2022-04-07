@@ -29,7 +29,6 @@ import Base: kron
 abstract type AbstractSciMLField{T,D} <: AbstractVector{T} end
 
 abstract type AbstractField{T,D} <: AbstractSciMLField{T,D} end
-#abstract type AbstractOperator{T,D} end
 abstract type AbstractOperator{T,D} <: AbstractDiffEqLinearOperator{T} end
 abstract type AbstractSpace{T,D} end
 

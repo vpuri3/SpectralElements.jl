@@ -40,4 +40,18 @@ find_fld(x) = x
 find_fld(::Tuple{}) = nothing
 find_fld(a::Field, rest) = a
 find_fld(::Any, rest) = find_fld(rest)
+
+#=
+for op in (
+           :+ , :- , :* , :/, :\,
+          )
+    @eval function Base.$op(u::Field{Ta,Da,TarrU},
+                            v::Field{Tb,Db,TarrV}
+                           ) where{Ta,Tb,Da,Db,TarrU,TarrV}
+        @assert Da == Db
+        $op(u,v)
+    end
+end
+=#
+
 #

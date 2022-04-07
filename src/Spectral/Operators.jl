@@ -1,5 +1,6 @@
-#
-## Diagonal Operator
+###
+# Diagonal Operator
+###
 
 """ Diagonal Scaling Operator """
 struct DiagonalOp{T,D,Tdiag<:AbstractField{T,D}} <: AbstractOperator{T,D}
@@ -9,38 +10,50 @@ end
 Base.size(A::DiagonalOp) = size(Diagonal(A.diag))
 Base.adjoint(A::DiagonalOp) = A
 
-function LinearAlgebra.mul!(v::AbstractField{T,D}, A::DiagonalOp{T,D,Tdiag}, u::AbstractField{T,D}) where{T,D,Tdiag}
+function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Tu,Ta,Tv,D}
     mul!(_vec(v), Diagonal(A.diag), _vec(u))
     return v
 end
 
-function LinearAlgebra.ldiv!(v::AbstractField{T,D}, A::DiagonalOp{T,D,Tdiag}, u::AbstractField{T,D}) where{T,D,Tdiag}
+function LinearAlgebra.ldiv!(v::AbstractField{Tv,D}, A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
     ldiv!(_vec(v), Diagonal(A.diag), _vec(u))
     return v
 end
 
-function LinearAlgebra.ldiv!(A::DiagonalOp{T,D,Tdiag}, u::AbstractField{T,D}) where{T,D,Tdiag}
+function LinearAlgebra.ldiv!(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
     ldiv!(Diagonal(A.diag), _vec(u))
     return u
 end
 
+# fusion
 for op in (
            :+, :-, :*, :/, :\,
           )
-  @eval function Base.$op(A::DiagonalOp{Ta,D,Tadiag},
-                          B::DiagonalOp{Tb,D,Tbdiag},
-                         ) where{Ta,Tb,D,Tadiag,Tbdiag}
-    @assert size(A) == size(B)
-    diag = $op(A.diag, B.diag)
-    DiagonalOp(diag)
-  end
+    @eval function Base.$op(A::DiagonalOp{Ta,D,Tadiag},
+                            B::DiagonalOp{Tb,D,Tbdiag},
+                           ) where{Ta,Tb,D,Tadiag,Tbdiag}
+        diag = $op(A.diag, B.diag)
+        DiagonalOp(diag)
+    end
+
+    @eval function Base.$op(λ::Number, A::DiagonalOp)
+        diag = $op(λ, A.diag)
+        DiagonalOp(diag)
+    end
+
+    @eval function Base.$op(A::DiagonalOp, λ::Number)
+        diag = $op(A.diag, λ)
+        DiagonalOp(diag)
+    end
 end
 
 LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
 LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
-Base.inv(A::DiagonalOp{T,D,Tdiag}) where{T,D,Tdiag} = DiagonalOp(inv(A.diag), D)
 
-## Tensor Product Operator
+###
+# Tensor Product Operator
+###
+
 #Base.kron()
 #Base.⊗
 
@@ -78,10 +91,10 @@ end
 struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractOperator{T,2}
     Ar::Ta
     Bs::Tb
-    #
+
     cache::Tc
     isunset::Bool
-    #
+    
     function TensorProd2DOp(Ar, Bs, cache = nothing,
                             isunset::Bool = cache === nothing)
         T = promote_type(eltype(Ar), eltype(Bs))
