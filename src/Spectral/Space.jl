@@ -184,9 +184,9 @@ struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
   g2l
 end
 
-export TensorProduct2DSpace
+export Spectral2DSpace
 """ Tensor Product Polynomial Space """
-struct TensorProduct2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
+struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
   domain_ref
   domain_phys
   domain_dealais
@@ -196,7 +196,7 @@ struct TensorProduct2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
   interp::Tinterp
 
   #
-  function TensorProduct2DSpace(nr::Int = 8, ns::Int = 8, T=Float64;
+  function Spectral2DSpace(nr::Int = 8, ns::Int = 8, T=Float64;
                                 quadrature = FastGaussQuadrature.gausslobatto,
                                 deform::Function = (r,s) -> (copy(r), copy(s)),
                                 dealias::Bool = true
@@ -233,9 +233,9 @@ struct TensorProduct2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
     return new{T}(coords_ref,coords_def,coords_dealias,interp,mass,grad,)
   end
 end
-Base.size(space::TensorProduct2DSpace) = (space.nr * space.ns,)
+Base.size(space::Spectral2DSpace) = (space.nr * space.ns,)
 
-GaussLobattoLegendre2D(args...;kwargs...) = TensorProduct2DSpace(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
-GaussLegendre2D(args...;kwargs...) = TensorProduct2DSpace(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
-GaussChebychev2D(args...;kwargs...) = TensorProduct2DSpace(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
+GaussLobattoLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
+GaussLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
+GaussChebychev2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
 #

@@ -34,10 +34,10 @@ abstract type AbstractSpace{T,D} end
 
 abstract type AbstractTensorProdOperator{T,D} <: AbstractOperator{T,D} end
 
-#""" Abstract Tensor Product Polynomial Field in 2D """
-#abstract type AbstractTensorProdPoly2DField{T} <: AbstractField{T,2}
-#abstract type AbstractTensorProdPoly2DOperator{T} <: AbstractOperator{T,2}
-#abstract type AbstractTensorProdPoly2DSpace{T} <: AbstractOperator{T,2}
+#""" Abstract Spectral Polynomial Field in 2D """
+#abstract type AbstractSpectral2DField{T} <: AbstractField{T,2}
+#abstract type AbstractSpectral2DOperator{T} <: AbstractOperator{T,2}
+#abstract type AbstractSpectral2DSpace{T} <: AbstractOperator{T,2}
 
 Base.eltype(::Union{AbstractField{T,D},
                     AbstractOperator{T,D},
@@ -54,11 +54,11 @@ include("utils.jl")
 include("Field.jl")
 include("OperatorBasics.jl")
 include("Operators.jl")
-#include("TensorProdSpace.jl")
+#include("Space.jl")
 
 export Field,
        Identity, ToArrayOp, ComposeOperator, InverseOperator,
        DiagonalOp, TensorProd2DOp,
-       TensorProduct2DSpace, GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
+       Spectral2DSpace, GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 
 end # module
