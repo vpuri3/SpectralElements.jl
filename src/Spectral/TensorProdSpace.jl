@@ -89,7 +89,7 @@ struct Gradient2D{T}
   function Gradient2D(space::AbstractSpace{T,2})
 
     ddR = [DrOp
-          DsOp] |> hcat
+           DsOp] |> hcat
 
     grad = @. dRdX ∘ ddR # == ddX
 
@@ -122,7 +122,7 @@ end
 struct LaplaceOp2D{T,N,fldT}
   G::Matrix{fldT}
 
-  function LaplaceOp2D
+  function LaplaceOp2D(space)
     G11 = B * (rx * rx + ry * ry)
     G12 = B * (rx * sx + ry * sy)
     G22 = B * (sx * sx + sy * sy)

@@ -1,7 +1,7 @@
 #
 """ Common Operator Interface """
 
-# operator application
+# fallbacks
 function (A::AbstractOperator{Ta,D})(u::AbstractArray) where{Ta,D}
     if issquare(A)
         mul!(similar(u),A,u)
@@ -12,9 +12,9 @@ end
 
 Base.:*(A::AbstractOperator{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D} = A(u)
 
-# fusing operators
 function Base.:*(A::AbstractOperator, B::AbstractOperator)
-    @error "Fusing operation not defined for $A * $B. Try lazy composition with ∘"
+    @warn "Fusing operation not defined for $A * $B. falling back to lazy ∘"
+    A ∘ B
 end
 
 # caching
@@ -29,6 +29,43 @@ function set_cache(A::AbstractOperator, cache)
 end
 
 Base.size(t::AbstractOperator, d) where {T,D} = d::Integer <= 2 ? size(t)[d] : 1
+
+function Base.:+(A::AbstractOperator{Ta,D},
+                B::AbstractOperator{Tb,D},
+               ) where{Ta,Tb,D}
+    AffineOperator(A,B,true,true)
+end
+
+function Base.:-(A::AbstractOperator{Ta,D},
+                B::AbstractOperator{Tb,D}
+               ) where{Ta,Tb,D}
+    AffineOperator(A,B,true,-true)
+end
+
+function Base.:+(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+    Id = IdentityOp(size(A)...)
+    AffineOperator(A, Id, true, λ)
+end
+
+function Base.:-(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+    Id = IdentityOp(size(A)...)
+    AffineOperator(A, Id, -true, λ)
+end
+
+function Base.:*(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+    Z = ZeroOp(size(A)...)
+    AffineOperator(A, Z, true, λ)
+end
+
+function Base.:/(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+    Z = ZeroOp(size(A)...)
+    AffineOperator(A, Z, -true, λ)
+end
+
+""" Zero Operator with a notion of size """
+struct ZeroOp{D,Tn} <: AbstractOperator{Bool, D}
+    n::Tn # tuple of sizes
+end
 
 """ Identity Operator """
 struct IdentityOp{D,Tn} <: AbstractOperator{Bool, D}
@@ -45,11 +82,17 @@ function Base.size(Id::IdentityOp)
 end
 Base.adjoint(Id::IdentityOp) = Id
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, Id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{Tv,D},
+                            Id::IdentityOp{D},
+                            u::AbstractField{Tu,D}
+                           ) where{Tv,Tu,D}
     copy!(v, u)
 end
 
-function LinearAlgebra.ldiv!(v::AbstractField{Tv,D}, Id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+function LinearAlgebra.ldiv!(v::AbstractField{Tv,D},
+                             Id::IdentityOp{D},
+                             u::AbstractField{Tu,D}
+                            ) where{Tv,Tu,D}
     copy!(v, u)
 end
 
@@ -80,7 +123,7 @@ LinearAlgebra.mul!(v, C::ToArrayOp, u) = copy!(first(v),u)
 LinearAlgebra.ldiv!(v, C::ToArrayOp, u) = first(u)
 
 """ Lazy Composite (affine) Operator """
-struct AffineOperator{T,D,Ta,Tb} <: AbstractOperator{T,D}
+struct AffineOperator{T,D,Ta,Tb} <: AbstractOperator{T,D} #where{Ta,Tb}
     A::Ta
     B::Tb
     α::T
@@ -89,10 +132,10 @@ struct AffineOperator{T,D,Ta,Tb} <: AbstractOperator{T,D}
     function AffineOperator(A::AbstractOperator{Ta,D},
                             B::AbstractOperator{Tb,D},
                             α::Number, β::Number
-                           )
+                           ) where{Ta,Tb,D}
 
         T = promote_type(Ta,Tb)
-        new{T,D,typeof(A),typeof(B)}(A, B, α, β)
+        new{T,D,typeof(A),typeof(B)}(A, B, T(α), T(β))
     end
 end
 
@@ -128,14 +171,14 @@ Base.size(A::ComposeOperator) = (size(A.outer, 1), size(A.inner, 2))
 Base.adjoint(A::ComposeOperator) = A.inner' ∘ A.outer'
 Base.inv(A::ComposeOperator) = inv(A.inner) ∘ inv(A.outer)
 
-function init_cache(A::ComposeOperator, u)
+function init_cache(A::ComposeOperator{Ta,D}, u::Field{Tu,D}) where{Ta,Tu,D}
     cache = A.inner(u)
     return cache
 end
 
-function (A::ComposeOperator)(u)
+function (A::ComposeOperator{Ta,D})(u::Field{Tu,D}) where{Ta,Tu,D}
     if A.isunset
-        cache = init_cache(A, x)
+        cache = init_cache(A, u)
         A = set_cache(A, cache)
         return outer(cache)
     end
@@ -143,29 +186,29 @@ function (A::ComposeOperator)(u)
     outer(cache)
 end
 
-function LinearAlgebra.mul!(y, A::ComposeOperator, x)
+function LinearAlgebra.mul!(v::Field{Tv,D}, A::ComposeOperator{Ta,D}, u::Field{Tu,D}) where{Tv,Ta,Tu,D}
     if A.isunset
-        cache = init_cache(A, x)
+        cache = init_cache(A, u)
         A = set_cache(A, cache)
-        return mul!(y, outer, cache)
+        return mul!(v, outer, cache)
     end
 
-    mul!(cache, inner, x)
-    mul!(y, outer, cache)
+    mul!(cache, inner, u)
+    mul!(v, outer, cache)
 end
 
-function LinearAlgebra.ldiv!(A::ComposeOperator, x)
+function LinearAlgebra.ldiv!(A::ComposeOperator{Ta,D}, u::Field{Tu,D}) where{Ta,Tu,D}
     @unpack inner, outer = A
 
-    ldiv!(inner, x)
-    ldiv!(outer, x)
+    ldiv!(inner, u)
+    ldiv!(outer, u)
 end
 
-function LinearAlgebra.ldiv!(y, A::ComposeOperator, x)
+function LinearAlgebra.ldiv!(v::Field{Tv,D}, A::ComposeOperator{Ta,D}, u::Field{Tu,D}) where{Tv,Ta,Tu,D}
     @unpack inner, outer = A
 
-    ldiv!(y, inner, x)
-    ldiv!(outer, y)
+    ldiv!(v, inner, u)
+    ldiv!(outer, v)
 end
 
 """ InverseOperator """

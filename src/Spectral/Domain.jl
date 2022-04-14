@@ -39,7 +39,7 @@ struct QuadDomain2D{T,Tx} <: AbstractDomain{T,2}
 end
 
 """
- Interpolating Operator
+ Interpolation operator between spaces
 """
 struct Interp2D{T,Tx} <: AbstractDomain{T,2}
   domain1

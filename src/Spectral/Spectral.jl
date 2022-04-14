@@ -32,19 +32,22 @@ abstract type AbstractField{T,D} <: AbstractSciMLField{T,D} end
 abstract type AbstractOperator{T,D} <: AbstractDiffEqLinearOperator{T} end
 abstract type AbstractSpace{T,D} end
 
+abstract type AbstractTensorProdOperator{T,D} <: AbstractOperator{T,D} end
+
 #""" Abstract Tensor Product Polynomial Field in 2D """
 #abstract type AbstractTensorProdPoly2DField{T} <: AbstractField{T,2}
 #abstract type AbstractTensorProdPoly2DOperator{T} <: AbstractOperator{T,2}
 #abstract type AbstractTensorProdPoly2DSpace{T} <: AbstractOperator{T,2}
 
-Base.eltype(u::Union{AbstractField{T,D},
-                     AbstractOperator{T,D},
-                     AbstractSpace{T,D}}
+Base.eltype(::Union{AbstractField{T,D},
+                    AbstractOperator{T,D},
+                    AbstractSpace{T,D}}
            ) where{T,D} = T
 
-dims(u::Union{AbstractField{T,D},
-              AbstractOperator{T,D},
-              AbstractSpace{T,D}}
+dims(::Union{AbstractField{T,D},
+             AbstractOperator{T,D},
+             AbstractSpace{T,D}
+             }
     ) where{T,D} = D
 
 include("utils.jl")

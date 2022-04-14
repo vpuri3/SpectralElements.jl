@@ -32,8 +32,8 @@ for op in (
     @eval function Base.$op(A::DiagonalOp{Ta,D,Tadiag},
                             B::DiagonalOp{Tb,D,Tbdiag},
                            ) where{Ta,Tb,D,Tadiag,Tbdiag}
-        diag = $op(A.diag, B.diag)
-        DiagonalOp(diag)
+        Diag = $op(Diagonal(A.diag), Diagonal(B.diag))
+        DiagonalOp(Diag.diag)
     end
 
     @eval function Base.$op(λ::Number, A::DiagonalOp)
@@ -88,7 +88,7 @@ function tensor_product!(V,U,Ar,Bs,Ct,cache1,cache2) # 3D
 end
 
 """ 2D Tensor Product Operator """
-struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractOperator{T,2}
+struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractTensorProdOperator{T,2}
     Ar::Ta
     Bs::Tb
 
