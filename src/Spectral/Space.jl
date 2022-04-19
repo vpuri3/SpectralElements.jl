@@ -3,6 +3,57 @@ include("NDgrid.jl")
 include("DerivMat.jl")
 include("InterpMat.jl")
 
+#--------------------------------------#
+struct PDEField1D{T}
+    u ::Field{T,1} # field itself
+    ub::Field{T,1} # boundary data (Dirichlet for now)
+    M ::Array{T}   # boundary location / tag
+
+    msh::Mesh{T}   # way to interact with mesh/space
+end
+
+function PDEField(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
+    u  = zero(msh.x)
+    ub = zero(msh.x)
+    M  = generateMask(bc,msh)
+
+    return PDEField{T,k}(u,uh,ub,M,msh)
+end
+#--------------------------------------#
+
+struct SpectralSpace1D{
+                       T,Tfield<:Vector{T},Tbc,Tgrad,Tmass,Tlapl,Tipr,Tcache
+                      } <: AbstractSpectralSpace{T,1}
+    x::Tfield
+    bc::Tbc
+    gradOp::Tgrad
+    massOp::Tmass
+    laplOp::Tlapl
+    inner_product::Tipr
+    cache::Tcache
+end
+
+struct GLLCache1D{T} <: AbstractSpectralCache{T,1}
+    canonical_domain::Tref # r
+    physical_domain::Tphys # x
+    dealias_domain::Tdeal  # xd
+    deformation::Tdeform  # J, Ji, dXdR
+    n
+    Dr
+    GS
+end
+
+struct GLLBC1D{T} <: AbstractBoundaryCondition{T,1}
+    bcsym # dirichlet, neumann
+    mask
+end
+
+struct GS1D{T} <: AbstractGatherScatter{T,1}
+    gather_scatter_op
+    l2g # local-to-global
+    g2l # global-to-local
+end
+
 """
  Computes Jacobian and its inverse of transformation
 

@@ -4,7 +4,10 @@ using SpectralElements.Spectral
 nr = 8
 ns = 12
 
-u = rand(nr,ns) |> Field
+arr = rand(nr,ns)
+u   = Field(arr)
+
+@test eachindex(vec(arr)) == eachindex(u)
 
 @inferred similar(u)
 @inferred +u

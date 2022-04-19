@@ -26,9 +26,9 @@ import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
 import Base: kron
 
 """ Abstract Scalar Function Field  in D-Dimensinoal Space"""
-abstract type AbstractSciMLField{T,D} <: AbstractVector{T} end
+abstract type AbstractPDEField{T,D} <: AbstractVector{T} end
 
-abstract type AbstractField{T,D} <: AbstractSciMLField{T,D} end
+abstract type AbstractField{T,D} <: AbstractPDEField{T,D} end
 abstract type AbstractOperator{T,D} <: AbstractDiffEqLinearOperator{T} end
 abstract type AbstractSpace{T,D} end
 

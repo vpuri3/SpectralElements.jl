@@ -6,7 +6,7 @@ struct Interval{T,B,I} <: AbstractDomain{T,1}
     interior::I
 end
 
-function Interval(x)
+function Interval(x) end
 
 struct BoxDomain2D{T,I1,I2,B} <: AbstractDomain{T,2}
     interval1::I1
