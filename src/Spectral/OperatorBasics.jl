@@ -30,15 +30,11 @@ end
 
 Base.size(t::AbstractOperator, d) where {T,D} = d::Integer <= 2 ? size(t)[d] : 1
 
-function Base.:+(A::AbstractOperator{Ta,D},
-                B::AbstractOperator{Tb,D},
-               ) where{Ta,Tb,D}
+function Base.:+(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D},) where{Ta,Tb,D}
     AffineOperator(A,B,true,true)
 end
 
-function Base.:-(A::AbstractOperator{Ta,D},
-                B::AbstractOperator{Tb,D}
-               ) where{Ta,Tb,D}
+function Base.:-(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D}) where{Ta,Tb,D}
     AffineOperator(A,B,true,-true)
 end
 

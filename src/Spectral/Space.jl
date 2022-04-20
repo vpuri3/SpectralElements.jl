@@ -3,23 +3,10 @@ include("NDgrid.jl")
 include("DerivMat.jl")
 include("InterpMat.jl")
 
-#--------------------------------------#
 struct PDEField1D{T}
-    u ::Field{T,1} # field itself
-    ub::Field{T,1} # boundary data (Dirichlet for now)
-    M ::Array{T}   # boundary location / tag
-
-    msh::Mesh{T}   # way to interact with mesh/space
+    u ::Field{T,1}  # field vector
+    BC::BC{T}       # bc tag
 end
-
-function PDEField(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
-    u  = zero(msh.x)
-    ub = zero(msh.x)
-    M  = generateMask(bc,msh)
-
-    return PDEField{T,k}(u,uh,ub,M,msh)
-end
-#--------------------------------------#
 
 struct SpectralSpace1D{
                        T,Tfield<:Vector{T},Tbc,Tgrad,Tmass,Tlapl,Tipr,Tcache
@@ -44,14 +31,16 @@ struct GLLCache1D{T} <: AbstractSpectralCache{T,1}
 end
 
 struct GLLBC1D{T} <: AbstractBoundaryCondition{T,1}
-    bcsym # dirichlet, neumann
-    mask
+    bctag # dirichlet, neumann
+    dirichlet_func! # (ub, space) -> mul!(ub, I, false)
+    neumann_func!
+    mask # implementation
 end
 
 struct GS1D{T} <: AbstractGatherScatter{T,1}
-    gather_scatter_op
-    l2g # local-to-global
-    g2l # global-to-local
+    gsOp
+    l2g  # local-to-global
+    g2l  # global-to-local
 end
 
 """
@@ -73,8 +62,8 @@ end
                   -1
  [rx sx] = [xr yr]
  [ry sy]   [xs ys]
-
 """
+
 struct Deformation2D{T,N,Tjac,fldT}
   deform
   J ::Tjac
