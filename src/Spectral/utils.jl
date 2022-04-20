@@ -8,9 +8,11 @@ _vec(a::AbstractVector) = a
 _vec(a::AbstractArray) = _reshape(a,(length(a),))
 
 """ check if operator(s) is square """
+issquare(::UniformScaling) = true
+issquare(::IdentityOp) = true
+issquare(::ZeroOp) = true
+issquare(::DiagonalOp) = true
 issquare(A) = size(A,1) === size(A,2)
 issquare(A...) = @. (&)(issquare(A)...)
-issquare(::UniformScaling) = true
 #issquare(::Identity) = true
-#issquare(::DiagonalOp) = true
 #

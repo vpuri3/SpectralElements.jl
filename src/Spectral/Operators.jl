@@ -7,8 +7,15 @@ struct DiagonalOp{T,D,Tdiag<:AbstractField{T,D}} <: AbstractOperator{T,D}
     diag::Tdiag
 end
 
+SciMLBase.has_ldiv(::DiagonalOp) = true
+SciMLBase.has_ldiv!(::DiagonalOp) = true
+
 Base.size(A::DiagonalOp) = size(Diagonal(A.diag))
 Base.adjoint(A::DiagonalOp) = A
+
+function Base.\(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+    Diagonal(A.diag) \ _vec(u)
+end
 
 function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Tu,Ta,Tv,D}
     mul!(_vec(v), Diagonal(A.diag), _vec(u))
@@ -88,46 +95,56 @@ function tensor_product!(V,U,Ar,Bs,Ct,cache1,cache2) # 3D
 end
 
 """ 2D Tensor Product Operator """
-struct TensorProd2DOp{T,Ta,Tb,Tc} <: AbstractTensorProdOperator{T,2}
-    Ar::Ta
-    Bs::Tb
+struct TensorProduct2DOp{T,
+                         Ta <: AbstractOperator{<:Number,1},
+                         Tb <: AbstractOperator{<:Number,1},
+                         Tc
+                        } <: AbstractTensorProductOperator{T,2}
+    A::Ta
+    B::Tb
 
     cache::Tc
     isunset::Bool
-    
-    function TensorProd2DOp(Ar, Bs, cache = nothing,
-                            isunset::Bool = cache === nothing)
-        T = promote_type(eltype(Ar), eltype(Bs))
-        new{T,typeof(Ar),typeof(Bs),typeof(cache)}(Ar,Bs,cache,isunset)
+
+    function TensorProduct2DOp(A, B, cache = nothing, isunset = cache === nothing)
+        T = promote_type(eltype(A), eltype(B))
+        new{T,typeof(A),typeof(B),typeof(cache)}(A, B, cache, isunset)
     end
 end
 
-Base.size(A::TensorProd2DOp) = size(A.Ar) .* size(A.Bs)
-function Base.adjoint(A::TensorProd2DOp)
+
+Base.size(A::TensorProduct2DOp) = size(A.Ar) .* size(A.Bs)
+
+function Base.*(A::TensorProduct2DOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+    v = copy(u)
+    @set! v.array = A.B * u.array * A.A'
+end
+
+function Base.adjoint(A::TensorProduct2DOp)
     if issquare(A)
-        TensorProdOp(A.Ar', A.Bs', A.cache)
+        TensorProdOp(A.A', A.B', A.cache)
     else
-        TensorProdOp(A.Ar', A.Bs')
+        TensorProdOp(A.A', A.B')
     end
 end
 
 for op in (
            :+ , :- , :* , :/, :\,
           )
-    @eval function Base.$op(A::TensorProd2DOp{Ta,Taa,Tba,Tca},
-                            B::TensorProd2DOp{Tb,Tab,Tbb,Tcb}
+    @eval function Base.$op(A::TensorProduct2DOp{Ta,Taa,Tba,Tca},
+                            B::TensorProduct2DOp{Tb,Tab,Tbb,Tcb}
                            ) where{Ta,Taa,Tba,Tca,Tb,Tab,Tbb,Tcb}
         Ar = $op(A.Ar, B.Ar)
         Bs = $op(A.Bs, B.Bs)
-        TensorProd2DOp(Ar, Bs)
+        TensorProduct2DOp(Ar, Bs)
     end
 end
 
-function init_cache(A::TensorProd2DOp, U)
+function init_cache(A::TensorProduct2DOp, U)
     cache = A.Ar * U
 end
 
-function (A::TensorProd2DOp)(u)
+function (A::TensorProduct2DOp)(u)
     U = u isa AbstractField ? u.array : u
     if A.isunset
         cache = init_cache(A, U)
@@ -135,8 +152,7 @@ function (A::TensorProd2DOp)(u)
     end
 end
 
-function LinearAlgebra.mul!(v::AbstractField{T,2}, A::TensorProd2DOp{T}, u::AbstractField{T,2}) where{T}
-
+function LinearAlgebra.mul!(v::AbstractField{T,2}, A::TensorProduct2DOp{T}, u::AbstractField{T,2}) where{T}
     U = u.array
     V = v.array
 

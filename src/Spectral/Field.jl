@@ -1,6 +1,6 @@
 #
-""" Scalar Function Field in D-Dimensional Space"""
-struct Field{T,D,Tarr <: AbstractArray{T,D}} <: AbstractField{T,D}
+""" Scalar function field in D-dimensional space over a spectral basis"""
+struct Field{T,D,Tarr <: AbstractArray{T,D}} <: AbstractSpectralField{T,D}
     array::Tarr
 end
 

@@ -12,7 +12,7 @@ using Reexport
 import FastGaussQuadrature
 import Base.ReshapedArray
 
-import SciMLBase: AbstractDiffEqLinearOperator
+import SciMLBase: AbstractDiffEqOperator
 
 #using RecursiveArrayTools
 
@@ -25,19 +25,22 @@ import Base: +, -, *, /, \, adjoint, ∘              # math
 import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
 import Base: kron
 
-""" Abstract Scalar Function Field  in D-Dimensinoal Space"""
-abstract type AbstractPDEField{T,D} <: AbstractVector{T} end
-
-abstract type AbstractField{T,D} <: AbstractPDEField{T,D} end
-abstract type AbstractOperator{T,D} <: AbstractDiffEqLinearOperator{T} end
+""" Scalar function field in D-Dimensional space """
+abstract type AbstractField{T,D} <: AbstractVector{T} end
+""" Operators acting on fields in D-Dimensional space """
+abstract type AbstractOperator{T,D} <: AbstractDiffEqOperator{T} end
+""" Function space in D-Dimensional space """
 abstract type AbstractSpace{T,D} end
 
-abstract type AbstractTensorProdOperator{T,D} <: AbstractOperator{T,D} end
+""" Scalar function field in D-Dimensional space over spectral basis """
+abstract type AbstractSpectralField{T,D} <: AbstractField{T,D} end
+""" Operators acting on fields in D-Dimensional space over a spectral basis"""
+abstract type AbstractSpectralOperator{T,D} <: AbstractOperator{T,D} end
+""" Spectral function space in D-Dimensional space """
+abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
 
-#""" Abstract Spectral Polynomial Field in 2D """
-#abstract type AbstractSpectral2DField{T} <: AbstractField{T,2}
-#abstract type AbstractSpectral2DOperator{T} <: AbstractOperator{T,2}
-#abstract type AbstractSpectral2DSpace{T} <: AbstractOperator{T,2}
+""" Tensor product operator in D-Dimensional space """
+abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
 
 Base.eltype(::Union{AbstractField{T,D},
                     AbstractOperator{T,D},

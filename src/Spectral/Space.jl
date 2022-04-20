@@ -8,6 +8,19 @@ struct PDEField1D{T}
     BC::BC{T}       # bc tag
 end
 
+"""
+AbstractSpectralSpace{T,D}
+    x1::AbstractField{T,D}
+    ...
+    xD::AbstractField{T,D}
+    gradOp::AbstractOperator{T,D}
+    massOp::AbstractOperator{T,D}
+    inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
+
+    cache
+
+"""
+
 struct SpectralSpace1D{
                        T,Tfield<:Vector{T},Tbc,Tgrad,Tmass,Tlapl,Tipr,Tcache
                       } <: AbstractSpectralSpace{T,1}
@@ -24,7 +37,7 @@ struct GLLCache1D{T} <: AbstractSpectralCache{T,1}
     canonical_domain::Tref # r
     physical_domain::Tphys # x
     dealias_domain::Tdeal  # xd
-    deformation::Tdeform  # J, Ji, dXdR
+    deformation::Tdeform  # J (=dX/dR), Ji (=dR/dX)
     n
     Dr
     GS
@@ -65,9 +78,9 @@ end
 """
 
 struct Deformation2D{T,N,Tjac,fldT}
-  deform
-  J ::Tjac
-  Ji::Tjac
+  deform::Function
+  J ::AbstractField{T,2}
+  Ji::AbstractField{T,2}
   dXdR
   dRdX
   #
