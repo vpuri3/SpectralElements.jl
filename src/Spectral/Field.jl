@@ -5,11 +5,11 @@ struct Field{T,D,Tarr <: AbstractArray{T,D}} <: AbstractSpectralField{T,D}
 end
 
 # display
-function Base.summary(io::IO, u::Field{T,D,Tarr}) where{T,D,Tarr}
+function Base.summary(io::IO, u::Field{T,D}) where{T,D}
     println(io, "$(D)D scalar field of type $T")
     Base.show(io, typeof(u))
 end
-function Base.show(io::IO, ::MIME"text/plain", u::Field{T,D,Tarr}) where{T,D,Tarr}
+function Base.show(io::IO, ::MIME"text/plain", u::Field)
     iocontext = IOContext(io, :compact => true, :limit => true)
     Base.summary(iocontext, u)
     Base.show(iocontext, MIME"text/plain"(), u.array)
@@ -40,18 +40,4 @@ find_fld(x) = x
 find_fld(::Tuple{}) = nothing
 find_fld(a::Field, rest) = a
 find_fld(::Any, rest) = find_fld(rest)
-
-#=
-for op in (
-           :+ , :- , :* , :/, :\,
-          )
-    @eval function Base.$op(u::Field{Ta,Da,TarrU},
-                            v::Field{Tb,Db,TarrV}
-                           ) where{Ta,Tb,Da,Db,TarrU,TarrV}
-        @assert Da == Db
-        $op(u,v)
-    end
-end
-=#
-
 #

@@ -7,26 +7,32 @@ ns = 12
 u = rand(nr,ns) |> Field
 v = rand(nr,ns) |> Field
 
-## IdentityOp
-
-## CompositeOperator
-
-## ComposeOperator
-
-## InverseOperator
-
 ## DiagonalOp
 d = rand(nr,ns) |> Field
 D = DiagonalOp(d)
 
 @test mul!(v,D,u) ≈ d .* u
 
-## TensorProd2DOp
+## TensorProductOp2D
 
-Ar = rand(nr,nr)
-Bs = rand(ns,ns)
-T = TensorProd2DOp(Ar,Bs)
+A = rand(nr,nr)
+B = rand(ns,ns)
+T = TensorProductOp2D(A, B)
 
-@test mul!(v,T,u) ≈ Field(Ar * u.array * Bs')
-@test mul!(v,T,u) ≈ Field(Ar * u.array * Bs')
+@test mul!(v,T,u) ≈ Field(A * u.array * B')
+@test mul!(v,T,u) ≈ Field(A * u.array * B')
+
+## ZeroOp
+
+## IdentityOp
+
+## AffineOp
+
+#### +,-(op,op)
+#### +,-(λ, op)
+#### *,/(λ, op)
+
+## ComposeOp
+
+## InverseOp
 

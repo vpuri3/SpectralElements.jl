@@ -59,9 +59,17 @@ include("OperatorBasics.jl")
 include("Operators.jl")
 #include("Space.jl")
 
-export Field,
-       Identity, ToArrayOp, ComposeOperator, InverseOperator,
-       DiagonalOp, TensorProd2DOp,
-       Spectral2DSpace, GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
+export 
+       # fields
+       Field,
+
+       # operator conveniences
+       IdentityOp, ZeroOp, AffineOp, ComposeOp, InverseOp,
+
+       # Concrete operators
+       DiagonalOp, TensorProductOp2D,
+
+       # spaces
+       GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 
 end # module
