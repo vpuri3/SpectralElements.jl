@@ -13,7 +13,9 @@ AbstractSpectralSpace{T,D}
     x1::AbstractField{T,D}
     ...
     xD::AbstractField{T,D}
-    gradOp::AbstractOperator{T,D}
+
+    gradOp::AbstractOperator{T,D} grad(u::AbstractField, dir::Integer)
+
     massOp::AbstractOperator{T,D}
     inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
 
@@ -248,7 +250,7 @@ struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
 
   #
   function Spectral2DSpace(nr::Int = 8, ns::Int = 8, T=Float64;
-                                quadrature = FastGaussQuadrature.gausslobatto,
+                                quadrature = gausslobatto,
                                 deform::Function = (r,s) -> (copy(r), copy(s)),
                                 dealias::Bool = true
                                )
@@ -286,7 +288,7 @@ struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
 end
 Base.size(space::Spectral2DSpace) = (space.nr * space.ns,)
 
-GaussLobattoLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=FastGaussQuadrature.gausslobatto, kwargs...)
-GaussLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=FastGaussQuadrature.gausslegendre, kwargs...)
-GaussChebychev2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=FastGaussQuadrature.gausschebyshev, kwargs...)
+GaussLobattoLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=gausslobatto, kwargs...)
+GaussLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=gausslegendre, kwargs...)
+GaussChebychev2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=gausschebyshev, kwargs...)
 #

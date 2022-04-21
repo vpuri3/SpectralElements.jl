@@ -9,9 +9,9 @@ using Reexport
 @reexport using Setfield: @set!
 @reexport using SciMLBase
 
-import FastGaussQuadrature
+import SparseArrays.sparse
+import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
 import Base.ReshapedArray
-
 import SciMLBase: AbstractDiffEqOperator
 
 #using RecursiveArrayTools
@@ -21,7 +21,7 @@ import Base: summary, show                          # printing
 import Base: similar                                # allocation
 import Base: size, getindex, setindex!, IndexStyle  # indexing
 import Base.Broadcast: BroadcastStyle               # broadcast
-import Base: +, -, *, /, \, adjoint, ∘              # math
+import Base: +, -, *, /, \, adjoint, ∘              # maths
 import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
 import Base: kron
 

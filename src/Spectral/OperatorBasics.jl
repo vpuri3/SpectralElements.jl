@@ -59,9 +59,11 @@ function LinearAlgebra.mul!(v::AbstractField{Tv,D}, ::ZeroOp{D}, u::AbstractFiel
     mul!(v,I, false)
 end
 
+# overload fusion
 Base.:*(Z::ZeroOp{D}, A::AbstractOperator{T,D}) where{D,T} = Z
 Base.:*(A::AbstractOperator{T,D}, Z::ZeroOp{D}) where{D,T} = Z
 
+# overload composition
 Base.:∘(Z::ZeroOp{D}, A::AbstractOperator{T,D}) where{D,T} = Z
 Base.:∘(A::AbstractOperator{T,D}, Z::ZeroOp{D}) where{D,T} = Z
 
@@ -90,11 +92,11 @@ function LinearAlgebra.ldiv!(Id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tu
     u
 end
 
-# fusion
+# overload fusion
 Base.:*(::IdentityOp{D}, A::AbstractOperator{T,D}) where{D,T} = A
 Base.:*(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
 
-# lazy composition
+# overload composition
 Base.:∘(::IdentityOp{D}, A::AbstractOperator{T,D}) where{D,T} = A
 Base.:∘(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
 
@@ -124,7 +126,6 @@ struct AffineOp{T,D,
 end
 
 issquare(A::AffineOp) = issquare(A.A) & issquare(A.B)
-
 function Base.adjoint(A::AffineOp)
     if issquare(A)
         AffineOp(A.A',A.B',A.α, A.β, A.cache, A.isunset)
@@ -307,8 +308,13 @@ Do array reductions
 
 [Dx*u, Dy*v] = grad(u) type stuff
 
+[v1] = [op1 op2] * [u1]
+[v2]   [op3 op4]   [u2]
+
+will make it really easy to write spectral operators
+
 ToArrayOp
-use RecursiveArrayTools.jl: ArrayPartition, ComponentArrays.jl instead
+use RecursiveArrayTools.jl: ArrayPartition
 """
 struct ToArrayOp{D,Tn} <: AbstractOperator{Bool,D}
     n::Tn # tuple of sizes
@@ -324,5 +330,4 @@ Base.size(C::ToArrayOp) = (C.n,C.n)
 (C::Adjoint{Bool, ToArrayOp})(u) = first(u)
 LinearAlgebra.mul!(v, C::ToArrayOp, u) = copy!(first(v),u)
 LinearAlgebra.ldiv!(v, C::ToArrayOp, u) = first(u)
-
 #
