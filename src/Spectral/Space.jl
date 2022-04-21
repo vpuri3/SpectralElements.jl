@@ -17,7 +17,8 @@ AbstractSpectralSpace{T,D}
     massOp::AbstractOperator{T,D}
     inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
 
-    cache
+    other_ops
+end
 
 """
 
@@ -26,21 +27,18 @@ struct SpectralSpace1D{
                       } <: AbstractSpectralSpace{T,1}
     x::Tfield
     bc::Tbc
-    gradOp::Tgrad
-    massOp::Tmass
-    laplOp::Tlapl
     inner_product::Tipr
-    cache::Tcache
-end
+    massOp::Tmass
+    gradOp::Tgrad
+    laplOp::Tlapl
 
-struct GLLCache1D{T} <: AbstractSpectralCache{T,1}
     canonical_domain::Tref # r
     physical_domain::Tphys # x
     dealias_domain::Tdeal  # xd
     deformation::Tdeform  # J (=dX/dR), Ji (=dR/dX)
     n
-    Dr
-    GS
+    Dr::Td
+    GS::Tgs
 end
 
 struct GLLBC1D{T} <: AbstractBoundaryCondition{T,1}

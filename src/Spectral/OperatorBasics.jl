@@ -34,9 +34,10 @@ end
 Base.size(A::AbstractOperator{T,D}, d::Integer) where {T,D} = d <= 2 ? size(A)[d] : 1
 
 """ (Square) Zero operator """
-struct ZeroOp{D} <: AbstractOperator{Bool, D} end
+struct ZeroOp{D} <: AbstractOperator{Bool,D} end
 
 Base.adjoint(Z::ZeroOp) = Z
+issquare(::ZeroOp) = true
 #function Base.size(Id::IdentityOp)
 #    n = prod(Id.n)
 #    (n,n)
@@ -53,12 +54,10 @@ Base.:∘(Z::ZeroOp{D}, A::AbstractOperator{T,D}) where{D,T} = Z
 Base.:∘(A::AbstractOperator{T,D}, Z::ZeroOp{D}) where{D,T} = Z
 
 """ (Square) Identity operator """
-struct IdentityOp{D} <: AbstractOperator{Bool, D} end
-
-SciMLBase.has_ldiv(::DiagonalOp) = true
-SciMLBase.has_ldiv!(::DiagonalOp) = true
+struct IdentityOp{D} <: AbstractOperator{Bool,D} end
 
 Base.adjoint(Id::IdentityOp) = Id
+issquare(::IdentityOp) = true
 #function Base.size(Id::IdentityOp)
 #    n = prod(Id.n)
 #    (n,n)
@@ -84,8 +83,8 @@ Base.:*(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
 Base.:∘(::IdentityOp{D}, A::AbstractOperator{T,D}) where{D,T} = A
 Base.:∘(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
 
-""" Lazy Combination (affine) Operator αA + βB"""
-struct AffineOp{T,D,Ta,Tb, Tα,Tβ,Tc} <: AbstractOperator{T,D} where{T,D,Ta,Tb,Tα,Tβ,Tc}
+""" Lazy Combination (affine) Operator αA + βB """
+struct AffineOperator{T,D,Ta,Tb,Tα,Tβ,Tc} <: AbstractOperator{T,D}
     A::Ta
     B::Tb
     α::Tα
@@ -94,26 +93,26 @@ struct AffineOp{T,D,Ta,Tb, Tα,Tβ,Tc} <: AbstractOperator{T,D} where{T,D,Ta,Tb,
     cache::Tc
     isunset::Bool
 
-    function AffineOp(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D}, α::Number, β::Number,
+    function AffineOperator(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D}, α::Number, β::Number,
                       cache = nothing, isunset = cache === nothing) where{Ta,Tb,D}
         T = promote_type(Ta,Tb)
         new{T,D,typeof(A),typeof(B),typeof(α),typeof(β),typeof(C)}(A, B, α, β, cache, isunset)
     end
 end
 
-function Base.adjoint(A::AffineOp{T,D})
+function Base.adjoint(A::AffineOperator)
     if issquare(A)
-        AffineOp(A.A',A.B',A.α, A.β, A.cache, A.isunset)
+        AffineOperator(A.A',A.B',A.α, A.β, A.cache, A.isunset)
     else
-        AffineOp(A.A',A.B',A.α, A.β)
+        AffineOperator(A.A',A.B',A.α, A.β)
     end
 end
 
-function init_cache(A::AffineOp{T,D}, u::AbstractField{T,D})
+function init_cache(A::AffineOperator{T,D}, u::AbstractField{T,D}) where{T,D}
     cache = A.B * u
 end
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::AffineOp{T,D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::AffineOperator{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
     mul!(v, A.A, u)
     lmul!(A.α, v)
 
@@ -125,10 +124,10 @@ function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::AffineOp{T,D}, u::Abstrac
     end
 
     lmul!(A.β, A.cache)
-    alpy!(true, A.cache, v)
+    axpy!(true, A.cache, v)
 end
 
-function Base.*(A::TensorProduct2DOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::AffineOperator{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
     @unpack A, B, α, β = A
     α * (A * u) + β * (B * u)
 end
@@ -142,26 +141,28 @@ function Base.:-(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D}) where{Ta,
 end
 
 function Base.:+(A::AbstractOperator{T,D}, λ::Number) where{T,D}
-    Id = IdentityOp{D}
+    Id = IdentityOp{D}()
     AffineOperator(A, Id, true, λ)
 end
 
 function Base.:-(A::AbstractOperator{T,D}, λ::Number) where{T,D}
-    Id = IdentityOp{D}
+    Id = IdentityOp{D}()
     AffineOperator(A, Id, -true, λ)
 end
 
 function Base.:*(A::AbstractOperator{T,D}, λ::Number) where{T,D}
-    Z = ZeroOp{D}
+    Z = ZeroOp{D}()
     AffineOperator(A, Z, true, λ)
 end
 
 function Base.:/(A::AbstractOperator{T,D}, λ::Number) where{T,D}
-    Z = ZeroOp{D}
+    Z = ZeroOp{D}()
     AffineOperator(A, Z, -true, λ)
 end
 
 """
+Do array reductions
+
 ToArrayOp
 use RecursiveArrayTools.jl: ArrayPartition, ComponentArrays.jl instead
 """

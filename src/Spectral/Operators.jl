@@ -7,13 +7,15 @@ struct DiagonalOp{T,D,Tdiag<:AbstractField{T,D}} <: AbstractOperator{T,D}
     diag::Tdiag
 end
 
-SciMLBase.has_ldiv(::DiagonalOp) = true
-SciMLBase.has_ldiv!(::DiagonalOp) = true
-
 Base.size(A::DiagonalOp) = size(Diagonal(A.diag))
 Base.adjoint(A::DiagonalOp) = A
 
-function Base.\(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+SciMLBase.has_ldiv(::DiagonalOp) = true
+SciMLBase.has_ldiv!(::DiagonalOp) = true
+
+issquare(::DiagonalOp) = true
+
+function Base.:\(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
     Diagonal(A.diag) \ _vec(u)
 end
 
@@ -112,10 +114,10 @@ struct TensorProduct2DOp{T,
     end
 end
 
-
 Base.size(A::TensorProduct2DOp) = size(A.Ar) .* size(A.Bs)
+issquare(A::TensorProduct2DOp) = issquare(A.A) & issquare(A.B)
 
-function Base.*(A::TensorProduct2DOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::TensorProduct2DOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
     v = copy(u)
     @set! v.array = A.B * u.array * A.A'
 end
