@@ -5,13 +5,18 @@
 SciMLBase.has_mul(::AbstractOperator) = true
 SciMLBase.has_mul!(::AbstractOperator) = true
 
-# op application fallback
+# * fallback
 function Base.:*(A::AbstractOperator{Ta,D},u::AbstractField{Tu,D}) where{Ta,Tu,D}
     if issquare(A)
         mul!(similar(u),A,u)
     else
         ArgumentError("Operator application not defined for $A")
     end
+end
+
+# mul! fallback
+function LinearAlgebra.mul!(v::AbstractField{Tv,D},A::AbstractOperator{Ta,D},u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+    ArgumentError("Operator application not defined for $A")
 end
 
 # fusion fallback
