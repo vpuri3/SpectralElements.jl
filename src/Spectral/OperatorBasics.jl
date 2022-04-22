@@ -228,13 +228,8 @@ function init_cache(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
 end
 
 function Base.:*(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
-    if A.isunset
-        cache = init_cache(A, u)
-        A = set_cache(A, cache)
-        return outer(cache)
-    end
-    mul!(cache, inner, u)
-    outer(cache)
+    @unpack inner, outer = A
+    outer * inner * u
 end
 
 function Base.:\(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
@@ -245,13 +240,15 @@ function Base.:\(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
 end
 
 function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+    @unpack inner, outer = A
+
     if A.isunset
         cache = init_cache(A, u)
-        A = set_cache(A, cache)
-        return mul!(v, outer, cache)
+        A = set_cache(A, cache) # pass this A to calling context
+    else
+        mul!(cache, inner, u)
     end
 
-    mul!(cache, inner, u)
     mul!(v, outer, cache)
 end
 
@@ -306,28 +303,43 @@ LinearAlgebra.mul!(y, A::InverseOp, x) = ldiv!(y, A.A, x)
 """
 Do array reductions
 
-[Dx*u, Dy*v] = grad(u) type stuff
+ dR = [D1
+       D2]
 
-[v1] = [op1 op2] * [u1]
-[v2]   [op3 op4]   [u2]
+ G = [G11 G12
+      G21 G22]
+
+ lapl = dR' ∘ G ∘ dR
+
+ [v] = lapl * [u]
+
+ [Dx*u, Dy*v] = grad(u) type stuff
+ 
+ [v1] = [op1 op2] * [u1]
+ [v2]   [op3 op4]   [u2]
+
+ eg for laplace op
+
+ v = [Dr' Ds'] * [G11 G12] * [Dr] * u
+                 [G12 G22]   [Ds]
 
 will make it really easy to write spectral operators
 
-ToArrayOp
-use RecursiveArrayTools.jl: ArrayPartition
+use something like RecursiveArrayTools.ArrayPartition
 """
-struct ToArrayOp{D,Tn} <: AbstractOperator{Bool,D}
-    n::Tn # tuple of sizes
-    #
-    function ToArrayOp(n...)
-        D = length(n)
-        new{D,typeof(n)}(n)
-    end
-end
-Base.size(C::ToArrayOp) = (C.n,C.n)
+struct ArrayOp{T,D,Ta<:Matrix{<:AbstractOperator{T,D}}} <: AbstractOperator{T,D}
+    A::Ta # array of operators
 
-(C::ToArrayOp)(u) = fill(u, (1,))
-(C::Adjoint{Bool, ToArrayOp})(u) = first(u)
-LinearAlgebra.mul!(v, C::ToArrayOp, u) = copy!(first(v),u)
-LinearAlgebra.ldiv!(v, C::ToArrayOp, u) = first(u)
+    function ArrayOp(A::Array)
+        T = promote_type(eltype.(arr))
+        new{T,D,typeof(A)}(A)
+    end
+end # spits out array of vectors
+
+Base.size(A::ArrayOp) = size(A.A)
+
+(C::ArrayOp)(u) = fill(u, (1,))
+(C::Adjoint{Bool, ArrayOp})(u) = first(u)
+LinearAlgebra.mul!(v, C::ArrayOp, u) = copy!(first(v),u)
+LinearAlgebra.ldiv!(v, C::ArrayOp, u) = first(u)
 #

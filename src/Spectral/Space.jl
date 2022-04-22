@@ -14,9 +14,10 @@ AbstractSpectralSpace{T,D}
     ...
     xD::AbstractField{T,D}
 
-    gradOp::AbstractOperator{T,D} grad(u::AbstractField, dir::Integer)
+    gradOp::AbstractOperator{T,D} gradOp(u::AbstractField, dir::Integer)
 
     massOp::AbstractOperator{T,D}
+
     inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
 
     other_ops
@@ -84,24 +85,24 @@ struct Deformation2D{T,N,Tjac,fldT}
   dXdR
   dRdX
   #
-  function Deformation2D(deform,r,s,DrOp,DsOp)
+  function Deformation2D(deform,r,s,Dr,Ds)
     x,y = deform(r,s)
 
-    xr = DrOp(x) # fields
-    xs = DsOp(x)
-    yr = DrOp(y)
-    ys = DsOp(y)
+    xr = Dr(x)
+    xs = Ds(x)
+    yr = Dr(y)
+    ys = Ds(y)
         
     dXdR = DiagonalOp.([xr xs
                         yr ys])
 
-    J  = @. xr * ys - xs * yr
-    Ji = @. 1 / J
+    J  = xr * ys - xs * yr
+    Ji = 1 / J
 
-    rx = @.  Ji * ys
-    ry = @. -Ji * xs
-    sx = @. -Ji * yr
-    sy = @.  Ji * xr
+    rx =  (Ji * ys)
+    ry = -(Ji * xs)
+    sx = -(Ji * yr)
+    sy =  (Ji * xr)
 
     dRdX = DiagonalOp.[rx sx
                        ry sy]
@@ -141,8 +142,8 @@ struct Gradient2D{T}
   #
   function Gradient2D(space::AbstractSpace{T,2})
 
-    ddR = [DrOp
-           DsOp] |> hcat
+    ddR = [Dr
+           Ds]
 
     grad = @. dRdX ∘ ddR # == ddX
 

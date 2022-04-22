@@ -64,10 +64,10 @@ export
        Field,
 
        # operator conveniences
-       IdentityOp, ZeroOp, AffineOp, ComposeOp, InverseOp,
+       IdentityOp, ZeroOp, AffineOp, ComposeOp, InverseOp, # overload op(u,p,t)
 
        # Concrete operators
-       DiagonalOp, TensorProductOp2D,
+       DiagonalOp, TensorProductOp2D, # define op(u,p,t)
 
        # spaces
        GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
