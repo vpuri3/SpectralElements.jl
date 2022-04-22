@@ -34,6 +34,8 @@ abstract type AbstractOperator{T,D} <: AbstractDiffEqOperator{T} end
 abstract type AbstractDomain{T,D} end
 """ Function space in D-Dimensional space """
 abstract type AbstractSpace{T,D} end
+""" Boundary condition on domain in D-Dimensional space """
+abstract type AbstractBonudaryCondition{T,D} end
 
 """ Scalar function field in D-Dimensional space over spectral basis """
 abstract type AbstractSpectralField{T,D} <: AbstractField{T,D} end
@@ -50,14 +52,17 @@ Base.eltype(::Union{
                     AbstractOperator{T,D},
                     AbstractSpace{T,D},
                     AbstractDomain{T,D},
+                    AbstractBoundaryCondition{T,D},
                    }
            ) where{T,D} = T
 
-dims(::Union{AbstractField{T,D},
+dims(::Union{
+             AbstractField{T,D},
              AbstractOperator{T,D},
              AbstractSpace{T,D},
              AbstractDomain{T,D}
-             }
+             AbstractBoundaryCondition{T,D},
+            }
     ) where{T,D} = D
 
 include("utils.jl")
@@ -66,6 +71,7 @@ include("OperatorBasics.jl")
 include("Operators.jl")
 #imclude("Domain.jl")
 #include("Space.jl")
+#include("LagrangePoly.jl")
 
 export 
        # fields

@@ -26,9 +26,18 @@ function BoxDomain(vecs...; periodic=(false for i in 1:length(vecs)))
     BoxDomain(intervals)
 end
 
-struct DeformedDomain{T,D} <: AbstractDomain{T,D}
-    ref_domain:Td
+"""
+Deform D-dimensional domain via map
+
+x1,...,xD = map(r1, ..., rD)
+"""
+struct DeformedDomain{T,D,Td<:AbstractDomain{T,D}, Tm} <: AbstractDomain{T,D}
+    ref_domain::Td
     mapping::Tm
+end
+
+function deform(domain, mapping = nothing)
+    DeformedDomain(domain, mapping)
 end
 
 """ Interpolation operator between spaces """
