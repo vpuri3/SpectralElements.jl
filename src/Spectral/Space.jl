@@ -3,10 +3,101 @@ include("NDgrid.jl")
 include("DerivMat.jl")
 include("InterpMat.jl")
 
-struct PDEField1D{T}
-    u ::Field{T,1}  # field vector
-    BC::BC{T}       # bc tag
-end
+"""
+args:
+    space::AbstractSpace{T,D}
+ret:
+    x1, ..., xD
+"""
+function mesh end
+
+"""
+args:
+    space::AbstractSpace{T,D}
+ret:
+    gradOp: u -> dudx1, ..., dudxD # array or vec?
+"""
+function gradOp end
+
+"""
+args:
+    space::AbstractSpace{T,D}
+    dealias=true
+ret:
+    massOp: AbstractField -> AbstractField
+
+Gradient Operator
+Compute gradient of u∈H¹(Ω).
+
+Continuity isn't enforced across
+element boundaries for gradients
+
+[Dx] * u = [rx sx] * [Dr] * u
+[Dy]     = [ry sy]   [Ds]
+
+"""
+function massOp end
+
+"""
+args:
+    space::AbstractSpace{T,D}
+    dealias = false
+ret:
+    laplOp: AbstractField -> AbstractField
+
+Laplace Operator
+for v,u in H¹₀(Ω)
+
+(v,-∇² u) = (vx,ux) + (vy,uy)\n
+         := a(v,u)\n
+          = v' * A * u\n
+          = (Q*R'*v)'*A_l*(Q*R'*u)\n
+          = v'*R*Q'*A_l*Q*R'*u\n
+
+implemented as
+
+R'R * QQ' * A_l * u_loc
+where A_l is
+
+[Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
+[Ds]  [ry sy]  [0 B] [ry sy] [Ds]
+
+= [Dr]' * [G11 G12]' * [Dr]
+  [Ds]    [G12 G22]    [Ds]
+
+"""
+function laplOp end
+
+"""
+args:
+    space::AbstractSpace{<:Number,D}
+    vel...::AbstractField{<:Number,D}
+    dealias = true
+ret:
+    convOp: AbstractField -> AbstractField
+
+for v,u,T in H¹₀(Ω)
+
+(v,(u⃗⋅∇)T) = (v,ux*∂xT + uy*∂yT)\n
+           = v' *B*(ux*∂xT + uy*∂yT)\n
+
+implemented as
+
+R'R * QQ' * B * (ux*∂xT + uy*∂yT)
+
+(u⃗⋅∇)T = ux*∂xT + uy*∂yT
+
+       = [ux uy] * [Dx] T
+                   [Dx]
+
+ux,uy, ∇T are interpolated to
+a grid with higher polynomial order
+for dealiasing (over-integration)
+so we don't commit any
+"variational crimes"
+
+"""
+function advectOp end
 
 """
 AbstractSpectralSpace{T,D}
@@ -14,37 +105,31 @@ AbstractSpectralSpace{T,D}
     ...
     xD::AbstractField{T,D}
 
-    gradOp::AbstractOperator{T,D} gradOp(u::AbstractField, dir::Integer)
-
-    massOp::AbstractOperator{T,D}
-
     inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
-
-    other_ops
 end
-
 """
 
 struct SpectralSpace1D{
                        T,Tfield<:Vector{T},Tbc,Tgrad,Tmass,Tlapl,Tipr,Tcache
                       } <: AbstractSpectralSpace{T,1}
+    ref_space   # store Dr, Ds, B, GS, etc here
+    ref_domain  # r
+    phys_domain # x
+    deal_domain
+    mapping     # J (=dX/dR), Ji (=dR/dX)
+    interpPD
+
+    Dr::Td
+    GS::Tgs
     x::Tfield
-    bc::Tbc
     inner_product::Tipr
+
     massOp::Tmass
     gradOp::Tgrad
     laplOp::Tlapl
-
-    canonical_domain::Tref # r
-    physical_domain::Tphys # x
-    dealias_domain::Tdeal  # xd
-    deformation::Tdeform  # J (=dX/dR), Ji (=dR/dX)
-    n
-    Dr::Td
-    GS::Tgs
 end
 
-struct GLLBC1D{T} <: AbstractBoundaryCondition{T,1}
+struct BC1D{T} <: AbstractBoundaryCondition{T,1}
     bctag # dirichlet, neumann
     dirichlet_func! # (ub, space) -> mul!(ub, I, false)
     neumann_func!
@@ -77,149 +162,70 @@ end
  [rx sx] = [xr yr]
  [ry sy]   [xs ys]
 """
+struct DeformedSpace{T,D,Ts<:AbstractSpace{T,D},Tj,Tji} <: AbstractSpace{T,D}
+    ref_space::Ts
+    mesh::Tm # (x1, ..., xD)
+    mapping::F
+    dXdR::Tjacmat
+    dRdx::Tjacimat
+    J::Tjac
+    Ji::Tjaci
+end
 
-struct Deformation2D{T,N,Tjac,fldT}
-  deform::Function
-  J ::AbstractField{T,2}
-  Ji::AbstractField{T,2}
-  dXdR
-  dRdX
-  #
-  function Deformation2D(deform,r,s,Dr,Ds)
+function deform(space::AbstractSpace{<:Number, 2}, deform = (r,s) -> (r,s))
+    r,s = mesh(space)
     x,y = deform(r,s)
 
-    xr = Dr(x)
-    xs = Ds(x)
-    yr = Dr(y)
-    ys = Ds(y)
-        
-    dXdR = DiagonalOp.([xr xs
-                        yr ys])
+    grad = gradOp(space)
 
-    J  = xr * ys - xs * yr
+    dxdr, dxds = grad(x)
+    dydr, dyds = grad(y)
+        
+    # Jacobian matrix
+    dXdR = DiagonalOp.([dxdr dxds
+                        dydr dyds])
+
+    J  = det(dXdR) # dxdr * dyds - dxds * dydr
     Ji = 1 / J
 
-    rx =  (Ji * ys)
-    ry = -(Ji * xs)
-    sx = -(Ji * yr)
-    sy =  (Ji * xr)
+    drdx =  (Ji * dyds)
+    drdy = -(Ji * dxds)
+    dsdx = -(Ji * dydr)
+    dsdy =  (Ji * dxdr)
 
-    dRdX = DiagonalOp.[rx sx
-                       ry sy]
+    dRdX = DiagonalOp.[drdx dsdx
+                       drdy dsdy]
 
-    new{T}()
-  end
+    DeformedSpace(space, mesh, )
 end
 
-""" mass """
-struct Mass2D{T}
-  B
-  #
-  function Mass2D(B,Bd)
-    mass  = DiagonalOp(B)
-    massd = DiagonalOp(Bd)
-
-    InterpVD = TensorProductOp(JrVD,JsVD)
-    mass_dealias = InterpVD' ∘ massd ∘ InterpVD
-
-    new{T}()
-  end
+function MassOp(space::DeformedSpace)
 end
 
-"""
- Gradient Operator
- Compute gradient of u∈H¹(Ω).
+function LaplaceOp(space::DeformedSpace)
+    gradR = gradOp(space.ref_space)
 
- Continuity isn't enforced across
- element boundaries for gradients
+    mass = MassOp(space, dealias)
+    dRdX = jacOp(space, dealias) # space.dRdX
 
- [Dx] * u = [rx sx] * [Dr] * u
- [Dy]     = [ry sy]   [Ds]
+    M = Diagonal([mass, mass])
+    G = dRdX' * M * dRdX
 
-"""
-struct Gradient2D{T}
-  grad
-  #
-  function Gradient2D(space::AbstractSpace{T,2})
+    laplOp = @. gradR' .∘ G .∘ gradR
 
-    ddR = [Dr
-           Ds]
-
-    grad = @. dRdX ∘ ddR # == ddX
-
-    new{T,}()
-  end
+    return first(laplOp)
 end
 
-"""
- Laplace Operator
- for v,u in H¹₀(Ω)
+function advectOp(space::AbstractSpace{<:Number,D}, vel...::AbstractField{<:Number,D}, dealias=true) where{D}
+    V = DiagonalOp.([vel])
 
- (v,-∇² u) = (vx,ux) + (vy,uy)\n
-          := a(v,u)\n
-           = v' * A * u\n
-           = (Q*R'*v)'*A_l*(Q*R'*u)\n
-           = v'*R*Q'*A_l*Q*R'*u\n
+    grad = gradOp(space)
 
- implemented as
+    if dealias
+        V = Vd
+    end
 
- R'R * QQ' * A_l * u_loc
- where A_l is
-
- [Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
- [Ds]  [ry sy]  [0 B] [ry sy] [Ds]
-
- = [Dr]' * [G11 G12]' * [Dr]
-   [Ds]    [G12 G22]    [Ds]
-
-"""
-struct LaplaceOp2D{T,N,fldT}
-  G::Matrix{fldT}
-
-  function LaplaceOp2D(space)
-    G11 = B * (rx * rx + ry * ry)
-    G12 = B * (rx * sx + ry * sy)
-    G22 = B * (sx * sx + sy * sy)
-
-    G = [G11 G12
-         G12 G22]
-
-    LaplaceOp = @. GradOp' ∘ G ∘ GradOp
-    new{T}()
-  end
-end
-
-"""
- for v,u,T in H¹₀(Ω)
-
- (v,(u⃗⋅∇)T) = (v,ux*∂xT + uy*∂yT)\n
-            = v' *B*(ux*∂xT + uy*∂yT)\n
-
- implemented as
-
- R'R * QQ' * B * (ux*∂xT + uy*∂yT)
-
- (u⃗⋅∇)T = ux*∂xT + uy*∂yT
-
-        = [ux uy] * [Dx] T
-                    [Dx]
-
- ux,uy, ∇T are interpolated to
- a grid with higher polynomial order
- for dealiasing (over-integration)
- so we don't commit any
- "variational crimes"
-
-"""
-struct ConvectionOp{T,fldT} <: AbstractOperator{T,2}
-  v::fldT
-  C::
-
-  function ConvectionOp(space::TensorProduct2DSpace, v::Field{T,N})
-    ∘GradOp
-
-    new{}()
-  end
+    mass = massOp(space, dealias)
 end
 
 """
@@ -238,9 +244,8 @@ struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
   g2l
 end
 
-export Spectral2DSpace
 """ Tensor Product Polynomial Space """
-struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
+struct SpectralSpace2D{T,Tcoords,} <: AbstractSpace{T,2}
   domain_ref
   domain_phys
   domain_dealais
@@ -250,7 +255,7 @@ struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
   interp::Tinterp
 
   #
-  function Spectral2DSpace(nr::Int = 8, ns::Int = 8, T=Float64;
+  function SpectralSpace2D(nr::Int = 8, ns::Int = 8, T=Float64;
                                 quadrature = gausslobatto,
                                 deform::Function = (r,s) -> (copy(r), copy(s)),
                                 dealias::Bool = true
@@ -268,11 +273,11 @@ struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
     Dr = derivMat(zr)
     Ds = derivMat(zs)
 
-    Ir = Identity(nr)
-    Is = Identity(ns)
+    Ir = Matrix(I, nr, nr) |> sparse
+    Is = Matrix(I, ns, ns) |> sparse
 
-    DrOp = TensorProduct2D(Dr,Is)
-    DsOp = TensorProduct2D(Ir,Ds)
+    DrOp = TensorProductOp2D(Dr,Is)
+    DsOp = TensorProductOp2D(Ir,Ds)
 
     DrDsOp = [DrOp
               DsOp] |> hcat
@@ -283,13 +288,13 @@ struct Spectral2DSpace{T,Tcoords,} <: AbstractSpace{T,2}
 #   dealias2 = 
   
     ifperiodic = [false,false]
-  
+
     return new{T}(coords_ref,coords_def,coords_dealias,interp,mass,grad,)
   end
 end
-Base.size(space::Spectral2DSpace) = (space.nr * space.ns,)
+Base.size(space::SpectralSpace2D) = (space.nr * space.ns,)
 
-GaussLobattoLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=gausslobatto, kwargs...)
-GaussLegendre2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=gausslegendre, kwargs...)
-GaussChebychev2D(args...;kwargs...) = Spectral2DSpace(args...; quadrature=gausschebyshev, kwargs...)
+GaussLobattoLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=gausslobatto, kwargs...)
+GaussLegendre2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=gausslegendre, kwargs...)
+GaussChebychev2D(args...;kwargs...) = SpectralSpace2D(args...; quadrature=gausschebyshev, kwargs...)
 #

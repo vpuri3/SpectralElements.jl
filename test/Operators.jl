@@ -34,5 +34,7 @@ T = TensorProductOp2D(A, B)
 
 ## ComposeOp
 
+# caching mechanism is broken. fix later. 
+
 ## InverseOp
 

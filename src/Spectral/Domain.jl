@@ -1,53 +1,30 @@
-abstract type AbstractDomain{T,D} end
-
-struct Interval{T,B,I} <: AbstractDomain{T,1}
-    pts::Vector{T}
-    bcs::B
-    interior::I
+#
+Base.@kwdef struct Interval{T,B,Te} <: AbstractDomain{T,1}
+    end_points::Te = [-1e0,1e0]
+    ifperiodic::Bool = false
 end
 
-function Interval(x) end
-
-struct BoxDomain2D{T,I1,I2,B} <: AbstractDomain{T,2}
-    interval1::I1
-    interval2::I2
-    bcs::B
+function BoxDomain(vecs...;periodic=(false for i in 1:length(vecs)))
+    intervals = Interval.(vecs, periodic)
 end
 
-struct BoxDomain3D{T,I0,I1,I2} <: AbstractDomain{T,3}
-    interval1::I0
-    interval2::I1
-    interval3::I1
-    bcs::B
+struct BoxDomain{T,D,Ti} <: AbstractDomain{T,D}
+    intervals::Ti
+
+    function BoxDomain(intervals...)
+        T = promote_type(eltype(intervals...))
+        D = length(intervals)
+        new{T,D,typeof(intervals)}(intervals)
+    end
 end
 
-"""
- Quadilateral Domain
-"""
-struct QuadDomain2D{T,Tx} <: AbstractDomain{T,2}
-  x::Tx
-  y::Tx
-  xperiodic::Bool
-  yperiodic::Bool
-  function QuadDomain2D(x::AbstractField{Tx,2},
-                        y::AbstractField{Ty,2},
-                        xperiodic::Bool = false,
-                        yperiodic::Bool = false) where{Tx,Ty}
-    T = promote_type(Tx,Ty)
-    new{T,typeof(x)}(Tx,Ty,xperiodic,yperiodic)
-  end
+""" Interpolation operator between spaces """
+struct Interp2D{T,Td1,Td2} <: AbstractOperator{T,2}
+    domain1::Td1
+    domain2::Td2
+    function Interp2D() where{Tx,Ty}
+        T = promote_type(Tx,Ty)
+        new{T,typeof(x)}(Tx,Ty)
+    end
 end
-
-"""
- Interpolation operator between spaces
-"""
-struct Interp2D{T,Tx} <: AbstractDomain{T,2}
-  domain1
-  domain2
-  function Interp2D(x::AbstractField{Tx,2},
-                    y::AbstractField{Ty,2}) where{Tx,Ty}
-    T = promote_type(Tx,Ty)
-    new{T,typeof(x)}(Tx,Ty)
-  end
-end
-
+#
