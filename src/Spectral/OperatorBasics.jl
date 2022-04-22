@@ -7,8 +7,7 @@ SciMLBase.has_adjoint(::AbstractOperator) = true
 SciMLBase.has_mul(::AbstractOperator) = true
 SciMLBase.has_mul!(::AbstractOperator) = true
 
-# * fallback
-function Base.:*(A::AbstractOperator{Ta,D},u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) where{D}
     if issquare(A)
         mul!(similar(u),A,u)
     else
@@ -16,17 +15,14 @@ function Base.:*(A::AbstractOperator{Ta,D},u::AbstractField{Tu,D}) where{Ta,Tu,D
     end
 end
 
-# mul! fallback
-function LinearAlgebra.mul!(v::AbstractField{Tv,D},A::AbstractOperator{Ta,D},u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D},A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) where{D}
     ArgumentError("LinearAlgebra.mul! not defined for $A")
 end
 
-# \ fallback
-function Base.:\(A::AbstractOperator{Ta,D},u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:\(A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) where{D}
     ArgumentError("Operator inversion not defined for $A")
 end
 
-# fusion fallback
 function Base.:*(A::AbstractOperator, B::AbstractOperator)
     @warn "Operator fusion not defined for $A * $B. falling back to lazy composition, ∘"
     A ∘ B
@@ -43,7 +39,7 @@ function set_cache(A::AbstractOperator, cache)
     return A
 end
 
-Base.size(A::AbstractOperator{T,D}, d::Integer) where {T,D} = d <= 2 ? size(A)[d] : 1
+Base.size(A::AbstractOperator, d::Integer) = d <= 2 ? size(A)[d] : 1
 
 ###
 # ZeroOp
@@ -55,17 +51,17 @@ struct ZeroOp{D} <: AbstractOperator{Bool,D} end
 Base.adjoint(Z::ZeroOp) = Z
 issquare(::ZeroOp) = true
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, ::ZeroOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, ::ZeroOp{D}, u::AbstractField{<:Number,D}) where{D}
     mul!(v,I, false)
 end
 
 # overload fusion
-Base.:*(Z::ZeroOp{D}, A::AbstractOperator{T,D}) where{D,T} = Z
-Base.:*(A::AbstractOperator{T,D}, Z::ZeroOp{D}) where{D,T} = Z
+Base.:*(Z::ZeroOp{D}, A::AbstractOperator{<:Number,D}) where{D} = Z
+Base.:*(A::AbstractOperator{<:Number,D}, Z::ZeroOp{D}) where{D} = Z
 
 # overload composition
-Base.:∘(Z::ZeroOp{D}, A::AbstractOperator{T,D}) where{D,T} = Z
-Base.:∘(A::AbstractOperator{T,D}, Z::ZeroOp{D}) where{D,T} = Z
+Base.:∘(Z::ZeroOp{D}, A::AbstractOperator{<:Number,D}) where{D} = Z
+Base.:∘(A::AbstractOperator{<:Number,D}, Z::ZeroOp{D}) where{D} = Z
 
 ###
 # IdentityOp
@@ -80,25 +76,25 @@ SciMLBase.has_ldiv!(::IdentityOp) = true
 Base.adjoint(Id::IdentityOp) = Id
 issquare(::IdentityOp) = true
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, ::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, ::IdentityOp{D}, u::AbstractField{<:Number,D}) where{D}
     copy!(v, u)
 end
 
-function LinearAlgebra.ldiv!(v::AbstractField{Tv,D}, ::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tv,Tu,D}
+function LinearAlgebra.ldiv!(v::AbstractField{<:Number,D}, ::IdentityOp{D}, u::AbstractField{<:Number,D}) where{D}
     copy!(v, u)
 end
 
-function LinearAlgebra.ldiv!(Id::IdentityOp{D}, u::AbstractField{Tu,D}) where{Tu,D}
+function LinearAlgebra.ldiv!(Id::IdentityOp{D}, u::AbstractField{<:Number,D}) where{D}
     u
 end
 
 # overload fusion
-Base.:*(::IdentityOp{D}, A::AbstractOperator{T,D}) where{D,T} = A
-Base.:*(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
+Base.:*(::IdentityOp{D}, A::AbstractOperator{<:Number,D}) where{D} = A
+Base.:*(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
 
 # overload composition
-Base.:∘(::IdentityOp{D}, A::AbstractOperator{T,D}) where{D,T} = A
-Base.:∘(A::AbstractOperator{T,D}, ::IdentityOp{D}) where{D,T} = A
+Base.:∘(::IdentityOp{D}, A::AbstractOperator{<:Number,D}) where{D} = A
+Base.:∘(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
 
 ###
 # AffineOp
@@ -134,16 +130,16 @@ function Base.adjoint(A::AffineOp)
     end
 end
 
-function init_cache(A::AffineOp{T,D}, u::AbstractField{T,D}) where{T,D}
+function init_cache(A::AffineOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     cache = A.B * u
 end
 
-function Base.:*(A::AffineOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::AffineOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @unpack A, B, α, β = A
     α * (A * u) + β * (B * u)
 end
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::AffineOp{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, A::AffineOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     mul!(v, A.A, u)
     lmul!(A.α, v)
 
@@ -158,30 +154,30 @@ function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::AffineOp{Ta,D}, u::Abstra
     axpy!(true, A.cache, v)
 end
 
-function Base.:+(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D},) where{Ta,Tb,D}
+function Base.:+(A::AbstractOperator{<:Number,D}, B::AbstractOperator{<:Number,D},) where{D}
     AffineOp(A,B,true,true)
 end
 
-function Base.:-(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D}) where{Ta,Tb,D}
+function Base.:-(A::AbstractOperator{<:Number,D}, B::AbstractOperator{<:Number,D}) where{D}
     AffineOp(A,B,true,-true)
 end
 
-function Base.:+(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+function Base.:+(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
     Id = IdentityOp{D}()
     AffineOp(A, Id, true, λ)
 end
 
-function Base.:-(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+function Base.:-(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
     Id = IdentityOp{D}()
     AffineOp(A, Id, -true, λ)
 end
 
-function Base.:*(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+function Base.:*(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
     Z = ZeroOp{D}()
     AffineOp(A, Z, true, λ)
 end
 
-function Base.:/(A::AbstractOperator{T,D}, λ::Number) where{T,D}
+function Base.:/(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
     Z = ZeroOp{D}()
     AffineOp(A, Z, -true, λ)
 end
@@ -222,24 +218,24 @@ SciMLBase.has_ldiv(A::ComposeOp) = has_ldiv(A.inner) & has_ldiv(A.outer)
 SciMLBase.has_ldiv!(A::ComposeOp) = has_ldiv!(A.inner) & has_ldiv!(A.outer)
 issquare(A::ComposeOp) = issquare(A.inner) & issquare(A.outer)
 
-function init_cache(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function init_cache(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     cache = A.inner * u
     return cache
 end
 
-function Base.:*(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @unpack inner, outer = A
     outer * inner * u
 end
 
-function Base.:\(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:\(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @assert has_ldiv(A)
     @unpack inner, outer = A
 
     outer \ (inner \ u)
 end
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @unpack inner, outer = A
 
     if A.isunset
@@ -252,7 +248,7 @@ function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::ComposeOp{Ta,D}, u::Abstr
     mul!(v, outer, cache)
 end
 
-function LinearAlgebra.ldiv!(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function LinearAlgebra.ldiv!(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @assert has_ldiv!(A)
     @unpack inner, outer = A
 
@@ -260,7 +256,7 @@ function LinearAlgebra.ldiv!(A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{T
     ldiv!(outer, u)
 end
 
-function LinearAlgebra.ldiv!(v::AbstractField{Tv,D}, A::ComposeOp{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+function LinearAlgebra.ldiv!(v::AbstractField{<:Number,D}, A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @assert has_ldiv!(A)
     @unpack inner, outer = A
 
@@ -282,7 +278,7 @@ struct InverseOp{T,D,Ta} <: AbstractOperator{T,D}
     end
 end
 
-function Base.:*(A::InverseOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::InverseOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     A.A \ u
 end
 
@@ -295,51 +291,4 @@ Base.size(A::InverseOp) = size(A.A)
 Base.adjoint(A::InverseOp) = inv(A.A')
 LinearAlgebra.ldiv!(y, A::InverseOp, x) = mul!(y, A.A, x)
 LinearAlgebra.mul!(y, A::InverseOp, x) = ldiv!(y, A.A, x)
-
-###
-# Array reductions
-###
-
-"""
-Do array reductions
-
- dR = [D1
-       D2]
-
- G = [G11 G12
-      G21 G22]
-
- lapl = dR' ∘ G ∘ dR
-
- [v] = lapl * [u]
-
- [Dx*u, Dy*v] = grad(u) type stuff
- 
- [v1] = [op1 op2] * [u1]
- [v2]   [op3 op4]   [u2]
-
- eg for laplace op
-
- v = [Dr' Ds'] * [G11 G12] * [Dr] * u
-                 [G12 G22]   [Ds]
-
-will make it really easy to write spectral operators
-
-use something like RecursiveArrayTools.ArrayPartition
-"""
-struct ArrayOp{T,D,Ta<:Matrix{<:AbstractOperator{T,D}}} <: AbstractOperator{T,D}
-    A::Ta # array of operators
-
-    function ArrayOp(A::Array)
-        T = promote_type(eltype.(arr))
-        new{T,D,typeof(A)}(A)
-    end
-end # spits out array of vectors
-
-Base.size(A::ArrayOp) = size(A.A)
-
-(C::ArrayOp)(u) = fill(u, (1,))
-(C::Adjoint{Bool, ArrayOp})(u) = first(u)
-LinearAlgebra.mul!(v, C::ArrayOp, u) = copy!(first(v),u)
-LinearAlgebra.ldiv!(v, C::ArrayOp, u) = first(u)
 #

@@ -1,5 +1,38 @@
 #
 ###
+# Matrix Operator
+###
+
+""" 1D mat-vecs """
+struct MatrixOp{T,Tm<:AbstractMatrix{T}} <: AbstractOperator{T,1}
+    mat::Tm
+end
+
+@forward MatrixOp.mat (
+                       Base.size, Base.adjoint, #Base.:*, Base.:\
+                       issquare,
+                       SciMLBase.has_ldiv, SciMLBase.has_ldiv!
+                      )
+
+function Base.:*(A::MatrixOp, u::AbstractField{<:Number,1})
+    A.mat * _vec(u)
+end
+
+function Base.:\(A::MatrixOp, u::AbstractField{<:Number,1})
+    A.mat \ _vec(u)
+end
+
+function LinearAlgebra.mul!(v::AbstractField{<:Number,1}, A::MatrixOp, u::AbstractField{<:Number,1})
+    mul!(_vec(v), A.mat, _vec(u))
+    return v
+end
+
+function LinearAlgebra.ldiv!(v::AbstractField{<:Number,1}, A::MatrixOp, u::AbstractField{<:Number,1})
+    ldiv!(_vec(v), A.mat, _vec(u))
+    return v
+end
+
+###
 # Diagonal Operator
 ###
 
@@ -15,25 +48,25 @@ SciMLBase.has_ldiv(::DiagonalOp) = true
 SciMLBase.has_ldiv!(::DiagonalOp) = true
 issquare(::DiagonalOp) = true
 
-function Base.:*(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::DiagonalOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     Diagonal(A.diag) * _vec(u)
 end
 
-function Base.:\(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:\(A::DiagonalOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     Diagonal(A.diag) \ _vec(u)
 end
 
-function LinearAlgebra.mul!(v::AbstractField{Tv,D}, A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Tu,Ta,Tv,D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, A::DiagonalOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     mul!(_vec(v), Diagonal(A.diag), _vec(u))
     return v
 end
 
-function LinearAlgebra.ldiv!(v::AbstractField{Tv,D}, A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Tv,Ta,Tu,D}
+function LinearAlgebra.ldiv!(v::AbstractField{<:Number,D}, A::DiagonalOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     ldiv!(_vec(v), Diagonal(A.diag), _vec(u))
     return v
 end
 
-function LinearAlgebra.ldiv!(A::DiagonalOp{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function LinearAlgebra.ldiv!(A::DiagonalOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     ldiv!(Diagonal(A.diag), _vec(u))
     return u
 end
@@ -127,7 +160,7 @@ function Base.adjoint(A::TensorProductOp2D)
     end
 end
 
-function Base.:*(A::TensorProductOp2D{Ta,D}, u::AbstractField{Tu,D}) where{Ta,Tu,D}
+function Base.:*(A::TensorProductOp2D{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     v = copy(u)
     @set! v.array = A.A * u.array * A.B' # get type information from u
 end
@@ -136,7 +169,7 @@ function init_cache(A::TensorProductOp2D, U)
     cache = A.A * U
 end
 
-function LinearAlgebra.mul!(v::AbstractField{T,2}, A::TensorProductOp2D{T}, u::AbstractField{T,2}) where{T}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,2}, A::TensorProductOp2D, u::AbstractField{<:Number,2})
     U = u.array
     V = v.array
 

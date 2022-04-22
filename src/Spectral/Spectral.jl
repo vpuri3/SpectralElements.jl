@@ -11,6 +11,7 @@ using Reexport
 
 import Base.ReshapedArray
 import SciMLBase: AbstractDiffEqOperator
+import Lazy: @forward
 
 import SparseArrays: sparse
 import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
@@ -74,7 +75,7 @@ export
        IdentityOp, ZeroOp, AffineOp, ComposeOp, InverseOp, # overload op(u,p,t)
 
        # Concrete operators
-       DiagonalOp, TensorProductOp2D,
+       MatrixOp, DiagonalOp, TensorProductOp2D,
 
        # Domains
        Interval, BoxDomain,
