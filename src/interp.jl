@@ -85,6 +85,7 @@ while true
 
     println("r=",r,", s=",s,", iter=",i)
 
+    ## TODO use SciML/NonlinearSolve.jl
     if(abs(r+dr[1])>1. || abs(s+ds[1])>1.)
         println("approximation went to shit")
         return NaN

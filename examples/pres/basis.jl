@@ -1,12 +1,12 @@
 #
-using SEM, Plots
+using SpectralElemenets, Plots
 import FastGaussQuadrature
 
 nr = 8
 np = 100
 
 zr,_ = FastGaussQuadrature.gausslobatto(nr)
-zp   = linspace(-1,1,np)
+zp   = range(start=-1,stop=1,length=np) |> Array
 
 J = interpMat(zp,zr)
 
@@ -44,7 +44,7 @@ savefig(plt,"basis.png")
 #savefig(plt,"elem2.png")
 
 ## indicator func
-#zp = linspace(-1,3,1000)
+#zp = range(start=-1,stop=3,length=1000) |> Array
 #id1 = -1 .<= zp .<= 1
 #id2 =  1 .<= zp .<= 3
 #plt = plot()

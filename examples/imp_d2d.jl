@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-using SEM, OrdinaryDiffEq, Flux
+using SpectralElemenets, OrdinaryDiffEq, Flux
 using LinearAlgebra,Plots
 #----------------------------------#
 Ex = 2; nr1 = 8;

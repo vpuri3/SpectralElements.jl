@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-using SEM
+using SpectralElements
 
 using Plots, LinearAlgebra, SparseArrays
 
@@ -12,8 +12,8 @@ ny1 = 8; Ey = 2;
 #--------------------------------------#
 # nodal operators
 #--------------------------------------#
-zr1,wr1 = SEM.FastGaussQuadrature.gausslobatto(nx1)
-zs1,ws1 = SEM.FastGaussQuadrature.gausslobatto(ny1)
+zr1,wr1 = SpectralElements.FastGaussQuadrature.gausslobatto(nx1)
+zs1,ws1 = SpectralElements.FastGaussQuadrature.gausslobatto(ny1)
 
 Dr1 = derivMat(zr1); Ds1 = derivMat(zs1)
 
