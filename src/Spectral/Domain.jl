@@ -39,14 +39,4 @@ end
 function deform(domain, mapping = nothing)
     DeformedDomain(domain, mapping)
 end
-
-""" Interpolation operator between spaces """
-struct Interp2D{T,Td1,Td2} <: AbstractOperator{T,2}
-    space1::Ts1 # or domain1/2?
-    space2::Ts2
-    function Interp2D() where{Tx,Ty}
-        T = promote_type(Tx,Ty)
-        new{T,typeof(x)}(Tx,Ty)
-    end
-end
 #

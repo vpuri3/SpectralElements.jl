@@ -47,23 +47,16 @@ abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
 """ Tensor product operator in D-Dimensional space """
 abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
 
-Base.eltype(::Union{
-                    AbstractField{T,D},
-                    AbstractOperator{T,D},
-                    AbstractSpace{T,D},
-                    AbstractDomain{T,D},
-                    AbstractBoundaryCondition{T,D},
-                   }
-           ) where{T,D} = T
+AbstractSupertype{T,D} = Union{
+                               AbstractField{T,D},
+                               AbstractOperator{T,D},
+                               AbstractSpace{T,D},
+                               AbstractDomain{T,D},
+                               AbstractBonudaryCondition{T,D}
+                              }
 
-dims(::Union{
-             AbstractField{T,D},
-             AbstractOperator{T,D},
-             AbstractSpace{T,D},
-             AbstractDomain{T,D}
-             AbstractBoundaryCondition{T,D},
-            }
-    ) where{T,D} = D
+Base.eltype(::AbstractSupertype{T,D}) where{T,D} = T
+dims(::AbstractSupertype{T,D}) where{T,D} = D
 
 include("utils.jl")
 include("Field.jl")

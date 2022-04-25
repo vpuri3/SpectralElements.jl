@@ -132,11 +132,6 @@ function laplOp(space::SpectralSpace)
     first(lapl)
 end
 
-function Base.size(space::SpectralSpace)
-    n = grid(space)[1] |> length
-    (n,n)
-end
-
 """
 Deform domain, compute Jacobian of transformation, and its inverse
 
@@ -167,7 +162,14 @@ struct DeformedSpace{T,D,Ts<:AbstractSpace{T,D},Tj,Tji} <: AbstractSpace{T,D}
     Ji::Tjaci
 end
 
-function deform(space::AbstractSpace, mapping = x -> x)
+function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
+    if mappping === nothing
+        J    = IdentityOp{D}()
+        Jmat = Diagonal([J for i=1:D])
+#       return space
+        return DeformedSpace(space, grid(space), Jmat, Jmat, J, J)
+    end
+
     R = grid(space)
     X = mapping(R...)
 
@@ -180,6 +182,7 @@ function deform(space::AbstractSpace, mapping = x -> x)
     J  = det(dXdR)
     Ji = 1 / J
 
+    DeformedSpace(space, X, dXdR, dRdX, J, Ji)
 end
 
 function deform(space::AbstractSpace{<:Number,2}, mapping = (r,s) -> (r,s))
@@ -251,5 +254,19 @@ end
 struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
   l2g
   g2l
+end
+
+""" Interpolation operator between spaces """
+struct Interp2D{T,Td1,Td2} <: AbstractOperator{T,2}
+    space1::Ts1 # or domain1/2?
+    space2::Ts2
+
+    # need general purpose implementation
+    # need guarantees that domains match
+
+    function Interp2D(space1, space2) where{Tx,Ty}
+        T = promote_type(Tx,Ty)
+        new{T,typeof(x)}(Tx,Ty)
+    end
 end
 #
