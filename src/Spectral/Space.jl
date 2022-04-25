@@ -1,4 +1,12 @@
 #
+""" D-Dimensional tensor-product space """
+abstract type AbstractTensorSpace{T,D} <: AbstractSpace{T,D} end
+
+""" Gather-Scatter operator in D-Dimensional space """
+abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
+
+""" Interpolation operator between D-Dimensional spaces """
+abstract type AbstractInterpolationOperator{T,D} <: AbstractOperator{T,D} end
 
 """
 args:
@@ -143,5 +151,24 @@ function advectOp(space::AbstractSpace{<:Number,D},
     advectOp = V' * [mass] * grad
 
     return first(advectOp)
+end
+
+struct TensorSpace{T,D} <: AbstractTensorSpace{T,D}
+    spaces
+
+    mass
+    grad
+
+    function TensorSpace(spaces::AbstractTensorSpace...)
+        space
+    end
+end
+
+struct TensorSpace2D{T} <: AbstractTensorSpace{T,2}
+    space1
+    space2
+
+    mass
+    grad
 end
 #

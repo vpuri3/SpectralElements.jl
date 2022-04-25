@@ -41,4 +41,20 @@ end
 function deform(domain, mapping = nothing)
     DeformedDomain(domain, mapping)
 end
+
+function unit_square(;dims=D,T=Float64)
+    BoxDomain([-one(T), one(T)])
+end
+
+function map_from_unit_sq(domain, ref_domain;D=D)
+
+    if domain ≈ ref_domain
+        return domain
+    end
+
+    xe = domain.end_points
+
+    mapping = domain.mapping ==! nothing ? domain.mapping : (r -> r)
+    mapping = mapping ∘ map
+end
 #

@@ -14,6 +14,7 @@ import SciMLBase: AbstractDiffEqOperator
 import Lazy: @forward
 
 import SparseArrays: sparse
+import NNlib: gather, scatter
 import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
 import FFTW: plan_rfft, plan_irfft
 

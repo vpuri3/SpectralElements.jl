@@ -42,7 +42,7 @@ function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
     gradR = gradOp(space)
 
     """
-    dXdr = [dx1/dr1 ... dx1/drD]
+    dXdR = [dx1/dr1 ... dx1/drD]
            [...     ...     ...]
            [dxD/dr1 ... dxD/drD]
     """

@@ -2,9 +2,6 @@
 """ Tensor product operator in D-Dimensional space """
 abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
 
-""" Gather-Scatter operator in D-Dimensional space """
-abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
-
 ###
 # Matrix Operator
 ###
