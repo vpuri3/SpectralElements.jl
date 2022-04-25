@@ -12,7 +12,7 @@ function LagrangePolySpace1D(domain::AbstractDomain{<:Number,1},
 #   ref_domain = unit_sq(;D=1)
 #   domain = readjust_to_ref(domain, ref_domain)
 
-    z, w = quadrature(n)
+    z, w = quad = quadrature(n)
 
     D = lagrange_poly_deriv_mat(z)
 
@@ -23,7 +23,7 @@ function LagrangePolySpace1D(domain::AbstractDomain{<:Number,1},
     mass = DiagonalOp(w)
     grad = D |> MatrixOp
 
-    space = SpectralSpace(grid, mass, grad, gather_scatter)
+    space = SpectralSpace(domain, quad, grid, mass, grad, gather_scatter)
     return domain.mapping === nothing ? space : deform(space)
 end
 
@@ -134,11 +134,11 @@ function LagrangeInterpolant2D(space1::AbstractSpace{T,2},
                                space2::AbstractSpace{T,2})
     @assert space1.domain ≈ space2.domain
 
-    r1 = grid(space1)[1] # get 1D grid
-    r2 = grid(space2)[1]
+    r1 = space1.quad[1].z
+    r2 = space2.quad[1].z
 
-    s1 = grid(space1)[2]
-    s2 = grid(space2)[2]
+    s1 = space1.quad[2].z
+    s2 = space1.quad[2].z
 
     Jr = lagrange_poly_interp_mat(space2.grid, space1.grid)
     Js = lagrange_poly_interp_mat(space2.grid, space1.grid)

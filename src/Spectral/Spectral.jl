@@ -19,7 +19,7 @@ import NNlib: gather, scatter
 import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
 import FFTW: plan_rfft, plan_irfft
 
-# AbstractVector subtypes
+# AbstractVector subtyping
 import Base: summary, show, similar, zero, one
 import Base: size, getindex, setindex!, IndexStyle
 import Base.Broadcast: BroadcastStyle

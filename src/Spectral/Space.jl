@@ -112,9 +112,10 @@ end
 ###
 # Spectral Space
 ###
-struct SpectralSpace{T,D,Td,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
 
+struct SpectralSpace{T,D,Td,Tq,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
     domain::Td # assert [-1,1]^d, mapping == nothing
+    quad::Tq
     grid::Tg   # (x1, ..., xD) # including end points
     mass::Tmass
     grad::Tgrad
