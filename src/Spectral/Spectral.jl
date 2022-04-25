@@ -4,10 +4,11 @@ module Spectral
 using Reexport
 
 @reexport using LinearAlgebra
-@reexport using LinearSolve
-@reexport using UnPack: @unpack
-@reexport using Setfield: @set!
 @reexport using SciMLBase
+
+using UnPack: @unpack
+using Setfield: @set!
+using LinearSolve
 
 import Base.ReshapedArray
 import SciMLBase: AbstractDiffEqOperator
@@ -27,6 +28,10 @@ import Base.Broadcast: BroadcastStyle
 import Base: +, -, *, /, \, adjoint, ∘, inv
 import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
 
+###
+# Abstract Supertypes
+###
+
 """ Scalar function field in D-Dimensional space """
 abstract type AbstractField{T,D} <: AbstractVector{T} end
 """ Operators acting on fields in D-Dimensional space """
@@ -38,14 +43,6 @@ abstract type AbstractSpace{T,D} end
 """ Boundary condition on domain in D-Dimensional space """
 abstract type AbstractBonudaryCondition{T,D} end
 
-
-""" Scalar function field in D-Dimensional space over spectral basis """
-abstract type AbstractSpectralField{T,D} <: AbstractField{T,D} end
-""" Operators acting on fields in D-Dimensional space over a spectral basis"""
-abstract type AbstractSpectralOperator{T,D} <: AbstractOperator{T,D} end
-""" Spectral function space in D-Dimensional space """
-abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
-
 AbstractSupertypes{T,D} = Union{
                                 AbstractField{T,D},
                                 AbstractOperator{T,D},
@@ -56,6 +53,18 @@ AbstractSupertypes{T,D} = Union{
 
 Base.eltype(::AbstractSupertypes{T,D}) where{T,D} = T
 dims(::AbstractSupertypes{T,D}) where{T,D} = D
+
+
+###
+# Abstract Spectral types
+###
+
+""" Scalar function field in D-Dimensional space over spectral basis """
+abstract type AbstractSpectralField{T,D} <: AbstractField{T,D} end
+""" Operators acting on fields in D-Dimensional space over a spectral basis"""
+abstract type AbstractSpectralOperator{T,D} <: AbstractOperator{T,D} end
+""" Spectral function space in D-Dimensional space """
+abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
 
 include("utils.jl")
 include("Field.jl")

@@ -9,8 +9,8 @@ function LagrangePolySpace1D(domain::AbstractDomain{<:Number,1},
                              T = Float64,
                             )
 
-    ref_domain = unit_sq(;D=1)
-    domain = readjust_to_ref(domain, ref_domain)
+#   ref_domain = unit_sq(;D=1)
+#   domain = readjust_to_ref(domain, ref_domain)
 
     z, w = quadrature(n)
 
@@ -37,12 +37,12 @@ function LagrangePolySpace2D(domain::AbstractDomain{<:Number,2} nr, ns;
                             )
     @assert domain isa BoxDomain "spectral polynomials need logically rectangular domains"
 
-    ref_domain = unit_sq(;D=2)
-    domain = readjust_to_ref(domain, ref_domain)
+#   ref_domain = unit_sq(;D=2)
+#   domain = readjust_to_ref(domain, ref_domain)
 
     zr,wr = quadrature(nr)
     zs,ws = quadrature(ns)
-    
+
     zr,wr = T.(zr), T.(wr)
     zs,ws = T.(zs), T.(ws)
 
@@ -72,30 +72,6 @@ end
 GaussLobattoLegendre2D(args...; kwargs...) = LagrangePolySpace2D(args...; quadrature=gausslobatto, kwargs...)
 GaussLegendre2D(args...; kwargs...) = LagrangePolySpace2D(args...; quadrature=gausslegendre, kwargs...)
 GaussChebychev2D(args...; kwargs...) = LagrangePolySpace2D(args...; quadrature=gausschebyshev, kwargs...)
-
-""" Gather-Scatter operator in D-Dimensional space """
-abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
-
-""" Interpolation operator between D-Dimensional spaces """
-abstract type AbstractInterpolationOperator{T,D} <: AbstractOperator{T,D} end
-
-###
-# BC implementation
-###
-
-struct Mask{D} <: AbstractBoundnaryCondition{Bool, D}
-    tags
-    dirichlet_func!
-    neumann_func!
-    mask
-end
-
-struct BC{T,D} <: AbstractBoundaryCondition{T,D}
-    tags # dirichlet, neumann
-    dirichlet_func! # (ub, space) -> mul!(ub, I, false)
-    neumann_func!
-    mask # implementation
-end
 
 ###
 # Gather-Scatter Operators
@@ -168,5 +144,70 @@ function LagrangeInterpolant2D(space1::AbstractSpace{T,2},
     Js = lagrange_poly_interp_mat(space2.grid, space1.grid)
 
     TensorProduct2DOp(Jr, Js)
+end
+
+###
+# BC implementation
+###
+
+struct BoundaryCondition{T,D} <: AbstractBoundaryCondition{T,D}
+    tags # dirichlet, neumann
+    dirichlet_func! # (ub, space) -> mul!(ub, I, false)
+    neumann_func!
+    mask # implementation
+end
+
+function BoundaryCondition(tags, space::AbstractSpace<:Number,2;
+                           dirichlet_func! =nothing, neumann_func! = nothing)
+
+    mask = generate_mask(tags, space)
+
+    BoundaryCondition()
+end
+
+"""
+ bc = ['D','N','D','D'] === BC at [xmin,xmax,ymin,ymax]
+
+ :Dirichlet : Hom. Dirichlet = zeros ∂Ω data\n
+ :Neumann   : Hom. Neumann   = keeps ∂Ω data
+
+ A periodic mesh overwrites 'D' to 'N' in direction of periodicity.
+
+ To achieve inhomogeneous Dirichlet condition, apply the formulation
+ u = ub + uh, where uh is homogeneous part, and ub is an arbitrary
+ smooth function on Ω. Then, solve for uh
+"""
+function generate_mask(tags, space::AbstractSpace{<:Number,2})
+    nr = length()
+    ns = length()
+
+    periodic = space.domain.periodic
+
+    Ix = Matrix(I,nr,nr) |> sparse
+    Iy = Matrix(I,ns,ns) |> sparse
+
+    ix = collect(1:(Ex*nr))
+    iy = collect(1:(Ey*ns))
+
+    if(bc[1]==:Dirichlet) ix = ix[2:end]   end
+    if(bc[2]==:Dirichlet) ix = ix[1:end-1] end
+    if(bc[3]==:Dirichlet) iy = iy[2:end]   end
+    if(bc[4]==:Dirichlet) iy = iy[1:end-1] end
+
+    if(periodic[1]) ix = collect(1:(Ex*nr)); end
+    if(periodic[2]) iy = collect(1:(Ey*ns)); end
+
+    Rx = Ix[ix,:]
+    Ry = Iy[iy,:]
+
+    M = diag(Rx'*Rx) * diag(Ry'*Ry)'
+    M = Array(M) .== true
+
+    return mask
+end
+
+function applyBC!(u::AbstractField{<:Number,D}, bc::BoundaryCondition{<:Number,D}) where{D}
+
+    return u
 end
 #

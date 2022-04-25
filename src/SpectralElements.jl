@@ -7,15 +7,12 @@ using Reexport
 @reexport using LinearSolve
 @reexport using UnPack: @unpack
 @reexport using Setfield: @set!
-#@reexport using OrdinaryDiffEq
-#using DiffEqFlux
-#using GalacticOptim
-#@reexport using ComponentArrays
-#@reexport using RecursiveArrayTools
 @reexport using Plots
 
 using SparseArrays
 using NNlib
+
+include("Spectral/Spectral.jl")
 
 import FastGaussQuadrature
 import Zygote
@@ -23,68 +20,6 @@ import Zygote
 # conveniences
 Base.:*(op::Function, x::AbstractArray) = op(x)
 linspace(zi::Number,ze::Number,n::Integer) = Array(range(zi,stop=ze,length=n))
-#--------------------------------------#
-
-abstract type AbstractField{T,N} <: AbstractVector{T} end
-abstract type AbstractOperator{T,N} end
-abstract type AbstractFunctionSpace{T,N} end
-
-include("Spectral/Spectral.jl")
-
-struct SpectralElementOperator
-    element_info
-    spectral_op
-end
-
-#=
-abstract type AbstractSpectralElementMesh end
-abstract type AbstractSpectralElementOperator{T} <: AbstractMatrix{T} end
-abstract type AbstractSpectralElementField{T}    <: AbstractVector{T} end
-
-abstract type AbstractGatherScatter end
-
-mutable struct GatherScatter{T,N}
-    QQtx::AbstractArray{T,}
-    QQty::AbstractArray{T,}
-    mult::AbstractArray{T,N}
-end
-
-mutable struct SpectralElementMesh{T,Ti,N}
-    E::Vector{Ti}
-    n::Vector{Ti}
-
-    space::Discretization{T}
-    gs::GatherScatte{T,N}
-
-    geom::Geometry
-    #x::AbstractArray{T,N}
-    #y::AbstractArray{T,N}
-    # J, Ji, rx,ry,sx,sy, B, Bi,
-end
-
-mutable struct LaplaceOperator{T,N} <: SpectralElementOperator
-    G::AbstractVector{AbstractArray{T}}
-    msh::Tmsh{T,Ti,N}
-end
-
-mutable struct SpectralElementField{Tu <: AbstractArray{T,N},
-#                           Tbc, Tm,
-                            Tmsh{T,N}} <: AbstractSpectralElementField{T,N}
-    u::Tu
-#   ub::Tu
-#   bc::Tbc
-#   M::Tm
-    msh::Tmsh
-end
-
-#Base.:*
-
-"""
- DiffEq ecosystem bindings
-"""
-
-=#
-
 #--------------------------------------#
 
 # SEM building blocks

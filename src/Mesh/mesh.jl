@@ -1,14 +1,5 @@
 #
 #----------------------------------------------------------------------
-function fixU!(u...)
-    return
-end
-function fixU(u...)
-    return u
-end
-#----------------------------------------------------------------------
-export Mesh
-#----------------------------------------------------------------------
 """
  Data structure to hold mesh information, and operators.
 
@@ -28,50 +19,19 @@ struct Mesh{T}
     Ex::Int
     Ey::Int
 
-    deform::Function
-    ifperiodic::Array{Bool,1}
-
     zr::Array{T,1} # interpolation points
     zs::Array{T,1}
-    wr::Array{T,1} # interpolation weights
-    ws::Array{T,1}
-    Dr::Array{T,2} # differentiation matrix
-    Ds::Array{T,2}
-
-    x::Array{T} # grid
-    y::Array{T}
 
     QQtx::Array{T,2} # gather scatter op (loc -> loc)
     QQty::Array{T,2}
     mult::Array{T} # weights for inner product
     l2g ::Array{T} # local to global mapping
 
-    Jac ::Array{T} # jacobian
-    Jaci::Array{T}
-
-    rx::Array{T} # dr/dx
-    ry::Array{T}
-    sx::Array{T}
-    sy::Array{T}
-
-    B ::Array{T} # mass matrix
-    Bi::Array{T}
-
-    G11::Array{T} # lapl
-    G12::Array{T}
-    G22::Array{T}
-
 end
 #--------------------------------------#
 function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
              ,ifperiodic=[false,false]
              ,deform=fixU)
-
-    zr,wr = FastGaussQuadrature.gausslobatto(nr)
-    zs,ws = FastGaussQuadrature.gausslobatto(ns)
-
-    Dr  = derivMat(zr)
-    Ds  = derivMat(zs)
 
     # mappings
     # Q : glo -> loc (scatter)
@@ -94,33 +54,6 @@ function Mesh(nr::Int,ns::Int,Ex::Int,Ey::Int
     mult = ones(nr*Ex,ns*Ey)
     mult = gatherScatter(mult,QQtx,QQty)
     mult = @. 1 / mult
-    
-    xe,_ = semmesh(Ex,nr)
-    ye,_ = semmesh(Ey,ns)
-    x,y  = ndgrid(xe,ye)
-
-    # mult = semreshape(mult,nr,ns,Ex,Ey)
-    # l2g  = semreshape(l2g ,nr,ns,Ex,Ey)
-    # x    = semreshape(x   ,nr,ns,Ex,Ey)
-    # y    = semreshape(y   ,nr,ns,Ex,Ey)
-
-    # deform Ω = [-1,1]²
-    x,y = deform(x,y)
-
-    # jacobian
-    Jac,Jaci,rx,ry,sx,sy = jac(x,y,Dr,Ds)
-
-    # diagonal mass matrix
-    wx = kron(ones(Ex,1),wr)
-    wy = kron(ones(Ey,1),ws)
-
-    B  = Jac .* (wx*wy')
-    Bi = 1   ./ B
-
-    # Lapl solve
-    G11 = @. B * (rx * rx + ry * ry)
-    G12 = @. B * (rx * sx + ry * sy)
-    G22 = @. B * (sx * sx + sy * sy)
 
     return Mesh{Float64}(nr,ns,Ex,Ey
                         ,deform,ifperiodic
@@ -178,48 +111,7 @@ export Field
 #----------------------------------------------------------------------
 struct Field{T,K}
     u ::Array{T}     # value
-    uh::Array{Array} # histories
     ub::Array{T}     # boundary data
     M ::Array{T}     # BC mask
-
-    msh::Mesh{T}     # mesh
-end
-#--------------------------------------#
-function Field(bc::Array{Char,1},msh::Mesh{T};k=3) where{T}
-    u  = zero(msh.x)
-    uh = [ zero(msh.x) for i in 1:k]
-    ub = zero(msh.x)
-    M  = generateMask(bc,msh)
-
-    return Field{T,k}(u,uh,ub,M,msh)
-end
-#----------------------------------------------------------------------
-export updateHist!
-#----------------------------------------------------------------------
-function updateHist!(fld::Field)
-    @unpack u,uh = fld
-
-    updateHist!(u,uh)
-
-    return
-end
-#--------------------------------------#
-function updateHist!(u::Array,uh::Array) # array, array of arrays
-
-    for i=length(uh):-1:2
-        uh[i] .= uh[i-1]
-    end
-    uh[1] .= u
-
-    return
-end
-#--------------------------------------#
-function updateHist!(u::Array)
-
-    for i=length(u):-1:2
-        u[i] = u[i-1]
-    end
-    u[1] = u[2]
-    return
 end
 #----------------------------------------------------------------------

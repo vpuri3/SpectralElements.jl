@@ -8,6 +8,10 @@ abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
 """ Interpolation operator between D-Dimensional spaces """
 abstract type AbstractInterpolationOperator{T,D} <: AbstractOperator{T,D} end
 
+###
+# AbstractSpace Interface
+###
+
 """
 args:
     space::AbstractSpace{T,D}
@@ -48,20 +52,6 @@ for v,u in H¹₀(Ω)
 
 (v,-∇² u) = (vx,ux) + (vy,uy)\n
          := a(v,u)\n
-          = v' * A * u\n
-          = (Q*R'*v)'*A_l*(Q*R'*u)\n
-          = v'*R*Q'*A_l*Q*R'*u\n
-
-implemented as
-
-R'R * QQ' * A_l * u_loc
-where A_l is
-
-[Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
-[Ds]  [ry sy]  [0 B] [ry sy] [Ds]
-
-= [Dr]' * [G11 G12]' * [Dr]
-  [Ds]    [G12 G22]    [Ds]
 
 args:
     space::AbstractSpace{T,D}
@@ -69,7 +59,13 @@ args:
 ret:
     laplaceOp: AbstractField -> AbstractField
 """
-function laplaceOp end
+function laplaceOp(space::AbstractSpace)
+    grad = gradOp(space)
+    mass = massOp(space)
+
+    lapl = grad' ∘ [mass] ∘ grad
+    first(lapl)
+end
 
 """
 args:
@@ -77,7 +73,7 @@ args:
     vel...::AbstractField{<:Number,D}
     space_dealias
 ret:
-    advectOp: AbstractField -> AbstractField
+    advectionOp: AbstractField -> AbstractField
 
 for v,u,T in H¹₀(Ω)
 
@@ -100,15 +96,22 @@ so we don't commit any
 "variational crimes"
 
 """
-function advectOp end
+function advectionOp(space::AbstractSpace{<:Number,D},
+                     vel::AbstractField{<:Number,D}...
+                    ) where{D}
+    V = [DiagonalOp.(vel)...]
 
-"""
-AbstractSpace{T,D}
-    grid # (x1, ..., xD,)
+    grad = gradOp(space)
+    mass = massOp(space)
 
-    inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
+    advectOp = V' * [mass] * grad
+
+    return first(advectOp)
 end
-"""
+
+###
+# Spectral Space
+###
 struct SpectralSpace{T,D,Td,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
 
     domain::Td # assert [-1,1]^d, mapping == nothing
@@ -120,38 +123,13 @@ struct SpectralSpace{T,D,Td,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
     # just overload *(Adjoint{Field}, Field), norm(Field, 2)
 end
 
-function grid(space::SpectralSpace)
-    space.grid
-end
+grid(space::SpectralSpace) = space.grid
+massOp(space::SpectralSpace) = space.mass
+gradOp(space::SpectralSpace) = space.grad
 
-function massOp(space::SpectralSpace)
-    space.mass
-end
-
-function gradOp(space::SpectralSpace)
-    space.grad
-end
-
-function laplaceOp(space::SpectralSpace)
-    grad = gradOp(space)
-    mass = massOp(space)
-
-    lapl = grad' ∘ [mass] ∘ grad
-    first(lapl)
-end
-
-function advectOp(space::AbstractSpace{<:Number,D},
-                  vel::AbstractField{<:Number,D}...
-                 ) where{D}
-    V = [DiagonalOp.(vel)...]
-
-    grad = gradOp(space)
-    mass = massOp(space)
-
-    advectOp = V' * [mass] * grad
-
-    return first(advectOp)
-end
+###
+# Tensor Product Spaces
+###
 
 struct TensorSpace{T,D} <: AbstractTensorSpace{T,D}
     spaces

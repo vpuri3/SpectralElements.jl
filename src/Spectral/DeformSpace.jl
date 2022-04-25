@@ -8,15 +8,8 @@ x = x(r,s), y = y(r,s)
 
 compute
 
-dXdR = [xr xs],
-       [yr ys] 
-
-dRdX = [rx ry],
-       [sx sy]
-
-J = det(dXdR),
-
-Jinv = det(dRdX)
+dXdR = [xr xs], dRdX = [rx ry], J = det(dXdR), Jinv = det(dRdX)
+       [yr ys]         [sx sy]
 
 """
 struct DeformedSpace{T,D,Tspace<:AbstractSpace{T,D},
@@ -122,6 +115,24 @@ function massOp(space::DeformedSpace)
     M * J
 end
 
+"""
+(v,-∇² u) = (vx,ux) + (vy,uy)\n
+         := a(v,u)\n
+          = v' * A * u\n
+          = (Q*R'*v)'*A_l*(Q*R'*u)\n
+          = v'*R*Q'*A_l*Q*R'*u\n
+
+implemented as
+
+R'R * QQ' * A_l * u_loc
+where A_l is
+
+[Dr]'*[rx sx]'*[B 0]*[rx sx]*[Dr]
+[Ds]  [ry sy]  [0 B] [ry sy] [Ds]
+
+= [Dr]' * [G11 G12]' * [Dr]
+  [Ds]    [G12 G22]    [Ds]
+"""
 function laplaceOp(space::DeformedSpace{<:Number, D}) where{D}
     gradR = gradOp(space.space)
 
