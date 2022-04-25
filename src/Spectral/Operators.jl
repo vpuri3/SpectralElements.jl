@@ -44,11 +44,12 @@ end
 
 """ Diagonal Scaling Operator """
 struct DiagonalOp{T,D,Tdiag<:AbstractField{T,D}} <: AbstractOperator{T,D}
-    diag::Tdiag
+    diag::Tdiag # diagonal vector
 end
 
 Base.size(A::DiagonalOp) = size(Diagonal(A.diag))
 Base.adjoint(A::DiagonalOp) = A
+Base.inv(A::DiagonalOp) = DiagonalOp(1 ./ A.diag)
 
 SciMLBase.has_ldiv(::DiagonalOp) = true
 SciMLBase.has_ldiv!(::DiagonalOp) = true
@@ -79,9 +80,9 @@ end
 
 # fusion
 for op in (
-           :+, :-, :*, :/, :\,
+           :+, :-, :*,
           )
-    @eval function Base.$op(A::DiagonalOp{<:Number,D}, B::DiagonalOp{<:Number,D}) where{D}
+    @eval function Base.$op(A::DiagonalOp, B::DiagonalOp)
         Diag = $op(Diagonal(A.diag), Diagonal(B.diag))
         DiagonalOp(Diag.diag)
     end
@@ -95,6 +96,21 @@ for op in (
         diag = $op(A.diag, λ)
         DiagonalOp(diag)
     end
+end
+
+function Base.:/(A::DiagonalOp, λ::Number)
+    diag = A.diag ./ λ
+    DiagonalOp(diag)
+end
+
+function Base.:/(A::DiagonalOp, B::DiagonalOp)
+    Diag = Diagonal(A.diag) / Diagonal(B.diag)
+    DiagonalOp(Diag.diag)
+end
+
+function Base.:\(A::DiagonalOp, B::DiagonalOp)
+    Diag = Diagonal(A.diag) \ Diagonal(B.diag)
+    DiagonalOp(Diag.diag)
 end
 
 LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)

@@ -28,6 +28,14 @@ function Base.:*(A::AbstractOperator, B::AbstractOperator)
     A ∘ B
 end
 
+#for op in (
+#           :+, :-, :*, :∘, :/, :\,
+#          )
+#    @eval function $op(A::AbstractOperator, B::AbstractOperator)
+#        @error "Dimension mismatch between $(typeof(A)), and $(typeof(B))"
+#    end
+#end
+
 # caching
 function init_cache(A::AbstractOperator,u)
     @error "Caching behaviour not defined for $A"
@@ -42,26 +50,29 @@ end
 Base.size(A::AbstractOperator, d::Integer) = d <= 2 ? size(A)[d] : 1
 
 ###
-# ZeroOp
+# NullOp
 ###
 
-""" (Square) Zero operator """
-struct ZeroOp{D} <: AbstractOperator{Bool,D} end
+""" (Square) Null operator """
+struct NullOp{D} <: AbstractOperator{Bool,D} end
 
-Base.adjoint(Z::ZeroOp) = Z
-issquare(::ZeroOp) = true
+Base.zero(::AbstractOperator{<:Number, D}) where{D} = NullOp{D}()
+Base.zero(::Type{<:AbstractOperator{<:Number, D}}) where{D} = NullOp{D}()
 
-function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, ::ZeroOp{D}, u::AbstractField{<:Number,D}) where{D}
+Base.adjoint(Z::NullOp) = Z
+issquare(::NullOp) = true
+
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, ::NullOp{D}, u::AbstractField{<:Number,D}) where{D}
     mul!(v,I, false)
 end
 
-# overload fusion
-Base.:*(Z::ZeroOp{D}, A::AbstractOperator{<:Number,D}) where{D} = Z
-Base.:*(A::AbstractOperator{<:Number,D}, Z::ZeroOp{D}) where{D} = Z
-
-# overload composition
-Base.:∘(Z::ZeroOp{D}, A::AbstractOperator{<:Number,D}) where{D} = Z
-Base.:∘(A::AbstractOperator{<:Number,D}, Z::ZeroOp{D}) where{D} = Z
+# overload fusion, composition
+for op in (
+           :*, :∘
+          )
+    @eval $op(::NullOp{D}, ::AbstractOperator{<:Number,D}) where{D} = NullOp{D}()
+    @eval $op(::AbstractOperator{<:Number,D}, ::NullOp{D}) where{D} = NullOp{D}()
+end
 
 ###
 # IdentityOp
@@ -70,11 +81,16 @@ Base.:∘(A::AbstractOperator{<:Number,D}, Z::ZeroOp{D}) where{D} = Z
 """ (Square) Identity operator """
 struct IdentityOp{D} <: AbstractOperator{Bool,D} end
 
-SciMLBase.has_ldiv(::IdentityOp) = true
-SciMLBase.has_ldiv!(::IdentityOp) = true
+Base.one(::AbstractOperator{<:Number, D}) where{D} = IdentityOp{D}()
+Base.one(::Type{<:AbstractOperator{<:Number, D}}) where{D} = IdentityOp{D}()
 
 Base.adjoint(Id::IdentityOp) = Id
+Base.inv(Id::IdentityOp) = Id
+
 issquare(::IdentityOp) = true
+
+SciMLBase.has_ldiv(::IdentityOp) = true
+SciMLBase.has_ldiv!(::IdentityOp) = true
 
 function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, ::IdentityOp{D}, u::AbstractField{<:Number,D}) where{D}
     copy!(v, u)
@@ -88,13 +104,22 @@ function LinearAlgebra.ldiv!(Id::IdentityOp{D}, u::AbstractField{<:Number,D}) wh
     u
 end
 
-# overload fusion
-Base.:*(::IdentityOp{D}, A::AbstractOperator{<:Number,D}) where{D} = A
-Base.:*(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
+# overload fusion, composition
+for op in (
+           :*, :∘,
+          )
+    @eval $op(::IdentityOp{D}, A::AbstractOperator{<:Number,D}) where{D} = A
+    @eval $op(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
+end
 
-# overload composition
-Base.:∘(::IdentityOp{D}, A::AbstractOperator{<:Number,D}) where{D} = A
-Base.:∘(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
+Base.:/(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
+
+for op in (
+           :*, :∘
+          )
+    @eval $op(::NullOp{D}, ::IdentityOp{D}) where{D} = NullOp{D}()
+    @eval $op(::IdentityOp{D}, ::NullOp{D}) where{D} = NullOp{D}()
+end
 
 ###
 # AffineOp
@@ -117,7 +142,7 @@ struct AffineOp{T,D,
     function AffineOp(A::AbstractOperator{Ta,D}, B::AbstractOperator{Tb,D}, α, β,
                       cache = nothing, isunset = cache === nothing) where{Ta,Tb,D}
         T = promote_type(Ta,Tb)
-        new{T,D,typeof(A),typeof(B),typeof(α),typeof(β),typeof(C)}(A, B, α, β, cache, isunset)
+        new{T,D,typeof(A),typeof(B),typeof(α),typeof(β),typeof(cache)}(A, B, α, β, cache, isunset)
     end
 end
 
@@ -173,12 +198,12 @@ function Base.:-(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
 end
 
 function Base.:*(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
-    Z = ZeroOp{D}()
+    Z = NullOp{D}()
     AffineOp(A, Z, true, λ)
 end
 
 function Base.:/(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
-    Z = ZeroOp{D}()
+    Z = NullOp{D}()
     AffineOp(A, Z, -true, λ)
 end
 
@@ -291,4 +316,8 @@ Base.size(A::InverseOp) = size(A.A)
 Base.adjoint(A::InverseOp) = inv(A.A')
 LinearAlgebra.ldiv!(y, A::InverseOp, x) = mul!(y, A.A, x)
 LinearAlgebra.mul!(y, A::InverseOp, x) = ldiv!(y, A.A, x)
+
+# overload inverse for matrices of operators
+#function Base.inv(A::Matrix{<:AbstractOperator})
+#end
 #

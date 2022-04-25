@@ -1,6 +1,6 @@
 #
 """ Scalar function field in D-dimensional space over a spectral basis"""
-# rename to PolynomialField or something later
+# rename to LagrangePolyField or something later
 struct Field{T,D,Tarr <: AbstractArray{T,D}} <: AbstractSpectralField{T,D}
     array::Tarr
 end

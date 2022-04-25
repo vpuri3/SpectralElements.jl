@@ -1,5 +1,5 @@
 #
-""" utilize Base.ReshaedArray """
+""" utilize Base.ReshapedArray """
 _reshape(a,dims::NTuple{D,Int}) where{D} = reshape(a,dims)
 _reshape(a::Array, dims::NTuple{D,Int}) where{D} = Base.ReshapedArray(a, dims, ())
 

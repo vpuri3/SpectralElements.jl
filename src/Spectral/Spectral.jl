@@ -17,8 +17,8 @@ import SparseArrays: sparse
 import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
 import FFTW: plan_rfft, plan_irfft
 
-# Field <: AbstractVector
-import Base: summary, show, similar
+# AbstractVector subtypes
+import Base: summary, show, similar, zero, one
 import Base: size, getindex, setindex!, IndexStyle
 import Base.Broadcast: BroadcastStyle
 
@@ -74,7 +74,7 @@ export
        Field,
 
        # operator conveniences
-       IdentityOp, ZeroOp, AffineOp, ComposeOp, InverseOp, # overload op(u,p,t)
+       IdentityOp, NullOp, AffineOp, ComposeOp, InverseOp, # overload op(u,p,t)
 
        # Concrete operators
        MatrixOp, DiagonalOp, TensorProductOp2D,
