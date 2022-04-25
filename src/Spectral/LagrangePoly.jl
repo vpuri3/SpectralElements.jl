@@ -1,73 +1,4 @@
 #
-include("NDgrid.jl")
-
-###
-# Lagrange polynomial matrices
-###
-
-"""
-    Compute the Lagrange interpolation matrix from xi to xo.
-    lagrange_poly_interp_mat(xₒ,xᵢ)
-"""
-function lagrange_poly_interp_mat(xo,xi)
-
-    no = length(xo)
-    ni = length(xi)
-
-    a = ones(1,ni)
-    for i=1:ni
-        for j=1:(i-1)  a[i]=a[i]*(xi[i]-xi[j]); end
-        for j=(i+1):ni a[i]=a[i]*(xi[i]-xi[j]); end
-    end
-    a = 1 ./ a # Barycentric weights
-
-    J = zeros(no,ni)
-    s = ones(1,ni)
-    t = ones(1,ni)
-    for i=1:no
-        x = xo[i]
-        for j=2:ni
-            s[j]      = s[j-1]    * (x-xi[j-1]   )
-            t[ni+1-j] = t[ni+2-j] * (x-xi[ni+2-j])
-        end
-        J[i,:] = a .* s .* t
-    end
-
-    return J
-end
-
-"""
- Compute derivative matrix for lagrange
- interpolants on points [x]
-"""
-function lagrange_poly_deriv_mat(x)
-    
-    n = length(x)
-
-    a = ones(1,n)
-    for i=1:n
-        for j=1:(i-1) a[i]=a[i]*(x[i]-x[j]) end
-        for j=(i+1):n a[i]=a[i]*(x[i]-x[j]) end
-    end
-    a = 1 ./ a # Barycentric weights
-
-    # diagonal elements
-    D = x .- x'
-    for i=1:n D[i,i] = 1. end
-    D = 1 ./ D
-    for i=1:n
-        D[i,i] = 0.
-        D[i,i] = sum(D[i,:])
-    end
-
-    # off-diagonal elements
-    for j=1:n for i=1:n
-        if(i!=j) D[i,j] = a[j] / (a[i]*(x[i]-x[j])) end
-    end end
-
-    return D
-end
-
 ###
 # Lagrange polynomial function spaces
 ###
@@ -79,12 +10,12 @@ function LagrangePolySpace1D(domain::AbstractDomain{<:Number,1},
                             )
     z, w = quadrature(n)
 
-    D  = lagrange_poly_deriv_mat(z)
+    D = lagrange_poly_deriv_mat(z)
 
     z = T.(z) |> Field
     w = T.(w) |> Field
 
-    grid = z
+    grid = (z,)
     mass = DiagonalOp(w)
     grad = D |> MatrixOp
 
@@ -107,9 +38,9 @@ function LagrangePolySpace2D(domain::AbstractDomain{<:Number,2} nr, ns;
     
     zr,wr = T.(zr), T.(wr)
     zs,ws = T.(zs), T.(ws)
-    
+
     x, y = ndgrid(zr,zs)
-    grid = (x, y)
+    grid = (x, y,)
     
     Dr = lagrange_poly_deriv_mat(zr)
     Ds = lagrange_poly_deriv_mat(zs)
@@ -120,7 +51,7 @@ function LagrangePolySpace2D(domain::AbstractDomain{<:Number,2} nr, ns;
     DrOp = TensorProductOp2D(Dr,Is)
     DsOp = TensorProductOp2D(Ir,Ds)
     
-    mass  = w * w' |> Field |> DiagonalOp
+    mass = w * w' |> Field |> DiagonalOp
 
     grad = [DrOp
             DsOp]
@@ -132,4 +63,43 @@ end
 GaussLobattoLegendre2D(args...; kwargs...) = LagrangePolySpace2D(args...; quadrature=gausslobatto, kwargs...)
 GaussLegendre2D(args...; kwargs...) = LagrangePolySpace2D(args...; quadrature=gausslegendre, kwargs...)
 GaussChebychev2D(args...; kwargs...) = LagrangePolySpace2D(args...; quadrature=gausschebyshev, kwargs...)
+
+###
+# BC implementation
+###
+
+struct Mask{D} <: AbstractBoundnaryCondition{Bool, D}
+    tags
+    dirichlet_func!
+    neumann_func!
+    mask
+end
+
+
+struct BC{T,D} <: AbstractBoundaryCondition{T,D}
+    tags # dirichlet, neumann
+    dirichlet_func! # (ub, space) -> mul!(ub, I, false)
+    neumann_func!
+    mask # implementation
+end
+
+struct GS{T,D} <: AbstractGatherScatterOperator{T,D}
+    gsOp
+    l2g  # local-to-global numbering
+    g2l  # global-to-local numbering
+end
+
+""" Interpolation operator between spaces """
+struct Interp2D{T,Td1,Td2} <: AbstractOperator{T,2}
+    space1::Ts1 # or domain1/2?
+    space2::Ts2
+
+    # need general purpose implementation
+    # need guarantees that domains match
+
+    function Interp2D(space1, space2) where{Tx,Ty}
+        T = promote_type(Tx,Ty)
+        new{T,typeof(x)}(Tx,Ty)
+    end
+end
 #

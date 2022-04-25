@@ -1,4 +1,10 @@
 #
+""" Tensor product operator in D-Dimensional space """
+abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
+
+""" Gather-Scatter operator in D-Dimensional space """
+abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
+
 ###
 # Matrix Operator
 ###
@@ -97,9 +103,6 @@ LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
 ###
 # Tensor Product Operator
 ###
-
-#Base.kron()
-#Base.⊗
 
 """
 Tensor product operator

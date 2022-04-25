@@ -23,7 +23,7 @@ import Base: size, getindex, setindex!, IndexStyle
 import Base.Broadcast: BroadcastStyle
 
 # overload maths
-import Base: +, -, *, /, \, adjoint, ∘, inv, kron
+import Base: +, -, *, /, \, adjoint, ∘, inv
 import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
 
 """ Scalar function field in D-Dimensional space """
@@ -37,6 +37,7 @@ abstract type AbstractSpace{T,D} end
 """ Boundary condition on domain in D-Dimensional space """
 abstract type AbstractBonudaryCondition{T,D} end
 
+
 """ Scalar function field in D-Dimensional space over spectral basis """
 abstract type AbstractSpectralField{T,D} <: AbstractField{T,D} end
 """ Operators acting on fields in D-Dimensional space over a spectral basis"""
@@ -44,27 +45,29 @@ abstract type AbstractSpectralOperator{T,D} <: AbstractOperator{T,D} end
 """ Spectral function space in D-Dimensional space """
 abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
 
-""" Tensor product operator in D-Dimensional space """
-abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
+AbstractSupertypes{T,D} = Union{
+                                AbstractField{T,D},
+                                AbstractOperator{T,D},
+                                AbstractSpace{T,D},
+                                AbstractDomain{T,D},
+                                AbstractBonudaryCondition{T,D}
+                               }
 
-AbstractSupertype{T,D} = Union{
-                               AbstractField{T,D},
-                               AbstractOperator{T,D},
-                               AbstractSpace{T,D},
-                               AbstractDomain{T,D},
-                               AbstractBonudaryCondition{T,D}
-                              }
-
-Base.eltype(::AbstractSupertype{T,D}) where{T,D} = T
-dims(::AbstractSupertype{T,D}) where{T,D} = D
+Base.eltype(::AbstractSupertypes{T,D}) where{T,D} = T
+dims(::AbstractSupertypes{T,D}) where{T,D} = D
 
 include("utils.jl")
 include("Field.jl")
 include("OperatorBasics.jl")
 include("Operators.jl")
-#imclude("Domain.jl")
-#include("Space.jl")
+include("Domain.jl")
+include("Space.jl")
+include("DeformSpace.jl")
+
+include("NDgrid.jl")
+include("LagrangeMats.jl")
 #include("LagrangePoly.jl")
+#include("Fourier.jl")
 
 export 
        # fields

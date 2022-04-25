@@ -4,17 +4,9 @@
 args:
     space::AbstractSpace{T,D}
 ret:
-    (x1, ..., xD)
+    (x1, ..., xD,)
 """
 function grid end
-
-"""
-args:
-    space::AbstractSpace{T,D}
-ret:
-    gradOp: u -> [dudx1, ..., dudxD]
-"""
-function gradOp end
 
 """
 Gradient Operator
@@ -23,8 +15,15 @@ Compute gradient of u∈H¹(Ω).
 Continuity isn't enforced across
 element boundaries for gradients
 
-[Dx] * u = [rx sx] * [Dr] * u
-[Dy]     = [ry sy]   [Ds]
+args:
+    space::AbstractSpace{T,D}
+ret:
+    gradOp: u -> [dudx1, ..., dudxD]
+"""
+function gradOp end
+
+"""
+Mass Operator
 
 args:
     space::AbstractSpace{T,D}
@@ -36,6 +35,7 @@ function massOp end
 
 """
 Laplace Operator
+
 for v,u in H¹₀(Ω)
 
 (v,-∇² u) = (vx,ux) + (vy,uy)\n
@@ -59,9 +59,9 @@ args:
     space::AbstractSpace{T,D}
     space_dealias
 ret:
-    laplOp: AbstractField -> AbstractField
+    laplaceOp: AbstractField -> AbstractField
 """
-function laplOp end
+function laplaceOp end
 
 """
 args:
@@ -96,20 +96,20 @@ function advectOp end
 
 """
 AbstractSpace{T,D}
-    grid # (x1, ..., xD)
+    grid # (x1, ..., xD,)
 
     inner_product # overload *(Adjoint{Field}, Field), norm(Field, 2)
 end
 """
-struct SpectralSpace{T,D,
-                    } <: AbstractSpectralSpace{T,D}
+struct SpectralSpace{T,D,Td,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
 
     domain::Td # assert [-1,1]^d, mapping == nothing
     grid::Tg   # (x1, ..., xD) # including end points
     mass::Tmass
     grad::Tgrad
     gs::Tgs
-    inner_product::Tipr # needed for SpectralElement
+#   inner_product::Tipr # needed for SpectralElement
+    # just overload *(Adjoint{Field}, Field), norm(Field, 2)
 end
 
 function grid(space::SpectralSpace)
@@ -124,7 +124,7 @@ function gradOp(space::SpectralSpace)
     space.grad
 end
 
-function laplOp(space::SpectralSpace)
+function laplaceOp(space::SpectralSpace)
     grad = gradOp(space)
     mass = massOp(space)
 
@@ -132,141 +132,16 @@ function laplOp(space::SpectralSpace)
     first(lapl)
 end
 
-"""
-Deform domain, compute Jacobian of transformation, and its inverse
-
-x = x(r,s), y = y(r,s)
-
-J = [xr xs],  Jinv = [rx ry]
-    [yr ys]          [sx sy]
-
-[Dx] * u = [rx sx] * [Dr] * u
-[Dy]     = [ry sy]   [Ds]
-
-⟹
-[1 0] = [rx sx] *  [Dr] [x y]
-[0 1]   [ry sy]    [Ds]
-
-⟹
-                 -1
-[rx sx] = [xr yr]
-[ry sy]   [xs ys]
-
-"""
-struct DeformedSpace{T,D,Ts<:AbstractSpace{T,D},Tj,Tji} <: AbstractSpace{T,D}
-    space::Ts
-    grid::Tg # (x1, ..., xD)
-    dXdR::Tjacmat
-    dRdX::Tjacimat
-    J::Tjac
-    Ji::Tjaci
-end
-
-function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
-    if mappping === nothing
-        J    = IdentityOp{D}()
-        Jmat = Diagonal([J for i=1:D])
-#       return space
-        return DeformedSpace(space, grid(space), Jmat, Jmat, J, J)
-    end
-
-    R = grid(space)
-    X = mapping(R...)
-
-    gradR = gradOp(space)
-
-    dXdR = gradR.(X)
-    dXdR = hcat(dXdR)'
-    dXdR = DiagonalOp.(dXdR)
-
-    J  = det(dXdR)
-    Ji = 1 / J
-
-    DeformedSpace(space, X, dXdR, dRdX, J, Ji)
-end
-
-function deform(space::AbstractSpace{<:Number,2}, mapping = (r,s) -> (r,s))
-    r, s = grid(space)
-    x, y = mapping(r, s)
+function advectOp(space::AbstractSpace{<:Number,D},
+                  vel::AbstractField{<:Number,D}...
+                 ) where{D}
+    V = [DiagonalOp.(vel)...]
 
     grad = gradOp(space)
-
-    dxdr, dxds = grad * x
-    dydr, dyds = grad * y
-
-    # Jacobian matrix
-    dXdR = DiagonalOp.([dxdr dxds
-                        dydr dyds])
-
-    J  = det(dXdR) # dxdr * dyds - dxds * dydr
-    Ji = 1 / J
-
-    drdx =  (Ji * dyds)
-    drdy = -(Ji * dxds)
-    dsdx = -(Ji * dydr)
-    dsdy =  (Ji * dxdr)
-
-    dRdX = DiagonalOp.[drdx dsdx
-                       drdy dsdy]
-
-    DeformedSpace(space, (x,y), dXdR, dRdX, J, Ji)
-end
-
-function massOp(space::DeformedSpace)
-end
-
-function laplaceOp(space::DeformedSpace)
-    gradR = gradOp(space.ref_space)
-
-    mass = MassOp(space)
-    dRdX = jacOp(space) # space.dRdX
-
-    M = Diagonal([mass, mass])
-    G = dRdX' * M * dRdX
-
-    laplOp = @. gradR' .∘ G .∘ gradR
-
-    return first(laplOp)
-end
-
-function advectOp(space::AbstractSpace{<:Number,D}, vel...::AbstractField{<:Number,D}) where{D}
-    V = DiagonalOp.([vel])
-
-    grad = gradOp(space)
-
     mass = massOp(space)
-end
 
-struct BC{T,D} <: AbstractBoundaryCondition{T,D}
-    tags # dirichlet, neumann
-    dirichlet_func! # (ub, space) -> mul!(ub, I, false)
-    neumann_func!
-    mask # implementation
-end
+    advectOp = V' * [mass] * grad
 
-struct GS{T,D} <: AbstractGatherScatter{T,D}
-    gsOp
-    l2g  # local-to-global
-    g2l  # global-to-local
-end
-
-""" Gather-Scatter Operator """
-struct GatherScatter{T,N} # periodic condition, elemenet-wise GS
-  l2g
-  g2l
-end
-
-""" Interpolation operator between spaces """
-struct Interp2D{T,Td1,Td2} <: AbstractOperator{T,2}
-    space1::Ts1 # or domain1/2?
-    space2::Ts2
-
-    # need general purpose implementation
-    # need guarantees that domains match
-
-    function Interp2D(space1, space2) where{Tx,Ty}
-        T = promote_type(Tx,Ty)
-        new{T,typeof(x)}(Tx,Ty)
-    end
+    return first(advectOp)
 end
 #
