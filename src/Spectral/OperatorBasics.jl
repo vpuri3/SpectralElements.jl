@@ -1,6 +1,6 @@
 #
 ###
-# Traits and fallbacks
+# AbstractOperator interface
 ###
 
 SciMLBase.has_adjoint(::AbstractOperator) = true
@@ -27,14 +27,6 @@ function Base.:*(A::AbstractOperator, B::AbstractOperator)
     @warn "Operator fusion not defined for $A * $B. falling back to lazy composition, ∘"
     A ∘ B
 end
-
-#for op in (
-#           :+, :-, :*, :∘, :/, :\,
-#          )
-#    @eval function $op(A::AbstractOperator, B::AbstractOperator)
-#        @error "Dimension mismatch between $(typeof(A)), and $(typeof(B))"
-#    end
-#end
 
 # caching
 function init_cache(A::AbstractOperator,u)

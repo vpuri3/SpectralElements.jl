@@ -1,7 +1,4 @@
 #
-""" Tensor product operator in D-Dimensional space """
-abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
-
 ###
 # Matrix Operator
 ###
@@ -114,7 +111,7 @@ LinearAlgebra.:lmul!(a::Number,B::DiagonalOp) = lmul!(a,B.diag)
 LinearAlgebra.:rmul!(A::DiagonalOp,b::Number) = rmul!(A.diag,b)
 
 ###
-# Tensor Product Operator
+# Tensor Product Operators
 ###
 
 """

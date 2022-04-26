@@ -54,30 +54,54 @@ AbstractSupertypes{T,D} = Union{
 Base.eltype(::AbstractSupertypes{T,D}) where{T,D} = T
 dims(::AbstractSupertypes{T,D}) where{T,D} = D
 
+###
+# AbstractOperator subtypes
+###
+
+""" Tensor product operator in D-Dimensional space """
+abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
+
+""" Gather-Scatter operator in D-Dimensional space """
+abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
+
+""" Interpolation operator between D-Dimensional spaces """
+abstract type AbstractInterpolationOperator{T,D} <: AbstractOperator{T,D} end
 
 ###
-# Abstract Spectral types
+# AbstractSpace subtypes
 ###
 
-""" Scalar function field in D-Dimensional space over spectral basis """
-abstract type AbstractSpectralField{T,D} <: AbstractField{T,D} end
-""" Operators acting on fields in D-Dimensional space over a spectral basis"""
-abstract type AbstractSpectralOperator{T,D} <: AbstractOperator{T,D} end
-""" Spectral function space in D-Dimensional space """
+""" D-Dimensional spectral space """
 abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
 
+""" D-Dimensional tensor-product space """
+abstract type AbstractTensorProductSpace{T,D} <: AbstractSpace{T,D} end
+
+# misc
 include("utils.jl")
+include("NDgrid.jl")
+
+# field
 include("Field.jl")
+
+# operators
 include("OperatorBasics.jl")
 include("Operators.jl")
+
+# domain
 include("Domain.jl")
+
+# space
 include("Space.jl")
 include("DeformSpace.jl")
 
-include("NDgrid.jl")
-include("LagrangeMats.jl")
-#include("LagrangePoly.jl")
-#include("Fourier.jl")
+# polynomial spaces
+include("LagrangeMatrices.jl")
+#include("LagrangePolynomialSpace.jl")
+#include("GalerkinOperators.jl")
+
+# fourier spaces
+#include("FourierSpace.jl")
 
 export 
        # fields
@@ -93,6 +117,8 @@ export
        Interval, BoxDomain,
 
        # spaces
+       GaussLobattoLegendre1D, GaussLegendre1D, GaussChebychev1D,
+
        GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 
 end # module

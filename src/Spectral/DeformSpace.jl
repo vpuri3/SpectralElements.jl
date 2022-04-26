@@ -86,15 +86,13 @@ function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
     elseif D == 3 # cramer's rule
         inv(dXdR)
     else
-        inv(dXdR) # errors
+        inv(dXdR) # need even more robust AbstractOp interface
     end
 
     DeformedSpace(space, X, dXdR, dRdX, J, Ji)
 end
 
-function grid(space::DeformedSpace)
-    space.grid
-end
+grid(space::DeformedSpace) = space.grid
 
 """
 [Dx] * u = [rx sx] * [Dr] * u
@@ -134,16 +132,41 @@ where A_l is
   [Ds]    [G12 G22]    [Ds]
 """
 function laplaceOp(space::DeformedSpace{<:Number, D}) where{D}
-    gradR = gradOp(space.space)
 
-    mass = MassOp(space)
-    dRdX = jacOp(space) # space.dRdX
+    Dr   = gradOp(space.space)
+    M    = massOp(space)
+    dRdX = space.dRdX
 
-    M = Diagonal([mass for i=1:D])
-    G = dRdX' * M * dRdX |> Symmetric
+    MM = Diagonal([M for i=1:D])
+    GG = dRdX' * MM * dRdX |> Symmetric
 
-    laplOp = gradR' .∘ G .∘ gradR
+    laplOp = Dr' .∘ GG .∘ Dr
 
     return first(laplOp)
 end
+
+###
+# Dealiased operators
+###
+
+function laplaceop(space1::DeformedSpace{<:Number,D},
+                   space2::DeformedSpace{<:Number,D},
+                   J = nothing
+                  ) where{D}
+    J12 = J !== nothing ? J : interpOp(space1, space2)
+
+    Dr1   = gradOp(space1.space)
+    M2    = MassOp(space2)
+    dRdX2 = space2.dRdX
+
+    JD = J12 ∘ Dr1
+
+    MM2 = Diagonal([M2 for i=1:D])
+    GG2 = dRdX' * MM2 * dRdX |> Symmetric
+
+    laplOp = JD' ∘ GG2 ∘ JD
+
+    return first(laplOp)
+end
+
 #

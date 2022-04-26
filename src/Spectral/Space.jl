@@ -1,22 +1,13 @@
 #
-""" D-Dimensional tensor-product space """
-abstract type AbstractTensorSpace{T,D} <: AbstractSpace{T,D} end
-
-""" Gather-Scatter operator in D-Dimensional space """
-abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
-
-""" Interpolation operator between D-Dimensional spaces """
-abstract type AbstractInterpolationOperator{T,D} <: AbstractOperator{T,D} end
-
 ###
-# AbstractSpace Interface
+# AbstractSpace interface
 ###
 
 """
 args:
     space::AbstractSpace{T,D}
 ret:
-    (x1, ..., xD,)
+    (x1, ..., xD,) # incl end points
 """
 function grid end
 
@@ -60,10 +51,10 @@ ret:
     laplaceOp: AbstractField -> AbstractField
 """
 function laplaceOp(space::AbstractSpace)
-    grad = gradOp(space)
-    mass = massOp(space)
+    D = gradOp(space)
+    M = massOp(space)
 
-    lapl = grad' ∘ [mass] ∘ grad
+    lapl = D' ∘ [M] ∘ D
     first(lapl)
 end
 
@@ -101,22 +92,69 @@ function advectionOp(space::AbstractSpace{<:Number,D},
                     ) where{D}
     V = [DiagonalOp.(vel)...]
 
-    grad = gradOp(space)
-    mass = massOp(space)
+    D = gradOp(space)
+    M = massOp(space)
 
-    advectOp = V' * [mass] * grad
+    advectOp = V' * [M] * D
 
     return first(advectOp)
 end
 
 ###
-# Spectral Space
+# Dealiased operators
 ###
 
+function massOp(space1::AbstractSpace{<:Number,D},
+                space2::AbstractSpace{<:Number,D},
+                interpOp = nothing
+               ) where{D}
+    J12 = interpOp !== nothing ? J : interpOp(space1, space2)
+
+    M2 = massOp(space2)
+
+    J12' ∘ M2 ∘ J12
+end
+
+function laplaceOp(space1::AbstractSpace{<:Number,D},
+                   space2::AbstractSpace{<:Number,D},
+                   J = nothing
+                  ) where{D}
+    J12 = J !== nothing ? J : interpOp(space1, space2)
+
+    M2 = massOp(space2)
+    D1 = gradOp(space1)
+    JD = J12 ∘ D1
+
+    JD' ∘ M2 ∘ JD
+end
+
+function advectionOp(space1::AbstractSpace{<:Number,D},
+                     space2::AbstractSpace{<:Number,D},
+                     vel::AbstractField{<:Number,D}...,
+                     J = nothing
+                    ) where{d}
+    J12 = interpOp !== nothing ? J : interpOp(space1, space2)
+
+    V1 = [DiagonalOp.(vel)...]
+    V2 = J12 .* V1
+
+    M2 = massOp(space2)
+    D1 = gradOp(space1)
+
+    advectOp = J12' ∘ V2' ∘ M2 ∘ J12 ∘ D1
+
+    return first(advectOp)
+end
+
+###
+# Spectral Space 
+###
+
+""" plug in your spectral discretizations here """
 struct SpectralSpace{T,D,Td,Tq,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
     domain::Td # assert [-1,1]^d, mapping == nothing
     quad::Tq
-    grid::Tg   # (x1, ..., xD) # including end points
+    grid::Tg
     mass::Tmass
     grad::Tgrad
     gs::Tgs
@@ -132,22 +170,9 @@ gradOp(space::SpectralSpace) = space.grad
 # Tensor Product Spaces
 ###
 
-struct TensorSpace{T,D} <: AbstractTensorSpace{T,D}
-    spaces
-
-    mass
-    grad
-
-    function TensorSpace(spaces::AbstractTensorSpace...)
-        space
-    end
-end
-
-struct TensorSpace2D{T} <: AbstractTensorSpace{T,2}
+struct TensorProductSpace{T} <: AbstractTensorProductSpace{T,D}
     space1
     space2
-
-    mass
-    grad
 end
+
 #
