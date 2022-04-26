@@ -117,8 +117,8 @@ export
        Interval, BoxDomain,
 
        # spaces
+       LagrangePolynomialSpace,
        GaussLobattoLegendre1D, GaussLegendre1D, GaussChebychev1D,
-
        GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 
 end # module

@@ -168,5 +168,4 @@ function laplaceop(space1::DeformedSpace{<:Number,D},
 
     return first(laplOp)
 end
-
 #

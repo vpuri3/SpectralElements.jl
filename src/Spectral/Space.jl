@@ -97,7 +97,7 @@ function advectionOp(space::AbstractSpace{<:Number,D},
 
     advectOp = V' * [M] * D
 
-    return first(advectOp)
+    first(advectOp)
 end
 
 ###
@@ -123,9 +123,11 @@ function laplaceOp(space1::AbstractSpace{<:Number,D},
 
     M2 = massOp(space2)
     D1 = gradOp(space1)
-    JD = J12 ∘ D1
+    JD = [J12] .∘ D1
 
-    JD' ∘ M2 ∘ JD
+    laplOp = JD' ∘ [M2] ∘ JD
+
+    first(laplOp)
 end
 
 function advectionOp(space1::AbstractSpace{<:Number,D},
@@ -141,30 +143,10 @@ function advectionOp(space1::AbstractSpace{<:Number,D},
     M2 = massOp(space2)
     D1 = gradOp(space1)
 
-    advectOp = J12' ∘ V2' ∘ M2 ∘ J12 ∘ D1
+    advectOp = [J12]' .∘ V2' .∘ [M2] .∘ [J12] .∘ D1
 
-    return first(advectOp)
+    first(advectOp)
 end
-
-###
-# Spectral Space 
-###
-
-""" plug in your spectral discretizations here """
-struct SpectralSpace{T,D,Td,Tq,Tg,Tmass,Tgrad,Tgs} <: AbstractSpectralSpace{T,D}
-    domain::Td # assert [-1,1]^d, mapping == nothing
-    quad::Tq
-    grid::Tg
-    mass::Tmass
-    grad::Tgrad
-    gs::Tgs
-#   inner_product::Tipr # needed for SpectralElement
-    # just overload *(Adjoint{Field}, Field), norm(Field, 2)
-end
-
-grid(space::SpectralSpace) = space.grid
-massOp(space::SpectralSpace) = space.mass
-gradOp(space::SpectralSpace) = space.grad
 
 ###
 # Tensor Product Spaces
@@ -174,5 +156,4 @@ struct TensorProductSpace{T} <: AbstractTensorProductSpace{T,D}
     space1
     space2
 end
-
 #
