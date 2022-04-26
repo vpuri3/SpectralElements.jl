@@ -55,6 +55,7 @@ function laplaceOp(space::AbstractSpace)
     M = massOp(space)
 
     lapl = D' ∘ [M] ∘ D
+
     first(lapl)
 end
 
@@ -106,7 +107,7 @@ end
 
 function massOp(space1::AbstractSpace{<:Number,D},
                 space2::AbstractSpace{<:Number,D},
-                interpOp = nothing
+                interpOp = nothing,
                ) where{D}
     J12 = interpOp !== nothing ? J : interpOp(space1, space2)
 
@@ -117,7 +118,7 @@ end
 
 function laplaceOp(space1::AbstractSpace{<:Number,D},
                    space2::AbstractSpace{<:Number,D},
-                   J = nothing
+                   J = nothing,
                   ) where{D}
     J12 = J !== nothing ? J : interpOp(space1, space2)
 
@@ -133,7 +134,7 @@ end
 function advectionOp(space1::AbstractSpace{<:Number,D},
                      space2::AbstractSpace{<:Number,D},
                      vel::AbstractField{<:Number,D}...,
-                     J = nothing
+                     J = nothing,
                     ) where{d}
     J12 = interpOp !== nothing ? J : interpOp(space1, space2)
 

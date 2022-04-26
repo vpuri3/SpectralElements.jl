@@ -1,6 +1,11 @@
 #
+#
+# TODO rename to LagrangePolyField or something later
+#
+# for Spectral Elements, overload inner product
+#   - overload *(Adjoint{Field}, Field), norm(::Field, 2)
+#
 """ Scalar function field in D-dimensional space over a spectral basis"""
-# rename to LagrangePolyField or something later
 struct Field{T,D,Tarr <: AbstractArray{T,D}} <: AbstractField{T,D}
     array::Tarr
 end

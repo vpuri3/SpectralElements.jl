@@ -1,4 +1,30 @@
 #
+###
+# AbstractDomain interface #TODO
+###
+
+"""
+args:
+    AbstractDomain
+    direction
+ret:
+    Bool
+"""
+function isperiodic end
+
+"""
+args:
+    AbstractDomain
+    direction
+ret:
+    AbstractVector
+"""
+function end_points end
+
+###
+# Interval
+###
+
 """ 1D interval """
 struct Interval{T,Te<:Vector{T}} <: AbstractDomain{T,1}
     end_points::Te
@@ -9,6 +35,18 @@ struct Interval{T,Te<:Vector{T}} <: AbstractDomain{T,1}
         new{T, typeof(vec)}(vec, periodic)
     end
 end
+
+function isperiodic(domain::Interval, dir=1)
+    domain.periodic
+end
+
+function end_points(domain::Interval, dir=1)
+    domain.end_points
+end
+
+###
+# Interval
+###
 
 """ D-dimensional logically reectangular domain """
 struct BoxDomain{T,D,Ti} <: AbstractDomain{T,D}

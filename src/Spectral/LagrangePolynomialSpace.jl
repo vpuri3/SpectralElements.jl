@@ -5,73 +5,44 @@
 
 """ Lagrange polynomial spectral space """
 struct LagrangePolynomialSpace{T,D,
-                               Td,Tq,Tg,Tmass,Tgrad,Tgs
+                               Tdom<:AbstractDomain{T,D},
+                               Tquad,Tgrid,
+                               Tmass<:AbstractField{T,D},
+                               Tderiv,
                               } <: AbstractSpectralSpace{T,D}
-    domain::Td # assert [-1,1]^d, mapping == nothing
-    quad::Tq
-    grid::Tg
-    mass::Tmass # move to grid
-    grad::Tgrad
-#   inner_product::Tipr # needed for SpectralElement
-    # just overload *(Adjoint{Field}, Field), norm(Field, 2)
+    domain::Tdom
+    quadratures::Tquad
+    grid::Tgrid
+    mass_mat::Tmass
+    deriv_mats::Tderiv
 end
 
-grid(space::SpectralSpace) = space.grid
+function LagrangePolynomialSpace1D(domain::AbstractDomain{<:Number,1}, n;
+                                    quadrature = gausslobatto,
+                                    T = Float64,
+                                   )
 
-function massOp(space::SpectralSpace)
-    @unpack B = space
-    DiagonalOp(B)
-end
-
-function gradOp(space::SpectralSpace{T,1})
-    @unpack Dr = space
-    Dx = MatrixOp(Dr)
-
-    [Dx]
-end
-
-function gradOp(space::SpectralSpace{T,2})
-    @unpack Dr, Ds = space
-    Dx = TensorProductOp2D(Dr, I)
-    Dy = TensorProductOp2D(I, Ds)
-
-    [Dx
-     Dy]
-end
-
-function gradOp(space::SpectralSpace{T,3})
-    @unpack Dr, Ds, Dt = space
-    Dx = TensorProductOp3D(Dr, I, I)
-    Dy = TensorProductOp3D(I, Ds, I)
-    Dz = TensorProductOp3D(I, I, Dt)
-
-    [Dr
-     Ds
-     Dt]
-end
-
-function LagrangePolySpace1D(domain::AbstractDomain{<:Number,1},
-                             n = 16;
-                             quadrature = gausslobatto,
-                             T = Float64,
-                            )
-
+    """ reset deformation to map from [-1,1]^D """ # TODO
 #   ref_domain = unit_sq(;D=1)
 #   domain = readjust_to_ref(domain, ref_domain)
 
-    z, w = quad = quadrature(n)
+    z, w = quadrature(n)
 
     D = lagrange_poly_deriv_mat(z)
 
-    z = T.(z) |> Field
-    w = T.(w) |> Field
+    z = T.(z)
+    w = T.(w)
 
-    grid = (z,)
-    mass = DiagonalOp(w)
-    grad = D |> MatrixOp
+    quadratures = ((z, w),)
+    grid = (Field(z),)
+    mass_mat = Field(w)
+    deriv_mats = (D,)
 
-    space = SpectralSpace(domain, quad, grid, mass, grad, gather_scatter)
-    return domain.mapping === nothing ? space : deform(space)
+    space = LagrangePolynomialSpace1D(
+                                      domain, quadratures, grid,
+                                      mass_mat, deriv_mats, 
+                                     )
+    domain.mapping === nothing ? space : deform(space)
 end
 
 GaussLobattoLegendre1D(args...; kwargs...) =
@@ -85,38 +56,34 @@ function LagrangePolySpace2D(domain::AbstractDomain{<:Number,2} nr, ns;
                              quadrature = gausslobatto,
                              T = Float64,
                             )
-    @assert domain isa BoxDomain "spectral polynomials need logically rectangular domains"
+    msg = "spectral polynomials work with logically rectangular domains"
+    @assert domain isa BoxDomain msg
 
-#   ref_domain = unit_sq(;D=2)
+    """ reset deformation to map from [-1,1]^D """ # TODO
+#   ref_domain = unit_sq(;D=1)
 #   domain = readjust_to_ref(domain, ref_domain)
 
-    zr,wr = quadrature(nr)
-    zs,ws = quadrature(ns)
+    zr, wr = quadrature(nr)
+    zs, ws = quadrature(ns)
 
-    zr,wr = T.(zr), T.(wr)
-    zs,ws = T.(zs), T.(ws)
+    zr, wr = T.(zr), T.(wr)
+    zs, ws = T.(zs), T.(ws)
 
-    x, y = ndgrid(zr,zs)
-    grid = (x, y,)
+    r, s = ndgrid(zr,zs)
 
     Dr = lagrange_poly_deriv_mat(zr)
     Ds = lagrange_poly_deriv_mat(zs)
 
-    Ir = Matrix(I, nr, nr) |> sparse
-    Is = Matrix(I, ns, ns) |> sparse
+    quadratures = ((z, w),)
+    grid = (r, s)
+    mass_mat = Field(w * w')
+    deriv_mats = (Dr, Ds)
 
-    DrOp = TensorProductOp2D(Dr,Is)
-    DsOp = TensorProductOp2D(Ir,Ds)
-
-    mass = w * w' |> Field |> DiagonalOp
-
-    grad = [DrOp
-            DsOp]
-
-    global_numbering =
-
-    space = SpectralSpace(grid, mass, grad, gather_scatter)
-    space = domain.mapping === nothing ? space : deform(space)
+    space = LagrangePolynomialSpace1D(
+                                      domain, quadratures, grid,
+                                      mass_mat, deriv_mats, 
+                                     )
+    domain.mapping === nothing ? space : deform(space)
 end
 
 GaussLobattoLegendre2D(args...; kwargs...) =
@@ -125,4 +92,55 @@ GaussLegendre2D(args...; kwargs...) =
     LagrangePolySpace2D(args...; quadrature=gausslegendre, kwargs...)
 GaussChebychev2D(args...; kwargs...) =
     LagrangePolySpace2D(args...; quadrature=gausschebyshev, kwargs...)
+
+grid(space::LagrangePolynomialSpace) = space.grid
+
+function massOp(space::LagrangePolynomialSpace)
+    @unpack mass_mat = space
+    DiagonalOp(B)
+end
+
+function gradOp(space::LagrangePolynomialSpace{T,1})
+    (Dr,) = space.deriv_mats
+
+    Dx = MatrixOp(Dr)
+
+    [Dx]
+end
+
+function gradOp(space::LagrangePolynomialSpace{T,2})
+    (Dr, Ds) = space.deriv_mats
+
+    nr = (space.quadratures[1])[1] |> length
+    ns = (space.quadratures[2])[1] |> length
+
+    Ir = Matrix(I, nr, nr) |> sparse
+    Is = Matrix(I, ns, ns) |> sparse
+
+    Dx = TensorProductOp2D(Dr, Is)
+    Dy = TensorProductOp2D(Ir, Ds)
+
+    [Dx
+     Dy]
+end
+
+function gradOp(space::LagrangePolynomialSpace{T,3})
+    (Dr, Ds, Dt) = space.deriv_mats
+
+    nr = (space.quadratures[1])[1] |> length
+    ns = (space.quadratures[2])[1] |> length
+    nt = (space.quadratures[3])[1] |> length
+
+    Ir = Matrix(I, nr, nr) |> sparse
+    Is = Matrix(I, ns, ns) |> sparse
+    It = Matrix(I, nt, nt) |> sparse
+
+    Dx = TensorProductOp3D(Dr, Is, It)
+    Dy = TensorProductOp3D(Ir, Ds, It)
+    Dz = TensorProductOp3D(Ir, Is, Dt)
+
+    [Dr
+     Ds
+     Dt]
+end
 #
