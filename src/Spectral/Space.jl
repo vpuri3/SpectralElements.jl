@@ -3,7 +3,7 @@
 # AbstractSpace interface
 ###
 
-### functions on AbstractSpace
+### getters
 """
 args:
     space::AbstractSpace{T,D}
@@ -20,6 +20,17 @@ ret:
 """
 function global_numbering end
 
+"""
+args:
+    space::AbstractSpace{T,D}
+    i::Integer
+ret:
+    ith basis function that can be evaluated
+    anywhere in Space.domain
+"""
+function basis end
+
+### interpolation
 """
 Interpolate function values to to points.
 
@@ -45,16 +56,6 @@ ret:
     space1 to space2
 """
 function interpOp end
-
-"""
-args:
-    space::AbstractSpace{T,D}
-    i::Integer
-ret:
-    basis function that can be evaluated
-    anywhere in Space.domain
-"""
-function basis end
 
 ### vector calculus ops
 """
@@ -100,7 +101,7 @@ function laplaceOp(space::AbstractSpace)
     D = gradOp(space)
     M = massOp(space)
 
-    lapl = D' .∘ [M] .∘ D # TODO ∘ is forming ComposedFunction, not ComposeOp. fix
+    lapl = D' .∘ [M] .∘ D # TODO ∘ is forming ComposedFunction, not ComposedOp. fix
 
     first(lapl)
 end
@@ -126,13 +127,6 @@ R'R * QQ' * B * (ux*∂xT + uy*∂yT)
 
        = [ux uy] * [Dx] T
                    [Dx]
-
-ux,uy, ∇T are interpolated to
-a grid with higher polynomial order
-for dealiasing (over-integration)
-so we don't commit any
-"variational crimes"
-
 """
 function advectionOp(space::AbstractSpace{<:Number,D},
                      vel::AbstractField{<:Number,D}...
@@ -175,6 +169,13 @@ function laplaceOp(space1::AbstractSpace{<:Number,D},
     first(laplOp)
 end
 
+"""
+ux,uy, ∇T are interpolated to
+a grid with higher polynomial order
+for dealiasing (over-integration)
+so we don't commit any
+"variational crimes"
+"""
 function advectionOp(space1::AbstractSpace{<:Number,D},
                      space2::AbstractSpace{<:Number,D},
                      vel::AbstractField{<:Number,D}...;

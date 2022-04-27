@@ -10,6 +10,14 @@ SciMLBase.has_adjoint(::AbstractOperator) = true
 SciMLBase.has_mul(::AbstractOperator) = true
 SciMLBase.has_mul!(::AbstractOperator) = true
 
+function (A::AbstractOperator{<:Number,D})(u::AbstractField{<:Number,D}, p, t::Number) where{D}
+    A * u
+end
+
+function (A::AbstractOperator{<:Number,D})(du::AbstractField{<:Number,D}, u, p, t::Number) where{D}
+    mul!(du, A, u)
+end
+
 function Base.:*(A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) where{D}
     if issquare(A)
         mul!(similar(u),A,u)
@@ -110,7 +118,7 @@ end
 Base.:/(A::AbstractOperator{<:Number,D}, ::IdentityOp{D}) where{D} = A
 
 for op in (
-           :*, :∘
+           :*, :∘,
           )
     @eval $op(::NullOp{D}, ::IdentityOp{D}) where{D} = NullOp{D}()
     @eval $op(::IdentityOp{D}, ::NullOp{D}) where{D} = NullOp{D}()

@@ -20,12 +20,12 @@ import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
 import FFTW: plan_rfft, plan_irfft
 
 # AbstractVector subtyping
-import Base: summary, show, similar, zero, one
+import Base: summary, show, similar, zero
 import Base: size, getindex, setindex!, IndexStyle
 import Base.Broadcast: BroadcastStyle
 
 # overload maths
-import Base: +, -, *, /, \, adjoint, ∘, inv
+import Base: +, -, *, /, \, adjoint, ∘, inv, one
 import LinearAlgebra: mul!, ldiv!, lmul!, rmul!
 
 ###
@@ -99,6 +99,9 @@ include("LagrangePolynomialSpace.jl")
 
 # fourier spaces
 #include("FourierSpace.jl")
+
+# boundary value problem
+include("BoundaryValueProblem.jl")
 
 export 
        # Domains

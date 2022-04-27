@@ -1,8 +1,11 @@
 #
 #
-# TODO rename to LagrangePolyField or something later
+# TODO: Fourier spectral, SpectralElements will require different functionality
+#   - move broadcasting/indexing to AbstractField,
+#   - if Fourier can be handled with vanilla Field, then rename it
+#     SpectralField, else rename to LagrangePolyField
 #
-# for Spectral Elements, overload inner product
+# TODO: create SpectralElementField and overload inner product by
 #   - overload *(Adjoint{Field}, Field), norm(::Field, 2)
 #
 """ Scalar function field in D-dimensional space over a spectral basis"""
