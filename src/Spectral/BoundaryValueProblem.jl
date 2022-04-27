@@ -27,7 +27,7 @@ lhs(u) = b
 move boundary data to right hand side, and solve BVP A \ b
 using LinearSolve.jl
 """
-struct BoundaryValueProblem
+struct BoundaryValuePDEProblem
     u0::Tu0
     bc::Tbc
 
@@ -39,19 +39,21 @@ struct BoundaryValueProblem
     space
 end
 
-struct BoundaryValueCache
-    u0::Tu0
+struct BoundaryValuePDECache
+    u0::Tu
     bc::Tbc
 
     lhs::Tlhs
 
     rhs_func
-    b
+    b::Tu
 
     space
+
+    linprob
 end
 
-function SciMLBase.init(prob::BoundaryValueProblem, )
+function SciMLBase.init(prob::BoundaryValuePDEProblem, alg::SciMLBase.AbstractBoundaryValueAlgorithm)
 end
 
 #

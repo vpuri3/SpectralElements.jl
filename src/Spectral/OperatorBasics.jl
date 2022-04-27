@@ -234,7 +234,7 @@ struct ComposedOp{T,D,Ti,To,Tc} <: AbstractOperator{T,D}
     end
 end
 
-function Base.:∘(outer::AbstractOperator, inner::AbstractOperator)
+function Base.:∘(outer::AbstractOperator{Number,D}, inner::AbstractOperator{Number,D}) where{D}
     ComposedOp(inner,outer)
 end
 

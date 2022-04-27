@@ -74,6 +74,13 @@ abstract type AbstractSpectralSpace{T,D} <: AbstractSpace{T,D} end
 """ D-Dimensional tensor-product space """
 abstract type AbstractTensorProductSpace{T,D} <: AbstractSpace{T,D} end
 
+###
+# other abstract types
+###
+
+""" Boundary Condition on D-Dimensional domain """
+abstract type AbstractBoundaryCondition{T,D} end
+
 # misc
 include("utils.jl")
 include("NDgrid.jl")
@@ -101,21 +108,24 @@ include("LagrangePolynomialSpace.jl")
 #include("FourierSpace.jl")
 
 # boundary value problem
-include("BoundaryValueProblem.jl")
+#include("BoundaryValueProblem.jl")
 
 export 
        # Domains
-       Interval, BoxDomain,
+       IntervalDomain, BoxDomain, unit_box,
+       deform, end_points, isperiodic,
 
-       # vector calculus operators
+       # space functionality
        grid, gradOp, massOp, laplaceOp, advectionOp, interpOp,
+#      BoundaryCondition,
 
        # spaces
        LagrangePolynomialSpace,
        GaussLobattoLegendre1D, GaussLegendre1D, GaussChebychev1D,
-       GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D,
+       GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
 
-       # solve
-       linsolve, makeRHS, applyBC
+       # boundary value problem
+#      BoundaryValuePDEProblem
+
 
 end # module

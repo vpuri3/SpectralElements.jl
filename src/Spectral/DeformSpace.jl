@@ -22,7 +22,9 @@ struct DeformedSpace{T,D,Tspace<:AbstractSpace{T,D},
     Ji::Tjaci
 end
 
-function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
+function deform(space::AbstractSpace{<:Number,D},
+                mapping = nothing, isseparable = false
+               ) where{D}
     if mappping === nothing
         J    = IdentityOp{D}()
         Jmat = Diagonal([J for i=1:D])
@@ -31,8 +33,8 @@ function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
         return DeformedSpace(space, grid(space), Jmat, Jmat, J, J)
     end
 
-    if mapping isa SeparableMapping # x = x(r), y = y(s)
-        # eliminate cross terms, make dXdR, etc diagonal
+    if isseparable # x = x(r), y = y(s)
+        # eliminate cross terms by making dXdR, etc diagonal
     end
 
     R = grid(space)
@@ -109,7 +111,7 @@ function gradOp(space::DeformedSpace)
     dRdX  = space.dRdX
     gradX = dRdX * gradR
 
-    return first(gradX)
+    gradX
 end
 
 function massOp(space::DeformedSpace)

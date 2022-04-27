@@ -24,9 +24,9 @@ function LagrangePolynomialSpace(domain::AbstractDomain{<:Number,1}, n;
                                  T = Float64,
                                 )
 
-    """ reset deformation to map from [-1,1]^D """ # TODO
-#   ref_domain = unit_sq(;D=1)
-#   domain = readjust_to_ref(domain, ref_domain)
+    """ reset deformation to map from [-1,1]^D """
+    ref_domain = unit_square(2)
+#   domain = map_from_ref(domain, ref_domain) # TODO
 
     z, w = quadrature(n)
 
