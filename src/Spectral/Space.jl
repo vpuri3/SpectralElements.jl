@@ -141,6 +141,17 @@ function advectionOp(space::AbstractSpace{<:Number,D},
     first(advectOp)
 end
 
+function divergenceOp(space::AbstractSpace{<:Number,D}) where{D}
+    X = grid(space)
+    D = grad(space)
+    div = NullOp{D}()
+    for d=1:D
+        div += D[d](X[d])
+    end
+
+    first(div)
+end
+
 ### dealiased operators
 
 function massOp(space1::AbstractSpace{<:Number,D},

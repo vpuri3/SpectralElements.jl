@@ -131,6 +131,12 @@ function domains_match(box1::BoxDomain{<:Number, D1}, box2::BoxDomain{<:Number, 
     ret
 end
 
+# TODO - make a struct for mappings
+# struct Deformations{D,Tmap} <: AbstractDeformation{D}
+#   mapping::Tmap
+#   isseparable::Bool
+# end
+
 function map_from_ref(domain, ref_domain;D=D) # TODO
 
     if domains_match(domain, ref_domain)

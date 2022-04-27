@@ -27,12 +27,14 @@ end
 
 ###
 # Boundary Condition application
+#
+# Apply this boundary condition to that boundary tag
 ###
 
 struct DirichletBC end
 
 struct BoundaryCondition{T,D} <: AbstractBoundaryCondition{T,D}
-    tags
+    tag
     type # dirichlet, neumann
     dirichlet_func! # (ub, space) -> mul!(ub, I, false)
     neumann_func!

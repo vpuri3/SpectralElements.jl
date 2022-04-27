@@ -81,6 +81,9 @@ abstract type AbstractTensorProductSpace{T,D} <: AbstractSpace{T,D} end
 """ Boundary Condition on D-Dimensional domain """
 abstract type AbstractBoundaryCondition{T,D} end
 
+#""" Deform D-Dimensional domain """
+#abstract type AbstractDeformation{D} end
+
 # misc
 include("utils.jl")
 include("NDgrid.jl")

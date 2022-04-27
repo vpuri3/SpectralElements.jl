@@ -16,7 +16,7 @@ struct LagrangePolynomialSpace{T,D,Tpts,
     grid::Tgrid
     mass_mat::Tmass
     deriv_mats::Tderiv
-#   local2global::Tl2g
+#   local2global::Tl2g # TODO
 end
 
 function LagrangePolynomialSpace(domain::AbstractDomain{<:Number,1}, n;
@@ -26,7 +26,7 @@ function LagrangePolynomialSpace(domain::AbstractDomain{<:Number,1}, n;
 
     """ reset deformation to map from [-1,1]^D """
     ref_domain = unit_square(2)
-#   domain = map_from_ref(domain, ref_domain) # TODO
+    domain = ref_domain # map_from_ref(domain, ref_domain) # TODO
 
     z, w = quadrature(n)
 
@@ -59,9 +59,9 @@ function LagrangePolynomialSpace(domain::AbstractDomain{<:Number,2}, nr, ns;
     msg = "spectral polynomials work with logically rectangular domains"
     @assert domain isa BoxDomain msg
 
-    """ reset deformation to map from [-1,1]^D """ # TODO
-#   ref_domain = unit_sq(;D=1)
-#   domain = readjust_to_ref(domain, ref_domain)
+    """ reset deformation to map from [-1,1]^D """
+    ref_domain = unit_square(2)
+    domain = ref_domain # map_from_ref(domain, ref_domain) # TODO
 
     zr, wr = quadrature(nr)
     zs, ws = quadrature(ns)

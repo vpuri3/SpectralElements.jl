@@ -69,13 +69,16 @@ function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, ::NullOp{D}, u::Abstra
     mul!(v,I, false)
 end
 
-# overload fusion, composition
+# overloads
 for op in (
-           :*, :∘
+           Base.:*, Base.:∘, Base.:+,
           )
     @eval $op(::NullOp{D}, ::AbstractOperator{<:Number,D}) where{D} = NullOp{D}()
     @eval $op(::AbstractOperator{<:Number,D}, ::NullOp{D}) where{D} = NullOp{D}()
 end
+
+Base.:-(::NullOp{D}, A::AbstractOperator{<:Number,D}) where{D} = -A
+Base.:-(A::AbstractOperator{<:Number,D}, ::NullOp{D}) where{D} = A
 
 ###
 # IdentityOp
@@ -107,7 +110,7 @@ function LinearAlgebra.ldiv!(Id::IdentityOp{D}, u::AbstractField{<:Number,D}) wh
     u
 end
 
-# overload fusion, composition
+# overloads
 for op in (
            :*, :∘,
           )
