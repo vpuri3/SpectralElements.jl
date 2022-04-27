@@ -2,7 +2,7 @@
 """
 Deform domain, compute Jacobian of transformation, and its inverse
 
-given
+given 2D mapping
 
 x = x(r,s), y = y(r,s)
 
@@ -12,7 +12,8 @@ dXdR = [xr xs], dRdX = [rx ry], J = det(dXdR), Jinv = det(dRdX)
        [yr ys]         [sx sy]
 
 """
-struct DeformedSpace{T,D,Tspace<:AbstractSpace{T,D},
+struct DeformedSpace{T,D,
+                     Tspace<:AbstractSpace{T,D},
                      Tgrid,Tjacmat,Tjacimat,Tjac,Tjaci} <: AbstractSpace{T,D}
     space::Tspace
     grid::Tgrid # (x1, ..., xD,)
@@ -20,6 +21,7 @@ struct DeformedSpace{T,D,Tspace<:AbstractSpace{T,D},
     dRdX::Tjacimat
     J::Tjac
     Ji::Tjaci
+    # add DeformedDomain
 end
 
 function deform(space::AbstractSpace{<:Number,D},
@@ -31,10 +33,11 @@ function deform(space::AbstractSpace{<:Number,D},
         @warn "mapping === nothing"
 #       return space
         return DeformedSpace(space, grid(space), Jmat, Jmat, J, J)
-    end
 
-    if isseparable # x = x(r), y = y(s)
+    elseif isseparable # x = x(r), y = y(s)
         # eliminate cross terms by making dXdR, etc diagonal
+    elseif rescaling # simple rescaling
+        # make jac, dXdR, etc scaling operations
     end
 
     R = grid(space)
@@ -152,7 +155,7 @@ function laplaceOp(space::DeformedSpace{<:Number, D}) where{D}
         dRdX' * MM * dRdX |> Symmetric # TODO avoid bottom half computation
     end
 
-    laplOp = Dr' .∘ GG .∘ Dr
+    laplOp = Dr' * GG * Dr
 
     return first(laplOp)
 end
@@ -171,12 +174,12 @@ function laplaceop(space1::DeformedSpace{<:Number,D},
     M2    = MassOp(space2)
     dRdX2 = space2.dRdX
 
-    JD = J12 .∘ Dr1
+    JD = J12 * Dr1
 
     MM2 = Diagonal([M2 for i=1:D])
     GG2 = dRdX' * MM2 * dRdX |> Symmetric
 
-    laplOp = JD' .∘ GG2 .∘ JD
+    laplOp = JD' * GG2 * JD
 
     return first(laplOp)
 end

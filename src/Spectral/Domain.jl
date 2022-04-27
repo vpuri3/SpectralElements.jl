@@ -98,23 +98,24 @@ args:
    -reference domain
    -mapping function
         (x1,...,xD) = map(r1, ..., rD)
+   -isrescaling - do optimizations if
+    mapping is a simple rescaling
+        x1 = a1 + λ1 * x1(r1), ...,
+        xD = aD + λD * xD(rD)
    -isseparable - do optimizations if
     mapping is separable
-        x1 = x1(r1), ..., xD = xD(rD)
+        x1 = x1(r1), ...,
+        xD = xD(rD)
 """
-struct DeformedDomain{T,D,Td<:AbstractDomain{T,D}, Tm} <: AbstractDomain{T,D}
-    domain::Td
+struct DeformedDomain{T,D,Tdom<:AbstractDomain{T,D}, Tm} <: AbstractDomain{T,D}
+    domain::Tdom
     mapping::Tm
+#   isrescaling::Bool
     isseparable::Bool
 end
 
 function deform(domain, mapping = nothing, isseparable = false)
     DeformedDomain(domain, mapping, isseparable)
-end
-
-function unit_box(D, args...)
-    interval = IntervalDomain(-true, true, args...)
-    BoxDomain((interval for i=1:D)...)
 end
 
 function domains_match(box1::BoxDomain{<:Number, D1}, box2::BoxDomain{<:Number, D2}) where{D1,D2}
@@ -134,6 +135,7 @@ end
 # TODO - make a struct for mappings
 # struct Deformations{D,Tmap} <: AbstractDeformation{D}
 #   mapping::Tmap
+#   isrescaling::Bool
 #   isseparable::Bool
 # end
 
@@ -147,5 +149,29 @@ function map_from_ref(domain, ref_domain;D=D) # TODO
 
     mapping = domain.mapping ==! nothing ? domain.mapping : (r -> r)
     mapping = mapping ∘ map
+end
+
+###
+# Demos
+###
+
+function unit_box(D, args...) # TODO not exactly unit haha
+    interval = IntervalDomain(-true, true, args...)
+    BoxDomain((interval for i=1:D)...)
+end
+
+function polar2D(r, θ)
+    x = @. r * cos(θ)
+    y = @. r * sin(θ)
+    x, y
+end
+
+function annulus_2D(r0, r1)
+    intR = IntervalDomain(r0, r1, false, (:Inner, :Outer))
+    intθ = IntervalDomain(-π,  π, true , (:Periodic, :Periodic))
+
+    dom = intR * intθ
+
+    deform(dom, polar2D)
 end
 #

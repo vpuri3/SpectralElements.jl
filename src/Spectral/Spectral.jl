@@ -115,8 +115,9 @@ include("LagrangePolynomialSpace.jl")
 
 export 
        # Domains
-       IntervalDomain, BoxDomain, unit_box,
+       IntervalDomain, BoxDomain,
        deform, end_points, isperiodic,
+       unit_box, annulus_2D,
 
        # space functionality
        grid, gradOp, massOp, laplaceOp, advectionOp, interpOp,

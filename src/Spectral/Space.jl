@@ -1,4 +1,7 @@
 #
+# TODO
+# - since fusion just falls back to lazy composition,
+#   replace all ∘, .∘ with *
 ###
 # AbstractSpace interface
 ###
@@ -101,7 +104,7 @@ function laplaceOp(space::AbstractSpace)
     D = gradOp(space)
     M = massOp(space)
 
-    lapl = D' .∘ [M] .∘ D # TODO ∘ is forming ComposedFunction, not ComposedOp. fix
+    lapl = D' * [M] * D
 
     first(lapl)
 end
@@ -175,7 +178,7 @@ function laplaceOp(space1::AbstractSpace{<:Number,D},
     D1 = gradOp(space1)
     JD = [J12] .∘ D1
 
-    laplOp = JD' .∘ [M2] .∘ JD
+    laplOp = JD' * [M2] * JD
 
     first(laplOp)
 end
@@ -200,7 +203,7 @@ function advectionOp(space1::AbstractSpace{<:Number,D},
     M2 = massOp(space2)
     D1 = gradOp(space1)
 
-    advectOp = [J12]' .∘ V2' .∘ [M2] .∘ [J12] .∘ D1
+    advectOp = [J12]' * V2' * [M2] * [J12] * D1
 
     first(advectOp)
 end

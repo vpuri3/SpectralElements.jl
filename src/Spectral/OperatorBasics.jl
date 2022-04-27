@@ -1,6 +1,9 @@
 #
 # TODO
 #   - caching doesn't work. fix it with mutable structs
+#   - fuse composed operators if possible
+#   - avoid caching for AffineOp() created with +,-,λ* where
+#     the second op is just Identity, or Null
 #
 ###
 # AbstractOperator interface
@@ -18,14 +21,6 @@ function (A::AbstractOperator{<:Number,D})(du::AbstractField{<:Number,D}, u, p, 
     mul!(du, A, u)
 end
 
-function Base.:*(A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) where{D}
-    if issquare(A)
-        mul!(similar(u),A,u)
-    else
-        ArgumentError("Operator application not defined for $A")
-    end
-end
-
 function LinearAlgebra.mul!(v::AbstractField{<:Number,D},A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) where{D}
     ArgumentError("LinearAlgebra.mul! not defined for $A")
 end
@@ -34,8 +29,8 @@ function Base.:\(A::AbstractOperator{<:Number,D},u::AbstractField{<:Number,D}) w
     ArgumentError("Operator inversion not defined for $A")
 end
 
-function Base.:*(A::AbstractOperator, B::AbstractOperator)
-    @warn "Operator fusion not defined for $A * $B. falling back to lazy composition, ∘"
+function Base.:*(A::AbstractOperator{<:Number,D}, B::AbstractOperator{<:Number,D}) where{D}
+#   @warn "Operator fusion not defined for $A * $B. falling back to lazy composition, ∘"
     A ∘ B
 end
 
@@ -157,7 +152,7 @@ function Base.adjoint(A::AffineOp)
     if issquare(A)
         AffineOp(A.A',A.B',A.α, A.β, A.cache, A.isunset)
     else
-        AffineOp(A.A',A.B',A.α, A.β)
+        AffineOp(A.A',A.B',A.α', A.β')
     end
 end
 

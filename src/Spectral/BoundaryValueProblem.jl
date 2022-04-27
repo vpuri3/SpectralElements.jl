@@ -15,6 +15,8 @@ learn to add neumann, robin data, and solve BVP
 plug in to SciMLBase.BVProblem
 """
 function makeRHS(prob::BoundaryValueProblem)
+
+    rhs = b - applyBC()
 end
 
 function SciMLBase.solve(prob::BoundaryValueProblem)

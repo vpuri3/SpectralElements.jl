@@ -37,7 +37,7 @@ struct BoundaryCondition{T,D} <: AbstractBoundaryCondition{T,D}
     tag
     type # dirichlet, neumann
     dirichlet_func! # (ub, space) -> mul!(ub, I, false)
-    neumann_func!
+#   neumann_func!
     mask # implementation
 end
 
