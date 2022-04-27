@@ -1,7 +1,4 @@
 #
-# TODO
-# - since fusion just falls back to lazy composition,
-#   replace all ∘, .∘ with *
 ###
 # AbstractSpace interface
 ###

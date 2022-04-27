@@ -152,7 +152,7 @@ function laplaceOp(space::DeformedSpace{<:Number, D}) where{D}
     GG = if dRdX isa Diagonal
         dRdX' * MM * dRdX
     else
-        dRdX' * MM * dRdX |> Symmetric # TODO avoid bottom half computation
+        dRdX' * MM * dRdX |> Symmetric # TODO avoid bottom 1/2 computation
     end
 
     laplOp = Dr' * GG * Dr
