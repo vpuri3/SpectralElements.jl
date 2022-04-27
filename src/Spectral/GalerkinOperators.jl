@@ -8,68 +8,21 @@ struct GatherScatter{D} <: AbstractGatherScatterOperator{Bool,D}
     operator # implementation
 end
 
-function GatherScatter(space::AbstractSpace{<:Number,D}) where{D}
+function GatherScatter(space::AbstractSpectralSpace{<:Number,D}) where{D}
     periodic = space.domain.periodic
 
-    QQt = if periodic
-        n = length(space.grid(x))
-        Q = Matrix(I,n, n-1) |> sparse
-        Q[end,1] = 1
-
-        QQt = Q * Q'
-        MatrixOp(QQt)
-    else
-        IdentityOp{1}()
+    if !prod(periodic)
+        return IdentityOp{D}()
     end
+
+    (n,) = space.npoints
+    Q = Matrix(I,n, n-1) |> sparse
+    Q[end,1] = 1
+
+    QQt = Q * Q'
+    MatrixOp(QQt)
 
     GatherScatter{1}(local2gl)
-end
-
-###
-# Interpolation operators
-###
-
-""" Interpolation operator between spaces """
-struct Interp2D{T,Td1,Td2} <: AbstractOperator{T,2}
-    space1::Ts1 # or domain1/2?
-    space2::Ts2
-
-    # need general purpose implementation
-    # need guarantees that domains match
-
-    function Interp2D(space1, space2) where{Tx,Ty}
-        T = promote_type(eltype.(space1, space2)...)
-        new{T,typeof(space1),typeof(space2)}(Tx,Ty)
-    end
-end
-
-""" Point-to-point interpolant when domains match """
-function LagrangeInterpolant1D(space1::AbstractSpace{T,1},
-                               space2::AbstractSpace{T,1})
-    @assert space1.domain ≈ space2.domain
-
-    r1 = grid(space1)
-    r2 = grid(space2)
-
-    Jr = lagrange_poly_interp_mat(r2, r1)
-
-    MatrixOp(Jr)
-end
-
-function LagrangeInterpolant2D(space1::AbstractSpace{T,2},
-                               space2::AbstractSpace{T,2})
-    @assert space1.domain ≈ space2.domain
-
-    r1 = space1.quad[1].z
-    r2 = space2.quad[1].z
-
-    s1 = space1.quad[2].z
-    s2 = space1.quad[2].z
-
-    Jr = lagrange_poly_interp_mat(space2.grid, space1.grid)
-    Js = lagrange_poly_interp_mat(space2.grid, space1.grid)
-
-    TensorProduct2DOp(Jr, Js)
 end
 
 ###
@@ -92,10 +45,10 @@ function BoundaryCondition(tags, space::AbstractSpace<:Number,2;
 end
 
 """
- bc = ['D','N','D','D'] === BC at [xmin,xmax,ymin,ymax]
+ bc = (:Dirichlet,:Neumann,:Dirichlet,:Dirichlet) at (rmin, rmax, smin, smax)
 
- :Dirichlet : Hom. Dirichlet = zeros ∂Ω data\n
- :Neumann   : Hom. Neumann   = keeps ∂Ω data
+ :Dirichlet = Dirichlet = zeros ∂Ω data\n
+ :Neumann   = Neumann   = keeps ∂Ω data
 
  A periodic mesh overwrites 'D' to 'N' in direction of periodicity.
 
@@ -104,24 +57,23 @@ end
  smooth function on Ω. Then, solve for uh
 """
 function generate_mask(tags, space::AbstractSpace{<:Number,2})
-    nr = length()
-    ns = length()
+    (nr, ns,) = space.npoints
 
-    periodic = space.domain.periodic
+    periodic = isperiodic(space.domain)
 
-    Ix = Matrix(I,nr,nr) |> sparse
-    Iy = Matrix(I,ns,ns) |> sparse
+    Ix = sparse(I,nr,nr)
+    Iy = sparse(I,ns,ns)
 
-    ix = collect(1:(Ex*nr))
-    iy = collect(1:(Ey*ns))
+    ix = collect(1:(nr))
+    iy = collect(1:(ns))
 
-    if(bc[1]==:Dirichlet) ix = ix[2:end]   end
-    if(bc[2]==:Dirichlet) ix = ix[1:end-1] end
-    if(bc[3]==:Dirichlet) iy = iy[2:end]   end
-    if(bc[4]==:Dirichlet) iy = iy[1:end-1] end
+    if(bc[1] == :Dirichlet) ix = ix[2:end]   end
+    if(bc[2] == :Dirichlet) ix = ix[1:end-1] end
+    if(bc[3] == :Dirichlet) iy = iy[2:end]   end
+    if(bc[4] == :Dirichlet) iy = iy[1:end-1] end
 
-    if(periodic[1]) ix = collect(1:(Ex*nr)); end
-    if(periodic[2]) iy = collect(1:(Ey*ns)); end
+    if(periodic[1]) ix = collect(1:(nr)); end
+    if(periodic[2]) iy = collect(1:(ns)); end
 
     Rx = Ix[ix,:]
     Ry = Iy[iy,:]
@@ -129,10 +81,66 @@ function generate_mask(tags, space::AbstractSpace{<:Number,2})
     M = diag(Rx'*Rx) * diag(Ry'*Ry)'
     M = Array(M) .== true
 
-    return mask
+    return M
 end
 
 function applyBC!(u::AbstractField{<:Number,D}, bc::BoundaryCondition{<:Number,D}) where{D}
 
     return u
 end
+
+function applyBC!()
+end
+
+"""
+Solve boundary value problem
+A * u = f
+
+where A is a linear operator
+we get
+
+M * A * uh = M * ( B * f - A * ub)
+
+where u = uh + ub (Dirichlet data)
+
+learn to add neumann, robin data, and solve BVP
+
+plug in to SciMLBase.BVProblem
+"""
+function makeRHS(prob::BoundaryValueProblem)
+end
+
+function SciMLBase.solve(prob::BoundaryValueProblem)
+    BoundaryValueCache()
+end
+
+"""
+lhs(u) = b
+
+move boundary data to right hand side, and solve BVP A \ b
+using LinearSolve.jl
+"""
+struct BoundaryValueProblem
+    u0::Tu0
+    bc::Tbc
+
+    lhd::Tlhs # op or func
+
+    rhs_func::Trhs
+    b
+
+    space
+end
+
+struct BoundaryValueCache
+    u0::Tu0
+    bc::Tbc
+
+    lhs::Tlhs
+
+    rhs_func
+    b
+
+    space
+end
+#

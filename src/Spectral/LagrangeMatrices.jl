@@ -7,7 +7,7 @@
     Compute the Lagrange interpolation matrix from xi to xo.
     lagrange_poly_interp_mat(xₒ,xᵢ)
 """
-function lagrange_poly_interp_mat(xo,xi)
+function lagrange_interp_mat(xo,xi)
 
     no = length(xo)
     ni = length(xi)
@@ -38,7 +38,7 @@ end
  Compute derivative matrix for lagrange
  interpolants on points [x]
 """
-function lagrange_poly_deriv_mat(x)
+function lagrange_deriv_mat(x)
     
     n = length(x)
 

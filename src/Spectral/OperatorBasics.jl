@@ -1,4 +1,7 @@
 #
+# TODO
+#   - caching doesn't work. fix it with mutable structs
+#
 ###
 # AbstractOperator interface
 ###
@@ -200,22 +203,22 @@ function Base.:/(A::AbstractOperator{<:Number,D}, λ::Number) where{D}
 end
 
 ###
-# ComposeOp
+# ComposedOp
 ###
 
 """ Lazy Composition A ∘ B """
-struct ComposeOp{T,D,Ti,To,Tc} <: AbstractOperator{T,D}
+struct ComposedOp{T,D,Ti,To,Tc} <: AbstractOperator{T,D}
     inner::Ti
     outer::To
 
     cache::Tc
     isunset::Bool
 
-    function ComposeOp(inner::AbstractOperator{Ti,D},
-                       outer::AbstractOperator{To,D},
-                       cache = nothing,
-                       isunset::Bool = cache === nothing
-                      ) where{Ti,To,D}
+    function ComposedOp(inner::AbstractOperator{Ti,D},
+                        outer::AbstractOperator{To,D},
+                        cache = nothing,
+                        isunset::Bool = cache === nothing
+                       ) where{Ti,To,D}
 #       @assert size(outer, 1) == size(inner, 2)
         T = promote_type(Ti, To)
         isunset = cache === nothing
@@ -224,35 +227,35 @@ struct ComposeOp{T,D,Ti,To,Tc} <: AbstractOperator{T,D}
 end
 
 function Base.:∘(outer::AbstractOperator, inner::AbstractOperator)
-    ComposeOp(inner,outer)
+    ComposedOp(inner,outer)
 end
 
-Base.size(A::ComposeOp) = (size(A.outer, 1), size(A.inner, 2))
-Base.adjoint(A::ComposeOp) = A.inner' ∘ A.outer'
-Base.inv(A::ComposeOp) = inv(A.inner) ∘ inv(A.outer)
+Base.size(A::ComposedOp) = (size(A.outer, 1), size(A.inner, 2))
+Base.adjoint(A::ComposedOp) = A.inner' ∘ A.outer'
+Base.inv(A::ComposedOp) = inv(A.inner) ∘ inv(A.outer)
 
-SciMLBase.has_ldiv(A::ComposeOp) = has_ldiv(A.inner) & has_ldiv(A.outer)
-SciMLBase.has_ldiv!(A::ComposeOp) = has_ldiv!(A.inner) & has_ldiv!(A.outer)
-issquare(A::ComposeOp) = issquare(A.inner) & issquare(A.outer)
+SciMLBase.has_ldiv(A::ComposedOp) = has_ldiv(A.inner) & has_ldiv(A.outer)
+SciMLBase.has_ldiv!(A::ComposedOp) = has_ldiv!(A.inner) & has_ldiv!(A.outer)
+issquare(A::ComposedOp) = issquare(A.inner) & issquare(A.outer)
 
-function init_cache(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
+function init_cache(A::ComposedOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     cache = A.inner * u
     return cache
 end
 
-function Base.:*(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
+function Base.:*(A::ComposedOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @unpack inner, outer = A
     outer * inner * u
 end
 
-function Base.:\(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
+function Base.:\(A::ComposedOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @assert has_ldiv(A)
     @unpack inner, outer = A
 
     outer \ (inner \ u)
 end
 
-function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
+function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, A::ComposedOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @unpack inner, outer = A
 
     if A.isunset
@@ -265,7 +268,7 @@ function LinearAlgebra.mul!(v::AbstractField{<:Number,D}, A::ComposeOp{<:Number,
     mul!(v, outer, cache)
 end
 
-function LinearAlgebra.ldiv!(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
+function LinearAlgebra.ldiv!(A::ComposedOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @assert has_ldiv!(A)
     @unpack inner, outer = A
 
@@ -273,7 +276,7 @@ function LinearAlgebra.ldiv!(A::ComposeOp{<:Number,D}, u::AbstractField{<:Number
     ldiv!(outer, u)
 end
 
-function LinearAlgebra.ldiv!(v::AbstractField{<:Number,D}, A::ComposeOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
+function LinearAlgebra.ldiv!(v::AbstractField{<:Number,D}, A::ComposedOp{<:Number,D}, u::AbstractField{<:Number,D}) where{D}
     @assert has_ldiv!(A)
     @unpack inner, outer = A
 

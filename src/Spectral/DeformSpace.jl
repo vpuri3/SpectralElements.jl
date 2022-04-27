@@ -26,7 +26,13 @@ function deform(space::AbstractSpace{<:Number,D}, mapping = nothing) where{D}
     if mappping === nothing
         J    = IdentityOp{D}()
         Jmat = Diagonal([J for i=1:D])
+        @warn "mapping === nothing"
+#       return space
         return DeformedSpace(space, grid(space), Jmat, Jmat, J, J)
+    end
+
+    if mapping isa SeparableMapping # x = x(r), y = y(s)
+        # eliminate cross terms, make dXdR, etc diagonal
     end
 
     R = grid(space)
@@ -138,7 +144,11 @@ function laplaceOp(space::DeformedSpace{<:Number, D}) where{D}
     dRdX = space.dRdX
 
     MM = Diagonal([M for i=1:D])
-    GG = dRdX' * MM * dRdX |> Symmetric
+    GG = if dRdX isa Diagonal
+        dRdX' * MM * dRdX
+    else
+        dRdX' * MM * dRdX |> Symmetric # TODO avoid bottom half computation
+    end
 
     laplOp = Dr' .∘ GG .∘ Dr
 
@@ -159,12 +169,12 @@ function laplaceop(space1::DeformedSpace{<:Number,D},
     M2    = MassOp(space2)
     dRdX2 = space2.dRdX
 
-    JD = J12 ∘ Dr1
+    JD = J12 .∘ Dr1
 
     MM2 = Diagonal([M2 for i=1:D])
     GG2 = dRdX' * MM2 * dRdX |> Symmetric
 
-    laplOp = JD' ∘ GG2 ∘ JD
+    laplOp = JD' .∘ GG2 .∘ JD
 
     return first(laplOp)
 end

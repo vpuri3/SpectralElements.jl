@@ -3,6 +3,7 @@
 # AbstractSpace interface
 ###
 
+### functions on AbstractSpace
 """
 args:
     space::AbstractSpace{T,D}
@@ -11,6 +12,51 @@ ret:
 """
 function grid end
 
+"""
+args:
+    space::AbstractSpace{T,D}
+ret:
+    AbstractField{Integer, D}
+"""
+function global_numbering end
+
+"""
+Interpolate function values to to points.
+
+args:
+    points::vector of coordinates
+    u::AbstractField
+    space::AbstractSpace{T,D}
+ret:
+    u interpolated to points
+"""
+function interp end
+
+"""
+Point-to-point interpolant between
+spaces on same domain. used for
+dealiasing
+
+args:
+    space1::AbstractSpace{T,D}
+    space2::AbstractSpace{T,D}
+ret:
+    interpolation operator from
+    space1 to space2
+"""
+function interpOp end
+
+"""
+args:
+    space::AbstractSpace{T,D}
+    i::Integer
+ret:
+    basis function that can be evaluated
+    anywhere in Space.domain
+"""
+function basis end
+
+### vector calculus ops
 """
 Gradient Operator
 Compute gradient of u∈H¹(Ω).
@@ -54,7 +100,7 @@ function laplaceOp(space::AbstractSpace)
     D = gradOp(space)
     M = massOp(space)
 
-    lapl = D' ∘ [M] ∘ D
+    lapl = D' .∘ [M] .∘ D # TODO ∘ is forming ComposedFunction, not ComposeOp. fix
 
     first(lapl)
 end
@@ -93,23 +139,21 @@ function advectionOp(space::AbstractSpace{<:Number,D},
                     ) where{D}
     V = [DiagonalOp.(vel)...]
 
-    D = gradOp(space)
-    M = massOp(space)
+    Dx = gradOp(space)
+    M  = massOp(space)
 
-    advectOp = V' * [M] * D
+    advectOp = V' * [M] * Dx
 
     first(advectOp)
 end
 
-###
-# Dealiased operators
-###
+### dealiased operators
 
 function massOp(space1::AbstractSpace{<:Number,D},
-                space2::AbstractSpace{<:Number,D},
-                interpOp = nothing,
+                space2::AbstractSpace{<:Number,D};
+                J = nothing,
                ) where{D}
-    J12 = interpOp !== nothing ? J : interpOp(space1, space2)
+    J12 = J !== nothing ? J : interpOp(space1, space2)
 
     M2 = massOp(space2)
 
@@ -117,7 +161,7 @@ function massOp(space1::AbstractSpace{<:Number,D},
 end
 
 function laplaceOp(space1::AbstractSpace{<:Number,D},
-                   space2::AbstractSpace{<:Number,D},
+                   space2::AbstractSpace{<:Number,D};
                    J = nothing,
                   ) where{D}
     J12 = J !== nothing ? J : interpOp(space1, space2)
@@ -126,17 +170,17 @@ function laplaceOp(space1::AbstractSpace{<:Number,D},
     D1 = gradOp(space1)
     JD = [J12] .∘ D1
 
-    laplOp = JD' ∘ [M2] ∘ JD
+    laplOp = JD' .∘ [M2] .∘ JD
 
     first(laplOp)
 end
 
 function advectionOp(space1::AbstractSpace{<:Number,D},
                      space2::AbstractSpace{<:Number,D},
-                     vel::AbstractField{<:Number,D}...,
+                     vel::AbstractField{<:Number,D}...;
                      J = nothing,
-                    ) where{d}
-    J12 = interpOp !== nothing ? J : interpOp(space1, space2)
+                    ) where{D}
+    J12 = J !== nothing ? J : interpOp(space1, space2)
 
     V1 = [DiagonalOp.(vel)...]
     V2 = J12 .* V1
@@ -153,8 +197,11 @@ end
 # Tensor Product Spaces
 ###
 
-struct TensorProductSpace{T} <: AbstractTensorProductSpace{T,D}
-    space1
-    space2
-end
+#struct TensorProductSpace{T,D1+D2,
+#                          Tspace1<:AbstractSpace{<:Number, D1},
+#                          Tspace2<:AbstractSpace{<:Number, D2},
+#                         } <: AbstractTensorProductSpace{T,D1+D2}
+#    space1::Tspace1
+#    space2::Tspace2
+#end
 #

@@ -64,9 +64,6 @@ abstract type AbstractTensorProductOperator{T,D} <: AbstractOperator{T,D} end
 """ Gather-Scatter operator in D-Dimensional space """
 abstract type AbstractGatherScatterOperator{T,D} <: AbstractOperator{T,D} end
 
-""" Interpolation operator between D-Dimensional spaces """
-abstract type AbstractInterpolationOperator{T,D} <: AbstractOperator{T,D} end
-
 ###
 # AbstractSpace subtypes
 ###
@@ -97,28 +94,25 @@ include("DeformSpace.jl")
 
 # polynomial spaces
 include("LagrangeMatrices.jl")
-#include("LagrangePolynomialSpace.jl")
+include("LagrangePolynomialSpace.jl")
 #include("GalerkinOperators.jl")
 
 # fourier spaces
 #include("FourierSpace.jl")
 
 export 
-       # fields
-       Field,
-
-       # operator conveniences
-       IdentityOp, NullOp, AffineOp, ComposeOp, InverseOp, # overload op(u,p,t)
-
-       # Concrete operators
-       MatrixOp, DiagonalOp, TensorProductOp2D,
-
        # Domains
        Interval, BoxDomain,
+
+       # vector calculus operators
+       grid, gradOp, massOp, laplaceOp, advectionOp, interpOp,
 
        # spaces
        LagrangePolynomialSpace,
        GaussLobattoLegendre1D, GaussLegendre1D, GaussChebychev1D,
-       GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D
+       GaussLobattoLegendre2D, GaussLegendre2D, GaussChebychev2D,
+
+       # solve
+       linsolve, makeRHS, applyBC
 
 end # module

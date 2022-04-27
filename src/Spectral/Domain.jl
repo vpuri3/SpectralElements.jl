@@ -5,8 +5,8 @@
 
 """
 args:
-    AbstractDomain
-    direction
+    AbstractDomain{T,D}
+    direction < D
 ret:
     Bool
 """
@@ -26,26 +26,28 @@ function end_points end
 ###
 
 """ 1D interval """
-struct Interval{T,Te<:Vector{T}} <: AbstractDomain{T,1}
-    end_points::Te
-    periodic::Bool
+struct Interval{T<:Number,Ttag} <: AbstractDomain{T,1}
+    x0::T
+    x1::T
+    tags::Ttag
+    isperiodic::Bool
 
-    function Interval(vec=[-1, 1], periodic = false; T=Float64)
-        vec = T.(vec)
-        new{T, typeof(vec)}(vec, periodic)
-    end
+    function Interval(x0::Number, x1::Number,
+                      tags = (nothing, nothing), isperiodic = false;
+                      T = Float64)
+        T = promote_type(T, eltype(x0), eltype(x1))
+        new{T,Ttag}(T(x0), T(x1), tags, isperiodic)
 end
 
-function isperiodic(domain::Interval, dir=1)
-    domain.periodic
+function Interval(vec=[-1, 1], isperiodic, tags; T=T)
+    Interval(vec..., isperiodic, tags; T=T)
 end
 
-function end_points(domain::Interval, dir=1)
-    domain.end_points
-end
+isperiodic(dom::Interval, dir=1) = dom.isperiodic
+end_points(dom::Interval, dir=1) = (dom.x0, dom.x1)
 
 ###
-# Interval
+# Box Domain
 ###
 
 """ D-dimensional logically reectangular domain """
@@ -59,15 +61,25 @@ struct BoxDomain{T,D,Ti} <: AbstractDomain{T,D}
     end
 end
 
-function BoxDomain(vecs::AbstractVector...;
-                   periodic=(false for i in 1:length(vecs))
+function BoxDomain(x0s, x1s,
+                   periodic = (false for i in 1:length(x0s)),
+                   tags = (nothing for i in 1:length(x0s)),
                   )
+    @assert length(x0s) == length(x1s)
+
     intervals = Interval.(vecs, periodic)
     BoxDomain(intervals)
 end
 
+struct Deformation{Tm}
+    map::Tm
+    isseparable::Bool
+end
+
+isseparable(def::Deformation) = def.isseparable
+
 """
-Deform D-dimensional domain via map
+Deform D-dimensional domain via mapping
 
 x1,...,xD = map(r1, ..., rD)
 """
