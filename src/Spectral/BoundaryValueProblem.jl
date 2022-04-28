@@ -33,7 +33,7 @@ struct BoundaryValuePDEProblem
     u0::Tu0
     bc::Tbc
 
-    lhd::Tlhs # op or func
+    lhs::Tlhs # op or func
 
     rhs_func::Trhs
     b
