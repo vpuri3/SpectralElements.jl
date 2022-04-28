@@ -3,17 +3,16 @@ module Spectral
 
 using Reexport
 
-@reexport using LinearAlgebra
 @reexport using SciMLBase
 
-using UnPack: @unpack
-using Setfield: @set!
+using LinearAlgebra
 using LinearSolve
 
+import UnPack: @unpack
+import Setfield: @set!
 import Base.ReshapedArray
 import SciMLBase: AbstractDiffEqOperator
 import Lazy: @forward
-
 import SparseArrays: sparse
 import NNlib: gather, scatter
 import FastGaussQuadrature: gausslobatto, gausslegendre, gausschebyshev
