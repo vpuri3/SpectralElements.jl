@@ -66,7 +66,7 @@ end
 
 # overloads
 for op in (
-           Base.:*, Base.:∘, Base.:+,
+           :*, :∘, :+,
           )
     @eval $op(::NullOp{D}, ::AbstractOperator{<:Number,D}) where{D} = NullOp{D}()
     @eval $op(::AbstractOperator{<:Number,D}, ::NullOp{D}) where{D} = NullOp{D}()

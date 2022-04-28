@@ -103,7 +103,7 @@ function deform(space::AbstractSpace{<:Number,D},
     DeformedSpace(space, X, dXdR, dRdX, J, Ji)
 end
 
-grid(space::DeformedSpace) = space.grid
+get_grid(space::DeformedSpace) = space.grid
 
 """
 [Dx] * u = [rx sx] * [Dr] * u
@@ -164,7 +164,7 @@ end
 # Dealiased operators
 ###
 
-function laplaceop(space1::DeformedSpace{<:Number,D},
+function laplaceOp(space1::DeformedSpace{<:Number,D},
                    space2::DeformedSpace{<:Number,D},
                    J = nothing
                   ) where{D}

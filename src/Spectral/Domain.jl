@@ -152,7 +152,7 @@ function map_from_ref(domain, ref_domain;D=D) # TODO
 end
 
 ###
-# Demos
+# Conveniences
 ###
 
 function unit_box(D, args...) # TODO not exactly unit haha

@@ -91,7 +91,9 @@ GaussLobattoLegendre2D(args...; kwargs...) = LagrangePolynomialSpace(args...; qu
 GaussLegendre2D(args...; kwargs...) = LagrangePolynomialSpace(args...; quadrature=gausslegendre, kwargs...)
 GaussChebychev2D(args...; kwargs...) = LagrangePolynomialSpace(args...; quadrature=gausschebyshev, kwargs...)
 
-grid(space::LagrangePolynomialSpace) = space.grid
+get_grid(space::LagrangePolynomialSpace) = space.grid
+get_domain(space::LagrangePolynomialSpace) = space.domain
+get_numpoints(space::LagrangePolynomialSpace) = space.points
 
 function massOp(space::LagrangePolynomialSpace)
     @unpack mass_mat = space

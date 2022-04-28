@@ -10,7 +10,7 @@ args:
 ret:
     (x1, ..., xD,) # incl end points
 """
-function grid end
+function get_grid end
 
 """
 args:
@@ -18,7 +18,17 @@ args:
 ret:
     AbstractField{Integer, D}
 """
-function global_numbering end
+function get_global_numbering end
+
+"""
+get domain
+
+args:
+    space::AbstractSpace
+ret:
+    AbstractDomain
+"""
+function get_domain end
 
 """
 args:
@@ -28,7 +38,7 @@ ret:
     ith basis function that can be evaluated
     anywhere in Space.domain
 """
-function basis end
+function get_basis end
 
 ### interpolation
 """
@@ -141,16 +151,22 @@ function advectionOp(space::AbstractSpace{<:Number,D},
     first(advectOp)
 end
 
-function divergenceOp(space::AbstractSpace{<:Number,D}) where{D}
-    X = grid(space)
-    D = grad(space)
-    div = NullOp{D}()
-    for d=1:D
-        div += D[d](X[d])
-    end
+"""
+Divergence
+"""
+function divergenceOp end # TODO write fallback using gradOp
 
-    first(div)
-end
+#function divergence(vec::Vector{AbstractSpace{<:Number,D}}, space::AbstractSpace{<:Number,D}) where{D}
+#    Dx = grad(space)
+#    div = NullOp{D}()
+#    for i=1:D
+#        Dxi = Dx[i]
+#        Vi  = V[i]
+#        div += Dxi(V[i])
+#    end
+#
+#    div
+#end
 
 ### dealiased operators
 
@@ -204,6 +220,15 @@ function advectionOp(space1::AbstractSpace{<:Number,D},
 
     first(advectOp)
 end
+
+###
+# AbstractSpectralSpace
+###
+
+"""
+get number of points
+"""
+function get_numpoints end
 
 ###
 # Tensor Product Spaces

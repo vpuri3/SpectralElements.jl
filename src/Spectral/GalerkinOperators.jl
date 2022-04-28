@@ -3,26 +3,42 @@
 # Gather-Scatter Operators - enforce continuity/ periodicity
 ###
 
+# TODO write GatherScatterOp that calls NNlib.gather, scatter
 struct GatherScatter{D} <: AbstractGatherScatterOperator{Bool,D}
     global_numbering
-    operator # implementation
+    implementation
+end
+
+function Qmatrix(n::Integer, periodic::Bool)
+    Q = sparse(I,n, n-1)
+
+    if periodic
+        Q[end,1] = 1
+    end
+
+    Q
 end
 
 function GatherScatter(space::AbstractSpectralSpace{<:Number,D}) where{D}
-    periodic = space.domain.periodic
+    domain = get_domain(space)
+    periodic = isperiodic(domain)
+    npoints = get_numpoints(space)
 
-    if !prod(periodic)
+    if !prod(periodic...)
         return IdentityOp{D}()
     end
 
-    (n,) = space.npoints
-    Q = Matrix(I,n, n-1) |> sparse
-    Q[end,1] = 1
+    Qmats = Qmatrix.(npoints, periodic)
 
-    QQt = Q * Q'
-    MatrixOp(QQt)
+    Q = if D == 1
+        MatrixOp(Qmats...)
+    elseif D == 2
+        TensorProductOp2D(Qmats...)
+    elseif D == 3
+        TensorProductOp3D(Qmats...)
+    end
 
-    GatherScatter{1}(local2gl)
+    QQt = Q * Q' # replace with call to NNlib gather-scatter
 end
 
 ###
